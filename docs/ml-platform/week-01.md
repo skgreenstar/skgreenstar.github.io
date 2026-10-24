@@ -1,0 +1,198 @@
+---
+title: "Beyond Model Accuracy — ML Platform Engineering에서 LLMOps까지"
+description: "모델 성능을 넘어 재현성, CI/CD/CT, 제조 ML, RAG·Agent 평가와 운영 설계를 연결하는 Week 01 기술 노트"
+date: 2026-10-25
+outline: deep
+---
+
+# Beyond Model Accuracy
+
+**좋은 모델을 만드는 것과 신뢰할 수 있는 AI 시스템을 운영하는 것은 다른 문제다.**
+
+> **Week 01 · ML Platform Engineering / MLOps / LLMOps**
+>
+> 이 글은 스터디 CH1~CH2의 학습 주제와 연계한 **독립적인 심화 학습 노트**입니다. 강의 원문 전체를 검증한 요약은 아니며, 실무 사례는 특정 조직이나 고객을 식별할 수 없도록 일반화했습니다. 수행하지 않은 실습을 완료했다고 주장하지 않습니다.
+
+## 1. Model Quality와 System Quality는 다르다
+
+오프라인 평가에서 높은 점수를 얻은 모델이 반드시 좋은 서비스를 만들지는 않는다. 운영 환경에서는 데이터의 생성 과정이 바뀌고, 입력 스키마가 변하며, 트래픽·비용·장애·지연시간이 품질을 좌우한다.
+
+| 관점 | 실험 단계 | 운영 단계 |
+|---|---|---|
+| 핵심 질문 | 예측할 수 있는가? | 안정적으로 신뢰할 수 있는가? |
+| 데이터 | 고정된 데이터셋 | 시간에 따라 변하는 입력 |
+| 평가 | 정확도·오차 | 품질 + 지연 + 비용 + 장애 |
+| 변경 관리 | 실험 코드 | 데이터·모델·설정·배포 버전 |
+| 실패 대응 | 재실험 | 탐지·격리·롤백 |
+
+::: tip Core thesis
+**Model quality ≠ System quality.** 플랫폼 엔지니어링은 모델을 배포하는 기술이 아니라, 데이터에서 추론 결과까지의 **변경 가능한 전체 시스템**을 관리하는 기술이다.
+:::
+
+## 2. ML Platform Engineering의 책임 경계
+
+ML 플랫폼은 Kubernetes나 GPU 자원을 제공하는 인프라 계층에 그치지 않는다. 데이터·실험·아티팩트·배포·모니터링의 반복 작업을 표준화해, 모델 개발자가 공통 문제를 매번 새로 풀지 않게 만드는 **내부 제품(Internal Developer Platform)**이다.
+
+```mermaid
+flowchart LR
+    A["Data / Validation"] --> B["Feature Pipeline"]
+    B --> C["Training / Experiment"]
+    C --> D["Model Registry"]
+    D --> E["Serving"]
+    E --> F["Monitoring"]
+    F -. "Feedback / Retraining" .-> A
+```
+
+이때 플랫폼의 성숙도를 설치한 도구의 개수로 측정하면 안 된다. 더 유용한 질문은 **실험을 재현하는 데 걸리는 시간**, **안전한 배포 리드타임**, **실패 복구 시간**, **품질 저하를 발견하기까지 걸리는 시간**이다.
+
+### 플랫폼을 과도하게 추상화하지 않기
+
+공통 파이프라인이 팀의 생산성을 높일 수 있지만, 지나치게 많은 추상화는 장애 원인 파악을 어렵게 한다. 표준화해야 할 부분(로그·권한·모델 등록·배포 게이트)과 도메인별로 열어 둘 부분(피처·모델·평가 기준)을 구분해야 한다.
+
+## 3. 재현성: 코드만 버전 관리하면 충분할까?
+
+같은 Git 커밋을 실행해도 학습 데이터의 스냅샷, 피처 정의, 패키지 버전, 랜덤 시드가 다르면 모델이 달라질 수 있다.
+
+```text
+experiment_run
+ ├── code_commit
+ ├── data_snapshot
+ ├── feature_definition + availability_time
+ ├── environment + dependency_lock
+ ├── hyperparameters + random_seed
+ ├── evaluation_dataset + metrics
+ └── model_artifact → deployment_revision
+```
+
+MLflow 같은 실험 추적 도구는 실행 결과를 연결하는 중심이 될 수 있다. 하지만 데이터 품질 검사, 접근 권한, 배포 승인, 실제 운영 관측은 별도의 설계가 필요하다.
+
+**핵심은 최고 점수 기록이 아니라 변경의 원인을 역추적할 수 있는가**이다.
+
+## 4. CI / CD / CT는 서로 다른 자동화다
+
+| 구분 | 주요 트리거 | 검증 대상 | 산출물 |
+|---|---|---|---|
+| CI | 코드·설정 변경 | 단위 테스트, 데이터 계약, 이미지 빌드 | 검증된 빌드 |
+| CD | 릴리스 승인 | 스테이징, 통합 테스트, 배포 정책 | 운영 배포 |
+| CT | 새 데이터·드리프트·주기 | 데이터 검증, 재학습, 후보 모델 평가 | 새로운 모델 후보 |
+
+```mermaid
+flowchart LR
+    Git["Git commit"] --> CI["CI: test / build"]
+    CI --> Registry["Container registry"]
+    Registry --> GitOps["GitOps / CD"]
+    GitOps --> K8s["Kubernetes"]
+    K8s --> Observe["Observe"]
+    Observe -. "drift / new data" .-> CT["CT: retrain / evaluate"]
+    CT -. "candidate model" .-> Registry
+```
+
+CH3의 Kubernetes·CI/CD 학습은 이 흐름을 실제 환경에 연결하기 위한 기반이다. GitOps를 도입할 때도 **Git 상태와 실제 클러스터 상태의 차이를 어떻게 감지·복구할 것인가**가 핵심이다.
+
+::: warning 실습 상태
+위 다이어그램은 **개념 아키텍처**이며, Harbor·GitLab Runner·Argo CD 등의 실습 완료를 의미하지 않습니다.
+:::
+
+## 5. 제조 ML: 낮은 MAPE가 좋은 모델을 의미할까?
+
+제조·산업 시계열에서는 목표 변수의 변동폭이 좁은 경우가 많다. 이때 평균에 가까운 값만 예측해도 상대 오차(MAPE)는 작게 나올 수 있지만, 실제 운전 변화에 대한 설명력(R²)은 낮을 수 있다.
+
+예를 들어 목표값이 대부분 100 전후에 모여 있다면 100을 계속 출력하는 모델도 낮은 MAPE를 보일 수 있다. 그러나 공정 조건이 바뀌었을 때 목표값이 왜 움직이는지는 포착하지 못한다.
+
+따라서 평가 질문을 다음과 같이 바꿔야 한다.
+
+1. **분포 이동:** 학습 범위를 벗어나는 운전 조건은 무엇인가?
+2. **피처 리키지:** 추론 시점에 실제로 확보할 수 없는 정보가 피처에 포함되었는가?
+3. **구간별 성능:** 특정 공정·운전 구간에서만 오차가 커지는가?
+4. **의사결정 유효성:** 예측값을 현업의 운영 제약 안에서 활용할 수 있는가?
+
+### Point-in-time correctness
+
+시간에 따라 기록되는 센서·공정 데이터에서는 단순한 랜덤 분할보다 시간 기반 검증이 중요할 수 있다. 특히 파생변수를 만들 때 **예측하려는 시점 이후에야 알 수 있는 값**이 섞이지 않았는지 확인해야 한다.
+
+이 문제는 Feast 같은 피처 관리 도구를 공부할 때도 중요하다. 피처 저장소가 존재한다는 사실 자체가 리키지를 자동으로 막아 주는 것은 아니며, 피처 정의와 시점 정합성에 대한 검증이 필요하다.
+
+## 6. LLMOps: LLM만 버전 관리하면 재현 가능한가?
+
+RAG 서비스는 기반 LLM이 같아도 문서 수집 시점, 청킹, 임베딩, 인덱스, 검색 설정, 프롬프트, 재정렬 방식에 따라 결과가 달라진다.
+
+```mermaid
+flowchart LR
+    D["Documents"] --> C["Chunking"]
+    C --> E["Embedding"]
+    E --> I["Index"]
+    Q["Question"] --> R["Retriever"]
+    I --> R
+    R --> P["Prompt / Context"]
+    P --> L["LLM"]
+    L --> O["Answer + Trace"]
+```
+
+운영 시 최소한 다음 변경 단위를 추적할 필요가 있다.
+
+- **데이터:** 문서 스냅샷, 수집·전처리 버전
+- **검색:** 임베딩 모델, 인덱스 버전, Top-K, 필터, 재정렬
+- **생성:** 모델 버전, 프롬프트 템플릿, 생성 설정
+- **Agent:** 도구 스키마, 실행 정책, 권한, 중간 단계 기록
+- **평가:** 테스트셋 버전, 평가자, 기준 점수, 회귀 결과
+
+### Agent에서는 최종 답변만 보면 부족하다
+
+Agent가 실패했을 때 원인은 검색 실패, 잘못된 도구 선택, 인자 구성 오류, 권한 거부, 외부 API 장애 등 다양하다. 따라서 **최종 답변 품질**과 **각 단계의 실행 성공률**을 분리해 평가해야 한다.
+
+## 7. Evaluation과 Observability를 구분하기
+
+평가(Evaluation)는 *시스템이 얼마나 잘 동작하는가*를 판단하는 기준이고, 관측 가능성(Observability)은 *왜 그런 결과가 나왔는가*를 조사할 수 있게 하는 능력이다.
+
+| 계층 | 평가 질문 | 관측 대상 |
+|---|---|---|
+| Retrieval | 관련 문서를 찾았는가? | 검색 쿼리, Top-K, 점수, 인덱스 버전 |
+| Generation | 근거에 충실한가? | 프롬프트, 컨텍스트, 응답, 토큰 |
+| Agent | 목표를 완수했는가? | 도구 선택, 호출 인자, 오류, 재시도 |
+| Serving | 요구 SLO를 만족하는가? | p50/p95 지연, 오류율, 처리량, 비용 |
+
+RAGAS 등의 자동 평가는 유용하지만, **Faithfulness는 제공된 근거에 대한 충실성**을 평가하는 개념이다. 외부 세계에서 사실인지를 자동으로 보장하지는 않는다. 자동 평가와 도메인 골든셋, 사람의 평가를 함께 설계하는 편이 안전하다.
+
+Langfuse 같은 추적 도구를 사용할 때도 개인정보·민감정보 마스킹, 로그 보존 기간, 접근 권한을 설계해야 한다. 모든 요청을 무제한 저장하는 것이 곧 좋은 관측 가능성은 아니다.
+
+## 8. 시스템 설계의 트레이드오프
+
+> **Quality × Reliability × Latency × Cost**
+>
+> 네 요소를 동시에 무한히 최적화할 수는 없다.
+
+큰 모델은 품질을 높일 가능성이 있지만 비용·지연이 증가할 수 있다. 검색 Top-K를 늘리면 재현율이 개선될 수 있지만 불필요한 문서가 섞이고 컨텍스트 비용이 늘 수 있다. 따라서 모델이나 프레임워크를 먼저 선택하기보다 **사용자 경험과 운영 제약**을 먼저 정의하는 편이 좋다.
+
+### 실무에 적용할 네 가지 원칙
+
+1. **검증 가능한 변경:** 코드·데이터·모델·프롬프트·인덱스를 릴리스 단위로 식별한다.
+2. **안전한 배포:** 오프라인 평가, 점진적 노출, 롤백 기준을 둔다.
+3. **원인 추적:** 결과 점수뿐 아니라 실행 경로를 관찰한다.
+4. **목적에 맞는 복잡도:** 작은 서비스에 과도한 플랫폼을 강요하지 않는다.
+
+## 9. 다음 학습: MLflow · Feast · Kubeflow
+
+다음 주에는 다음 연결 고리를 더 구체적으로 공부한다.
+
+| 도구 | 주요 학습 질문 |
+|---|---|
+| **MLflow** | 실험 실행과 모델 아티팩트를 어떻게 추적·관리하는가? |
+| **Feast** | 학습·서빙 피처의 정의와 시점 정합성을 어떻게 관리하는가? |
+| **Kubeflow** | Kubernetes 환경에서 ML 워크플로를 어떻게 구성하는가? |
+
+이번 주의 Kubernetes·CI/CD 환경 구성은 후속 실습의 기반이므로, **학습 개념과 실제 구축·검증 결과를 구분해** 이어서 기록할 예정이다.
+
+---
+
+### Takeaway
+
+**운영 가능한 AI는 모델 파일이 아니라, 변경을 추적하고 검증하며 되돌릴 수 있는 시스템이다.**
+
+### Further reading
+
+- [Google — Rules of Machine Learning](https://developers.google.com/machine-learning/guides/rules-of-ml)
+- [Google — Hidden Technical Debt in Machine Learning Systems](https://papers.nips.cc/paper/5656-hidden-technical-debt-in-machine-learning-systems)
+- [MLflow Documentation](https://mlflow.org/docs/latest/index.html)
+- [Feast Documentation](https://docs.feast.dev/)
+- [Kubeflow Documentation](https://www.kubeflow.org/docs/)
+- [VitePress Documentation](https://vitepress.dev/)
