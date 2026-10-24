@@ -22,8 +22,10 @@ export default defineConfig({
       '/ml-platform/': [
         { text: 'ML Platform Engineering', items: [
           { text: 'Overview', link: '/ml-platform/' },
-          { text: '01 · Beyond Model Accuracy', link: '/ml-platform/week-01' },
-          { text: '02 · MLflow / Feast / Kubeflow (예정)', link: '/ml-platform/' }
+          { text: '01 · ML Lifecycle', link: '/ml-platform/week-01' },
+          { text: '02 · MLOps', link: '/ml-platform/week-02' },
+          { text: '03 · Platform Architecture', link: '/ml-platform/week-03' },
+          { text: '심화 · Evaluation', link: '/ml-platform/evaluation-and-operations' }
         ]}
       ],
       '/writing/': [
