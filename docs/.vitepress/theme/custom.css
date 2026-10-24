@@ -26,3 +26,6 @@
 .heemin-card p{font-size:14px;color:var(--vp-c-text-2);line-height:1.8;margin:0}
 .vp-doc img[src^="/diagrams/"]{width:100%;background:#f5f8ff;border:1px solid #dce6f5;border-radius:16px}
 @media(max-width:760px){.heemin-hero{grid-template-columns:1fr;padding:30px 0 58px}.heemin-art{min-height:180px}.heemin-art img{max-height:220px}.heemin-cards{grid-template-columns:1fr}.heemin-intro h1{font-size:42px}}
+
+/* Force a consistent white documentation canvas regardless of OS dark preference. */
+:root{color-scheme:light;--vp-c-bg:#fff;--vp-c-bg-alt:#f8fafc;--vp-c-bg-elv:#fff;--vp-c-bg-soft:#f4f7fc;--vp-c-text-1:#17243b;--vp-c-text-2:#506079;--vp-c-text-3:#6e7e94;--vp-c-divider:#e3e9f1;--vp-c-gutter:#edf1f7;--vp-c-default-soft:#f3f6fa;--vp-c-default-1:#e5eaf2;--vp-c-default-2:#dce4ee;--vp-code-block-bg:#17243b;--vp-code-line-highlight-color:#ffffff13;--vp-c-brand-soft:#eff6ff}html,body{background:#fff;color:#17243b}.VPNavBar,.VPSidebar,.VPDocAside,.VPContent,.VPDoc,.VPFooter{color:var(--vp-c-text-1)}.VPNavBar{background:#fffffff0!important}.VPSidebar{background:#fff!important}.vp-doc{color:#263650}.vp-doc p,.vp-doc li{color:#46556c}.vp-doc a{color:#2563eb}.heemin-card{background:#fff}.heemin-art{background:linear-gradient(135deg,#edf4ff,#f3faff)}
