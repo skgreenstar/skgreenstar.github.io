@@ -63,3 +63,16 @@ html,body{background:var(--vp-c-bg)}
  .heemin-cards{grid-template-columns:1fr}.heemin-intro h1{font-size:42px}
  .vp-doc table{display:block;overflow-x:auto}
 }
+
+/* Editorial code surfaces: dark terminal cards inside the light site. */
+.vp-doc div[class*="language-"]{border:1px solid #303e56;border-radius:15px;background:#111927;box-shadow:0 10px 28px #18263c13;overflow:hidden;margin:22px 0 30px}
+.vp-doc div[class*="language-"]::before{content:"";display:block;position:absolute;top:16px;left:18px;width:9px;height:9px;border-radius:50%;background:#ff6464;box-shadow:16px 0 #ffbd4a,32px 0 #39c96b;z-index:2}
+.vp-doc div[class*="language-"]>span.lang{position:absolute;top:10px;left:76px;right:auto;color:#aab8cf;font-family:var(--vp-font-family-mono);font-size:12px;font-weight:600;opacity:1}
+.vp-doc div[class*="language-"]>button.copy{top:8px;right:12px;border:1px solid #35455e;background:#1d2a3e;border-radius:7px;opacity:1}
+.vp-doc div[class*="language-"]>button.copy:hover{background:#293b56}
+.vp-doc div[class*="language-"]>span.lang,.vp-doc div[class*="language-"]>button.copy{z-index:3}
+.vp-doc div[class*="language-"]>pre{padding-top:54px!important;padding-bottom:20px!important;background:#111927}
+.vp-doc div[class*="language-"] code{font-size:13px;line-height:1.85}
+.vp-doc div[class*="language-"] .line-numbers-wrapper{padding-top:54px}
+.vp-doc div[class*="language-"] .highlighted{background:#2563eb22}
+@media(max-width:760px){.vp-doc div[class*="language-"]{border-radius:12px;margin-left:0;margin-right:0}.vp-doc div[class*="language-"] code{font-size:12px}}
