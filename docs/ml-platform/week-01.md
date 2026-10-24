@@ -82,7 +82,21 @@ ML Lifecycle에서 놓치기 쉬운 부분은 단계 자체보다 **단계 사�
 
 이 세 질문이 다음 글에서 다룰 MLOps 자동화의 출발점이다.
 
-## 직접 확인해 보기: 데이터 분할이 달라지면
+## 5.1 운영에서 구분해야 할 세 가지 변화
+
+| 개념 | 의미 | 확인할 것 |
+|---|---|---|
+| **Data Drift** | 입력 변수의 분포가 학습 시점과 달라짐 | 센서 교체, 계절성, 운전 조건 변화 |
+| **Concept Drift** | 입력과 목표값 사이의 관계가 달라짐 | 같은 조건에서 결과가 달라지는지, 지연 라벨로 확인 |
+| **Training-Serving Skew** | 학습과 추론의 피처 생성·처리 방식이 다름 | 스케일링, 결측치 처리, 피처 정의와 버전 |
+
+Data Drift가 있다고 반드시 성능이 떨어지는 것은 아니고, Concept Drift는 정답 라벨이 늦게 도착하면 즉시 판정하기 어렵다. Training-Serving Skew는 분포 변화가 아니라 **학습·서빙 구현의 불일치**라는 점에서 구분해야 한다.
+
+## 5.2 모델 평가와 배포 사이에 남는 질문
+
+모델을 학습할 때는 데이터 누수(Data Leakage), 특히 **추론 시점에는 알 수 없는 미래 정보**가 피처에 들어갔는지 확인한다. 모델이 배포된 뒤에는 입력 스키마뿐 아니라 전처리 코드와 피처 정의가 학습 시점과 동일한지도 확인한다.
+
+## 6. 데이터 분할로 확인하는 시점 정합성
 
 같은 모델이라도 데이터를 어떻게 나누느냐에 따라 평가 결과가 달라진다. 시계열 데이터라면 미래 데이터를 학습에 섞지 않도록 시간 순서를 유지하는 것이 출발점이다.
 
@@ -90,17 +104,21 @@ ML Lifecycle에서 놓치기 쉬운 부분은 단계 자체보다 **단계 사�
 import pandas as pd
 
 df = pd.read_csv("measurements.csv", parse_dates=["timestamp"])
-df = df.sort_values("timestamp")
+df = df.sort_values("timestamp").reset_index(drop=True)
 
-cutoff = int(len(df) * 0.8)
-train = df.iloc[:cutoff]
-test = df.iloc[cutoff:]
+# 같은 시각의 관측값이 양쪽에 섞이지 않도록 시각 기준으로 분리
+unique_times = df["timestamp"].dropna().unique()
+assert len(unique_times) >= 2, "At least two distinct timestamps required"
+cutoff = unique_times[int(len(unique_times) * 0.8)] if len(unique_times) >= 5 else unique_times[-1]
+train = df[df["timestamp"] < cutoff]
+test = df[df["timestamp"] >= cutoff]
 
+assert not train.empty and not test.empty
 assert train["timestamp"].max() < test["timestamp"].min()
 print(f"train={len(train)}, test={len(test)}")
 ```
 
-`measurements.csv`는 `timestamp` 컬럼이 있는 데이터를 가정한다. 이 코드는 시간 분할의 기본 형태이며, 시간적으로 인접한 관측치의 누수나 피처 생성 과정의 미래 정보 사용까지 자동으로 방지하지는 않는다.
+`measurements.csv`는 결측치 없는 `timestamp` 컬럼이 있고 서로 다른 시각이 최소 2개인 데이터를 가정한다. 이 코드는 시간 분할의 기본 형태이며, 시간적으로 인접한 관측치의 누수나 피처 생성 과정의 미래 정보 사용까지 자동으로 방지하지는 않는다.
 
 ```bash [terminal]
 python -m venv .venv
