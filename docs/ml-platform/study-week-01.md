@@ -10,9 +10,9 @@ outline: deep
 **학습 범위:** CH1–3 · ML Lifecycle, MLOps 기초, Kubernetes CI/CD(GitLab)  
 **스터디 일정:** 2026.10.18 · Machine Learning Platform Engineering Study
 
-> CH1~3의 주요 주제를 바탕으로 ML Lifecycle, MLOps, Kubernetes CI/CD가 어떻게 이어지는지 정리했다. GitLab 파이프라인은 추가 조사한 **학습용 예시**이며, 실제 클러스터에서 실행·검증한 결과는 아니다.
+모델을 학습시키는 것과 그 모델을 안정적으로 운영하는 것은 다른 문제다. 이번 범위에서 가장 중요하게 본 부분은 **데이터와 모델의 변경 이력을 관리하고, 검증된 결과만 서비스에 반영하는 흐름**이다. ML Lifecycle에서 출발해 MLOps의 검증 절차를 거쳐 Kubernetes 배포까지 연결해 보았다.
 
-## 1. 이번 주차에서 답하고 싶은 질문
+## 1. 모델 개발과 운영 사이에 필요한 것들
 
 | 주제 | 핵심 질문 | 상세 글 |
 |---|---|---|
@@ -22,7 +22,7 @@ outline: deep
 
 ![ML 변경 관리와 릴리스 승인 흐름](/diagrams/ml-release-gates.svg)
 
-## 2. 세 장을 하나의 흐름으로 연결하면
+## 2. Lifecycle부터 배포까지 연결하기
 
 ML Lifecycle은 **무엇을 관리해야 하는지**, MLOps는 **변경을 어떤 기준으로 검증할지**, Kubernetes와 CI/CD는 **승인된 산출물을 어떻게 실행 환경에 전달할지**에 답한다.
 
@@ -34,20 +34,20 @@ ML Lifecycle은 **무엇을 관리해야 하는지**, MLOps는 **변경을 어�
 
 **CI 통과가 모델 품질 통과를 뜻하지 않고, Kubernetes의 Pod가 정상이라는 사실이 예측 정확도를 보장하지도 않는다.** 이 두 경계를 분리하는 것이 핵심이다.
 
-## 3. 추가 학습 · GitLab CI/CD와 Kubernetes
+## 3. GitLab CI/CD로 연결하는 Kubernetes 배포
 
-기존 [MLOps 글](/ml-platform/week-02)은 GitHub Actions로 최소 데이터 검증을 설명했다. 1주차의 Kubernetes CI/CD 범위에 맞춰 **GitLab CI 파이프라인에서 무엇을 어디까지 자동화하는지**도 비교했다.
+[MLOps의 변경 관리](/ml-platform/week-02)를 CI 파이프라인에 적용하면 어디까지 자동화할 수 있을까? GitLab CI를 기준으로 데이터 검증, 이미지 빌드, Kubernetes 배포를 나눠 보았다. 중요한 것은 자동화 범위 자체보다 **각 단계가 실패했을 때 다음 단계로 넘어가지 않도록 하는 것**이다.
 
 | 단계 | GitLab CI에서 하는 일 | 모델 플랫폼에서 추가로 필요한 판단 |
 |---|---|---|
-| Validate | 코드 테스트·입력 스키마 검증 | 피처 시점 정합성, 데이터 누수 |
+| Validate | 필수 컬럼·결측치 검증 | 타입·값 범위·시점 정합성은 별도 검증 |
 | Build | 컨테이너 이미지 생성·레지스트리 푸시 | 모델 아티팩트와 이미지의 버전 호환성 |
 | Evaluate (확장 단계) | 현재 예제에는 미구현 | 기준 모델 대비 회귀 여부와 업무 제약 |
-| Deploy | 승인된 이미지의 Kubernetes 배포 | 롤백 조건, 리소스·보안·관측 정책 |
+| Deploy | 수동 승인 후 Kubernetes 이미지 교체 | 롤백 조건, 리소스·보안·관측 정책 |
 
 ### GitLab CI 최소 구조 · 데이터 검증, 이미지 빌드, 수동 배포
 
-아래 YAML은 **기존 Kubernetes Deployment가 준비되어 있고**, GitLab Container Registry를 사용할 수 있으며, Runner에서 Docker-in-Docker와 `kubectl` 실행이 가능하도록 구성한 환경을 전제로 한다. Kubernetes 인증 정보는 CI 변수로 주입해야 한다.
+아래는 단계를 이해하기 위한 최소 구성이다. 이미지 빌드에는 Docker-in-Docker가 가능한 Runner가 필요하고, 배포 Job에는 클러스터 접근 권한이 필요하다. 실제 파이프라인에서는 Runner 권한과 비밀정보 관리부터 확인해야 한다.
 
 ```yaml [.gitlab-ci.yml]
 stages:
@@ -89,7 +89,7 @@ build:
 deploy:
   stage: deploy
   image:
-    name: bitnami/kubectl:1.31
+    name: alpine/k8s:1.31.4
     entrypoint: [""]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -101,17 +101,17 @@ deploy:
     - kubectl rollout status deployment/ml-serving --timeout=180s
 ```
 
-**실행 전 준비할 것:** `validate_data.py`와 `train.csv`, `train.py`, `Dockerfile`, `ml-serving` Deployment, 레지스트리 접근 권한, `KUBE_CONTEXT`가 필요하다. Docker-in-Docker의 TLS 및 Runner 설정과 클러스터 접근 방식은 설치 환경에 따라 달라진다. 예시의 `kubectl` 이미지는 실제 사용 전 태그 가용성과 조직 정책을 확인해야 한다.
+**구성 전 확인 사항:** `validate_data.py`, `train.csv`, `train.py`, `Dockerfile`과 기존 `ml-serving` Deployment가 필요하다. Docker-in-Docker용 Runner 설정, 레지스트리 인증, GitLab Agent 기반 Kubernetes 접근 및 `KUBE_CONTEXT` 설정도 환경에 맞게 준비해야 한다. 컨테이너 이미지 태그와 CLI 호환성은 적용 환경에서 확인한다.
 
-이 파이프라인은 **데이터 검증 → 모델 아티팩트 생성·이미지 빌드 → 수동 승인 배포**만 보여준다. CT·모델 평가 게이트는 구현하지 않았으며, 실서비스라면 배포 전에 평가 Job과 보안 검증을 추가해야 한다. 또한 GitOps를 선택한다면 `kubectl set image` 대신 선언형 배포 설정을 변경하고 동기화하는 방식이 더 적절할 수 있다.
+여기서 **모델 아티팩트 생성은 예제의 빌드 과정**이지, 새로운 운영 데이터에 대한 CT 파이프라인은 아니다. 별도의 모델 평가·승인 절차 없이 운영에 반영하면 안 된다. 또한 위 방식은 명령형 배포이므로 GitOps를 도입했다면 `kubectl set image` 대신 Git에 선언된 이미지 태그를 변경하고 동기화하는 편이 일관적이다.
 
-## 4. 실무에 적용할 때 생각할 점
+## 4. 운영 환경에서는 무엇을 더 검증해야 할까?
 
 산업 시계열에서는 시간 분할을 했더라도 미래값이 파생 피처에 섞이거나, 학습 시점과 서빙 시점의 전처리가 달라질 수 있다. 따라서 **데이터 계약과 시점 정합성 검증을 분리**하는 편이 좋다.
 
 RAG·Agent 시스템에서도 원리는 비슷하다. 코드 테스트가 통과하더라도 검색 품질이나 답변의 근거 충실성이 나빠질 수 있으므로, 서비스에 맞는 별도의 평가 게이트가 필요하다.
 
-## 5. 정리
+## 5. 이번 주차에서 정리한 기준
 
 - **Lifecycle:** 데이터·모델·평가·운영의 연결을 추적한다.
 - **MLOps:** 변경을 반복 가능하게 검증하고 승인한다.
