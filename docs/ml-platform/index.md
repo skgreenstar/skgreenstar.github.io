@@ -4,6 +4,9 @@
 
 ## 1주차 · ML 시스템의 기반
 
+**[Week 01 과제 제출용 요약 · CH1–3](/ml-platform/study-week-01)** — 세 장의 연결 구조와 GitLab CI/CD 추가 학습을 한 페이지에서 확인합니다.
+
+
 ### [01. 모델을 만들고 나서 시작되는 일들](/ml-platform/week-01)
 ML Lifecycle, 재현성, 시계열 검증과 학습·서빙 일치성.
 
