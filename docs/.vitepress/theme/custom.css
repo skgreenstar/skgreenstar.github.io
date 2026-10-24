@@ -1,11 +1,44 @@
-:root{--vp-c-brand-1:#2563eb;--vp-c-brand-2:#1d4ed8;--vp-c-brand-3:#1e40af;--vp-c-brand-soft:#eff6ff;--vp-font-family-base:Inter,-apple-system,BlinkMacSystemFont,'Noto Sans KR',sans-serif;--vp-layout-max-width:1440px}.VPHome .VPHero .name{letter-spacing:-.06em}.VPHome .VPHero .text{letter-spacing:-.055em}.VPFeature{border-radius:16px!important}.vp-doc h2{margin-top:52px}.vp-doc blockquote{border-left:4px solid var(--vp-c-brand-1);background:var(--vp-c-bg-soft);padding:12px 18px}.vp-doc table{display:table;width:100%}.vp-doc img{border-radius:12px;border:1px solid var(--vp-c-divider)}@media(max-width:760px){.vp-doc table{display:block;overflow-x:auto}}
-
-/* Portfolio landing page: retain the original clean, editorial design. */
+:root {
+  color-scheme: light;
+  --vp-c-brand-1: #2563eb;
+  --vp-c-brand-2: #1d4ed8;
+  --vp-c-brand-3: #1e40af;
+  --vp-c-brand-soft: #eff6ff;
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-alt: #f8fafc;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: #f4f7fc;
+  --vp-c-text-1: #17243b;
+  --vp-c-text-2: #506079;
+  --vp-c-text-3: #6e7e94;
+  --vp-c-divider: #e3e9f1;
+  --vp-c-gutter: #edf1f7;
+  --vp-code-block-bg: #18263c;
+  --vp-font-family-base: Inter, -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;
+  --vp-layout-max-width: 1440px;
+}
+html,body{background:var(--vp-c-bg)}
+.VPNavBar{background:#fffffff0!important;backdrop-filter:blur(12px)}
+.VPSidebar{background:var(--vp-c-bg)!important}
+.VPDoc .content-container{max-width:820px!important}
+.vp-doc{font-size:15px;line-height:1.9}
+.vp-doc h1{font-size:clamp(32px,4vw,43px);line-height:1.25;letter-spacing:-.05em}
+.vp-doc h2{font-size:26px;letter-spacing:-.035em;margin-top:54px}
+.vp-doc h3{font-size:19px;letter-spacing:-.02em;margin-top:33px}
+.vp-doc p,.vp-doc li{color:#45566e}
+.vp-doc strong{color:#1d3558}
+.vp-doc a{color:var(--vp-c-brand-1)}
+.vp-doc blockquote{border-left:3px solid var(--vp-c-brand-1);background:var(--vp-c-bg-soft);padding:12px 18px}
+.vp-doc table{display:table;width:100%;font-size:13px}
+.vp-doc th{background:#f2f6fd;color:#214d89}
+.vp-doc td{line-height:1.7}
+.vp-doc img{border:1px solid var(--vp-c-divider);border-radius:15px}
+.vp-doc img[src^="/diagrams/"]{width:100%;background:#f5f8ff}
 .heemin-home{max-width:1100px;margin:0 auto;padding:10px 10px 55px}
 .heemin-hero{display:grid;grid-template-columns:1.5fr 1fr;gap:50px;align-items:center;padding:65px 0 78px}
-.heemin-eyebrow{font-size:12px;font-weight:800;letter-spacing:.15em;color:#2563eb}
+.heemin-eyebrow{font-size:12px;font-weight:800;letter-spacing:.15em;color:var(--vp-c-brand-1)}
 .heemin-intro h1{font-size:clamp(38px,5.5vw,67px);line-height:1.15;letter-spacing:-.07em;font-weight:800;margin:18px 0 23px;border:0;padding:0}
-.heemin-intro h1 span{color:#2563eb}
+.heemin-intro h1 span{color:var(--vp-c-brand-1)}
 .heemin-intro>p{font-size:18px;line-height:1.8;color:var(--vp-c-text-2);max-width:630px}
 .heemin-art{border-radius:28px;background:linear-gradient(135deg,#edf4ff,#f3faff);display:flex;align-items:center;justify-content:center;min-height:300px;overflow:hidden}
 .heemin-art img{width:100%;max-width:430px;height:auto;border:0}
@@ -13,19 +46,20 @@
 .heemin-tags span{font-size:12px;font-weight:700;color:#365e9c;background:#eef4ff;border:1px solid #dbe7ff;padding:5px 12px;border-radius:30px}
 .heemin-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
 .heemin-actions a{padding:11px 18px;border-radius:10px;border:1px solid var(--vp-c-divider);font-weight:700;text-decoration:none}
-.heemin-actions a.primary{background:#2563eb;color:white;border-color:#2563eb}
+.heemin-actions a.primary{background:var(--vp-c-brand-1);color:#fff;border-color:var(--vp-c-brand-1)}
 .heemin-section{margin:0 0 76px}
 .heemin-section-heading{display:flex;justify-content:space-between;gap:15px;align-items:start;margin-bottom:25px}
 .heemin-section-heading h2{font-size:28px;letter-spacing:-.045em;margin:0;padding:0;border:0}
 .heemin-section-heading p,.heemin-section-heading>span{font-size:14px;color:var(--vp-c-text-2);margin:6px 0}
 .heemin-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-.heemin-card{display:block;padding:27px;border:1px solid var(--vp-c-divider);border-radius:17px;color:var(--vp-c-text-1);text-decoration:none!important;transition:transform .2s,box-shadow .2s}
+.heemin-card{display:block;padding:27px;background:#fff;border:1px solid var(--vp-c-divider);border-radius:17px;color:var(--vp-c-text-1);text-decoration:none!important;transition:transform .2s,box-shadow .2s}
 .heemin-card:hover{transform:translateY(-3px);box-shadow:0 12px 35px #243c6813}
-.heemin-card small{font-size:11px;font-weight:800;letter-spacing:.07em;color:#2563eb}
+.heemin-card small{font-size:11px;font-weight:800;letter-spacing:.07em;color:var(--vp-c-brand-1)}
 .heemin-card h3{font-size:21px;letter-spacing:-.03em;margin:12px 0}
 .heemin-card p{font-size:14px;color:var(--vp-c-text-2);line-height:1.8;margin:0}
-.vp-doc img[src^="/diagrams/"]{width:100%;background:#f5f8ff;border:1px solid #dce6f5;border-radius:16px}
-@media(max-width:760px){.heemin-hero{grid-template-columns:1fr;padding:30px 0 58px}.heemin-art{min-height:180px}.heemin-art img{max-height:220px}.heemin-cards{grid-template-columns:1fr}.heemin-intro h1{font-size:42px}}
-
-/* Force a consistent white documentation canvas regardless of OS dark preference. */
-:root{color-scheme:light;--vp-c-bg:#fff;--vp-c-bg-alt:#f8fafc;--vp-c-bg-elv:#fff;--vp-c-bg-soft:#f4f7fc;--vp-c-text-1:#17243b;--vp-c-text-2:#506079;--vp-c-text-3:#6e7e94;--vp-c-divider:#e3e9f1;--vp-c-gutter:#edf1f7;--vp-c-default-soft:#f3f6fa;--vp-c-default-1:#e5eaf2;--vp-c-default-2:#dce4ee;--vp-code-block-bg:#17243b;--vp-code-line-highlight-color:#ffffff13;--vp-c-brand-soft:#eff6ff}html,body{background:#fff;color:#17243b}.VPNavBar,.VPSidebar,.VPDocAside,.VPContent,.VPDoc,.VPFooter{color:var(--vp-c-text-1)}.VPNavBar{background:#fffffff0!important}.VPSidebar{background:#fff!important}.vp-doc{color:#263650}.vp-doc p,.vp-doc li{color:#46556c}.vp-doc a{color:#2563eb}.heemin-card{background:#fff}.heemin-art{background:linear-gradient(135deg,#edf4ff,#f3faff)}
+@media(max-width:760px){
+ .heemin-hero{grid-template-columns:1fr;padding:30px 0 58px}
+ .heemin-art{min-height:180px}.heemin-art img{max-height:220px}
+ .heemin-cards{grid-template-columns:1fr}.heemin-intro h1{font-size:42px}
+ .vp-doc table{display:block;overflow-x:auto}
+}
