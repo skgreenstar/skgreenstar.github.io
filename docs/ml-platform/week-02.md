@@ -79,6 +79,53 @@ Deploy → Monitor → Roll back if needed
 
 **자동화의 목적은 사람이 판단할 일을 없애는 것이 아니라, 판단에 필요한 증거를 반복 가능하게 만드는 것**이라고 생각한다.
 
+## 코드로 보는 첫 번째 품질 게이트
+
+CI에서 가장 먼저 확인할 것은 거창한 학습 파이프라인보다 **입력 데이터가 약속한 형식을 지키는가**다. 아래는 필수 컬럼과 결측치를 확인하는 최소 예시다.
+
+```python [validate_data.py]
+import pandas as pd
+
+REQUIRED_COLUMNS = {"timestamp", "temperature", "target"}
+
+def validate(df: pd.DataFrame) -> None:
+    missing = REQUIRED_COLUMNS - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing columns: {sorted(missing)}")
+    if df[list(REQUIRED_COLUMNS)].isna().any().any():
+        raise ValueError("Null values in required columns")
+
+if __name__ == "__main__":
+    validate(pd.read_csv("train.csv"))
+    print("Data contract passed")
+```
+
+```bash [terminal]
+python -m pip install pandas
+python validate_data.py
+```
+
+이 코드는 **최소 데이터 계약**만 검사한다. 실제 운영에서는 값의 범위, 데이터 타입, 시점 정합성, 분포 변화 등도 검증해야 한다.
+
+```yaml [data-check.yml]
+name: Data contract
+on: [push, pull_request]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pandas
+      - run: python validate_data.py
+```
+
+위 워크플로는 저장소 루트에 `validate_data.py`와 `train.csv`가 있는 구조를 가정한다. GitHub Actions에서는 `.github/workflows/data-check.yml`에 저장한다.
+
+
 ---
 
 **이전 글:** [모델을 만들고 나서 시작되는 일들](/ml-platform/week-01)  
