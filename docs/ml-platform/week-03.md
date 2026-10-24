@@ -105,7 +105,7 @@ Operator review or approved control system
 
 이 흐름은 개념적 구성이며, 실제 설비 제어는 별도의 안전 계층과 현장 승인 절차가 필요하다. **예측 API가 정상 응답한다는 사실은 제어에 사용해도 안전하다는 뜻이 아니다.**
 
-## 6. 작은 모델을 서빙하는 최소 구현
+## 6. 학습한 모델을 서빙하는 최소 구현
 
 아키텍처 그림만 보면 각 구성 요소가 추상적으로 느껴질 수 있다. 아래는 **작은 예측 모델을 FastAPI로 서빙하고 Kubernetes에 배포하는 최소 구조**다. 학습·모델 로딩과 서빙을 구분하되, 인증과 모니터링 등 운영 기능은 별도로 설계해야 한다.
 
@@ -113,7 +113,8 @@ Operator review or approved control system
 ml-serving/
 ├── app/
 │   ├── main.py
-│   └── model.json
+│   └── model.json       # train.py 실행 시 생성
+├── train.py
 ├── requirements.txt
 ├── Dockerfile
 └── k8s/
@@ -142,6 +143,34 @@ def predict(request: PredictRequest):
     return {"prediction": round(prediction, 3), "model_version": MODEL["version"]}
 ```
 
+### 1단계 · 모델을 학습하고 아티팩트를 생성한다
+
+아래는 합성 데이터로 선형 회귀 모델을 학습한 뒤, **추론에 필요한 계수와 버전만 JSON으로 저장**하는 최소 예시다. 실제 제조 데이터를 사용한 실험 결과는 아니다.
+
+```python [train.py]
+from pathlib import Path
+import json
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
+x = np.array([0., 10., 20., 30.]).reshape(-1, 1)
+y = np.array([2., 9.5, 17., 24.5])
+
+model = LinearRegression().fit(x, y)
+artifact = {
+    "version": "demo-linear-v1",
+    "weight": float(model.coef_[0]),
+    "bias": float(model.intercept_),
+}
+Path("app/model.json").write_text(json.dumps(artifact, indent=2))
+print(artifact)
+```
+
+```bash [terminal]
+python -m pip install numpy scikit-learn
+python train.py
+```
+
 ```json [app/model.json]
 {
   "version": "demo-linear-v1",
@@ -150,7 +179,9 @@ def predict(request: PredictRequest):
 }
 ```
 
-위 계수는 설명을 위한 임의의 값으로, 학습을 통해 얻은 모델이 아니다. 실제 서비스에서는 학습된 모델 아티팩트의 검증·버전 관리가 필요하다.
+이 데이터에서는 선형 관계가 정확하므로 위 계수가 나온다. 예제의 JSON은 **모델 아티팩트의 단순화된 표현**이다. 복잡한 모델이라면 검증된 직렬화 형식과 아티팩트 저장소, 체크섬 및 로딩 정책을 사용한다.
+
+### 2단계 · API와 이미지를 준비한다
 
 ```text [requirements.txt]
 fastapi>=0.115,<1
@@ -168,6 +199,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
 ```bash [terminal]
+# train.py를 먼저 실행해 app/model.json을 생성한다.
 docker build -t ml-serving:local .
 docker run --rm -p 8080:8080 ml-serving:local
 # 별도 터미널에서 확인
@@ -184,7 +216,11 @@ curl -X POST http://localhost:8080/predict \
 }
 ```
 
+### 3단계 · 컨테이너와 추론 API를 확인한다
+
 위 JSON은 `/predict` 호출의 예상 응답이다. `/health`는 `status`와 `model_version`을 반환한다.
+
+### 4단계 · Kubernetes에 배포한다
 
 Kubernetes에서는 이미지를 클러스터가 접근할 수 있는 레지스트리에 푸시해야 한다. `ml-serving:local`은 로컬 Docker 테스트용 이름이다.
 
@@ -255,7 +291,7 @@ kubectl port-forward service/ml-serving 8081:80
 ---
 
 **이전 글:** [모델 학습에 CI/CD만 적용하면 충분할까?](/ml-platform/week-02)  
-**심화 글:** [모델 성능 다음에 확인해야 할 것들 — 평가와 운영 설계](/ml-platform/evaluation-and-operations)
+**심화 글:** [산업 AI 회귀 평가](/ml-platform/industrial-evaluation) · [RAG·Agent 평가](/ml-platform/evaluation-and-operations)
 
 ### 참고 자료
 
