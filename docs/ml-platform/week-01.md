@@ -37,7 +37,7 @@ ML Lifecycle은 단계를 외우기 위한 개념이라기보다, 이런 질문�
 - 추론 시점에 알 수 없는 변수가 피처에 포함되지 않았는지 확인한다.
 - 모델의 출력이 실제 업무 제약을 충족하는지 검증한다.
 
-이 문제는 모델링 알고리즘을 바꾸기 전에 데이터 정의와 평가 방법을 다시 살펴봐야 하는 이유이기도 하다.
+모델을 바꾸기 전에 데이터 정의와 평가 방법을 확인해야 하는 이유다. 구체적인 지표 비교는 [산업 AI 회귀 평가](/ml-platform/industrial-evaluation)에서 다룬다.
 
 ## 3. 재현성은 모델 파일을 저장하는 것으로 끝나지 않는다
 
@@ -84,40 +84,7 @@ Data Drift가 있다고 반드시 성능이 떨어지는 것은 아니고, Conce
 
 모델을 학습할 때는 데이터 누수(Data Leakage), 특히 **추론 시점에는 알 수 없는 미래 정보**가 피처에 들어갔는지 확인한다. 모델이 배포된 뒤에는 입력 스키마뿐 아니라 전처리 코드와 피처 정의가 학습 시점과 동일한지도 확인한다.
 
-## 6. 시점 정합성을 확인하는 데이터 분할
-
-같은 모델이라도 데이터를 어떻게 나누느냐에 따라 평가 결과가 달라진다. 시계열 데이터라면 미래 데이터를 학습에 섞지 않도록 시간 순서를 유지하는 것이 출발점이다.
-
-```python [time_split.py]
-import pandas as pd
-
-df = pd.read_csv("measurements.csv", parse_dates=["timestamp"])
-df = df.sort_values("timestamp").reset_index(drop=True)
-
-# 같은 시각의 관측값이 양쪽에 섞이지 않도록 시각 기준으로 분리
-unique_times = df["timestamp"].dropna().unique()
-assert len(unique_times) >= 2, "At least two distinct timestamps required"
-cutoff = unique_times[int(len(unique_times) * 0.8)] if len(unique_times) >= 5 else unique_times[-1]
-train = df[df["timestamp"] < cutoff]
-test = df[df["timestamp"] >= cutoff]
-
-assert not train.empty and not test.empty
-assert train["timestamp"].max() < test["timestamp"].min()
-print(f"train={len(train)}, test={len(test)}")
-```
-
-`measurements.csv`는 결측치 없는 `timestamp` 컬럼이 있고 서로 다른 시각이 최소 2개인 데이터를 가정한다. 이 코드는 시간 분할의 기본 형태이며, 시간적으로 인접한 관측치의 누수나 피처 생성 과정의 미래 정보 사용까지 자동으로 방지하지는 않는다.
-
-```bash [terminal]
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install pandas
-python time_split.py
-```
-
-Windows PowerShell에서는 활성화 명령을 `.venv\Scripts\Activate.ps1`로 바꿔 실행한다.
-
-## 7. 산업 시계열에서는 검증 방법도 달라진다
+## 6. 산업 시계열 검증: 분할부터 누수 방지까지
 
 ![시간 순서에 따른 학습·검증·평가 구간](/diagrams/industrial-validation.svg)
 
@@ -153,13 +120,47 @@ print(features[["timestamp", "temperature_lag1", "temperature_mean_3"]].head())
 
 여기서는 단일 설비·동일 간격으로 수집된 데이터라고 가정했다. 여러 설비가 섞여 있다면 설비별로 그룹화한 후 지연·이동 통계를 계산해야 한다. 시간 간격이 불규칙하다면 단순 행 기반 rolling 대신 시간 기반 윈도우를 검토한다.
 
+### 시점 기준 분할 예제
+
+같은 모델이라도 데이터를 어떻게 나누느냐에 따라 평가 결과가 달라진다. 시계열 데이터라면 미래 데이터를 학습에 섞지 않도록 시간 순서를 유지하는 것이 출발점이다.
+
+```python [time_split.py]
+import pandas as pd
+
+df = pd.read_csv("measurements.csv", parse_dates=["timestamp"])
+df = df.sort_values("timestamp").reset_index(drop=True)
+
+# 같은 시각의 관측값이 양쪽에 섞이지 않도록 시각 기준으로 분리
+unique_times = df["timestamp"].dropna().unique()
+assert len(unique_times) >= 2, "At least two distinct timestamps required"
+cutoff = unique_times[int(len(unique_times) * 0.8)] if len(unique_times) >= 5 else unique_times[-1]
+train = df[df["timestamp"] < cutoff]
+test = df[df["timestamp"] >= cutoff]
+
+assert not train.empty and not test.empty
+assert train["timestamp"].max() < test["timestamp"].min()
+print(f"train={len(train)}, test={len(test)}")
+```
+
+`measurements.csv`는 결측치 없는 `timestamp` 컬럼이 있고 서로 다른 시각이 최소 2개인 데이터를 가정한다. 이 코드는 시간 분할의 기본 형태이며, 시간적으로 인접한 관측치의 누수나 피처 생성 과정의 미래 정보 사용까지 자동으로 방지하지는 않는다.
+
+```bash [terminal]
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install pandas
+python time_split.py
+```
+
+Windows PowerShell에서는 활성화 명령을 `.venv\Scripts\Activate.ps1`로 바꿔 실행한다.
+
+
 ### 시간 분할만으로 누수가 사라지는 것은 아니다
 
 시간 순서를 지켜 나눴더라도 **전체 데이터로 스케일러를 학습한 뒤 분할**하면 평가 구간의 통계가 학습에 들어간다. 스케일링·결측치 대체·특성 선택 등 학습이 필요한 전처리는 학습 구간에서만 `fit`하고, 검증·평가 구간에는 동일한 변환을 `transform`으로 적용해야 한다.
 
 설비나 배치 간 의존성이 크다면 시간 분할 외에 설비별·배치별 분리 평가도 고려한다. 어떤 검증 방식이 적절한지는 **운영에서 일반화하려는 대상이 미래 시점인지, 새로운 설비인지**에 따라 달라진다.
 
-## 8. 결국 중요한 것은 단계 사이의 연결
+## 7. 결국 중요한 것은 단계 사이의 연결
 
 ML Lifecycle에서 놓치기 쉬운 부분은 단계 자체보다 **단계 사이의 계약**이다. 데이터팀이 넘긴 피처의 의미가 학습과 서빙에서 같아야 하고, 평가에 사용한 모델과 실제 배포한 모델이 같아야 한다.
 
