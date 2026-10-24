@@ -1,14 +1,10 @@
-# ML Platform Engineering Study
+# ML Platform Engineering
 
-모델 개발에서 운영까지, AI 시스템을 구성하는 기술과 설계 원칙을 주차별로 정리합니다.
+모델을 만드는 단계에서 끝내지 않고, **평가·배포·운영까지 이어지는 구조**를 살펴봅니다.
 
-| 주차 | 주제 | 상태 |
-|---|---|---|
-| [Week 01](/ml-platform/week-01) | ML Platform Engineering · CI/CD/CT · LLMOps | 작성 완료 |
-| Week 02 | MLflow · Feast · Kubeflow | 예정 |
+| 글 | 주요 내용 |
+|---|---|
+| [01. 모델 성능 다음에 확인해야 할 것들](/ml-platform/week-01) | 재현성, CI/CD/CT, RAG·Agent 평가, 배포 판단 |
+| 02. 실험과 운영을 연결하는 도구들 (준비 중) | MLflow, Feast, Kubeflow |
 
-::: tip 학습 노트 작성 원칙
-강의 핵심 개념과 독립적인 실무 확장을 구분하며, 실습하지 않은 내용은 완료했다고 쓰지 않습니다.
-:::
-
-스터디 원본 저장소: [ml-platform-engineering-study](https://github.com/skgreenstar/ml-platform-engineering-study)
+기술을 개별적으로 나열하기보다, 도입해야 하는 이유와 운영 시 발생하는 문제를 함께 정리합니다.
