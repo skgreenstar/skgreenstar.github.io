@@ -33,15 +33,9 @@ outline: deep
 
 ML 플랫폼은 Kubernetes나 GPU 자원을 제공하는 인프라 계층에 그치지 않는다. 데이터·실험·아티팩트·배포·모니터링의 반복 작업을 표준화해, 모델 개발자가 공통 문제를 매번 새로 풀지 않게 만드는 **내부 제품(Internal Developer Platform)**이다.
 
-```mermaid
-flowchart LR
-    A["Data / Validation"] --> B["Feature Pipeline"]
-    B --> C["Training / Experiment"]
-    C --> D["Model Registry"]
-    D --> E["Serving"]
-    E --> F["Monitoring"]
-    F -. "Feedback / Retraining" .-> A
-```
+![ml-lifecycle 아키텍처](/diagrams/ml-lifecycle.svg)
+
+*구성 요소 간 관계를 단순화한 개념 다이어그램입니다.*
 
 이때 플랫폼의 성숙도를 설치한 도구의 개수로 측정하면 안 된다. 더 유용한 질문은 **실험을 재현하는 데 걸리는 시간**, **안전한 배포 리드타임**, **실패 복구 시간**, **품질 저하를 발견하기까지 걸리는 시간**이다.
 
@@ -76,16 +70,9 @@ MLflow 같은 실험 추적 도구는 실행 결과를 연결하는 중심이 �
 | CD | 릴리스 승인 | 스테이징, 통합 테스트, 배포 정책 | 운영 배포 |
 | CT | 새 데이터·드리프트·주기 | 데이터 검증, 재학습, 후보 모델 평가 | 새로운 모델 후보 |
 
-```mermaid
-flowchart LR
-    Git["Git commit"] --> CI["CI: test / build"]
-    CI --> Registry["Container registry"]
-    Registry --> GitOps["GitOps / CD"]
-    GitOps --> K8s["Kubernetes"]
-    K8s --> Observe["Observe"]
-    Observe -. "drift / new data" .-> CT["CT: retrain / evaluate"]
-    CT -. "candidate model" .-> Registry
-```
+![gitops-pipeline 아키텍처](/diagrams/gitops-pipeline.svg)
+
+*구성 요소 간 관계를 단순화한 개념 다이어그램입니다.*
 
 CH3의 Kubernetes·CI/CD 학습은 이 흐름을 실제 환경에 연결하기 위한 기반이다. GitOps를 도입할 때도 **Git 상태와 실제 클러스터 상태의 차이를 어떻게 감지·복구할 것인가**가 핵심이다.
 
@@ -116,17 +103,9 @@ CH3의 Kubernetes·CI/CD 학습은 이 흐름을 실제 환경에 연결하기 �
 
 RAG 서비스는 기반 LLM이 같아도 문서 수집 시점, 청킹, 임베딩, 인덱스, 검색 설정, 프롬프트, 재정렬 방식에 따라 결과가 달라진다.
 
-```mermaid
-flowchart LR
-    D["Documents"] --> C["Chunking"]
-    C --> E["Embedding"]
-    E --> I["Index"]
-    Q["Question"] --> R["Retriever"]
-    I --> R
-    R --> P["Prompt / Context"]
-    P --> L["LLM"]
-    L --> O["Answer + Trace"]
-```
+![rag-pipeline 아키텍처](/diagrams/rag-pipeline.svg)
+
+*구성 요소 간 관계를 단순화한 개념 다이어그램입니다.*
 
 운영 시 최소한 다음 변경 단위를 추적할 필요가 있다.
 
