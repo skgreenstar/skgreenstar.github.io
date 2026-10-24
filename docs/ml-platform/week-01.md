@@ -9,10 +9,6 @@ outline: deep
 
 **좋은 모델을 만드는 것과 신뢰할 수 있는 AI 시스템을 운영하는 것은 다른 문제다.**
 
-> **Week 01 · ML Platform Engineering / MLOps / LLMOps**
->
-> 이 글은 스터디 CH1~CH2의 학습 주제와 연계한 **독립적인 심화 학습 노트**입니다. 강의 원문 전체를 검증한 요약은 아니며, 실무 사례는 특정 조직이나 고객을 식별할 수 없도록 일반화했습니다. 수행하지 않은 실습을 완료했다고 주장하지 않습니다.
-
 ## 1. Model Quality와 System Quality는 다르다
 
 오프라인 평가에서 높은 점수를 얻은 모델이 반드시 좋은 서비스를 만들지는 않는다. 운영 환경에서는 데이터의 생성 과정이 바뀌고, 입력 스키마가 변하며, 트래픽·비용·장애·지연시간이 품질을 좌우한다.
@@ -25,9 +21,7 @@ outline: deep
 | 변경 관리 | 실험 코드 | 데이터·모델·설정·배포 버전 |
 | 실패 대응 | 재실험 | 탐지·격리·롤백 |
 
-::: tip Core thesis
 **Model quality ≠ System quality.** 플랫폼 엔지니어링은 모델을 배포하는 기술이 아니라, 데이터에서 추론 결과까지의 **변경 가능한 전체 시스템**을 관리하는 기술이다.
-:::
 
 ## 2. ML Platform Engineering의 책임 경계
 
@@ -35,7 +29,6 @@ ML 플랫폼은 Kubernetes나 GPU 자원을 제공하는 인프라 계층에 그
 
 ![ml-lifecycle 아키텍처](/diagrams/ml-lifecycle.svg)
 
-*구성 요소 간 관계를 단순화한 개념 다이어그램입니다.*
 
 이때 플랫폼의 성숙도를 설치한 도구의 개수로 측정하면 안 된다. 더 유용한 질문은 **실험을 재현하는 데 걸리는 시간**, **안전한 배포 리드타임**, **실패 복구 시간**, **품질 저하를 발견하기까지 걸리는 시간**이다.
 
@@ -72,13 +65,8 @@ MLflow 같은 실험 추적 도구는 실행 결과를 연결하는 중심이 �
 
 ![gitops-pipeline 아키텍처](/diagrams/gitops-pipeline.svg)
 
-*구성 요소 간 관계를 단순화한 개념 다이어그램입니다.*
 
-CH3의 Kubernetes·CI/CD 학습은 이 흐름을 실제 환경에 연결하기 위한 기반이다. GitOps를 도입할 때도 **Git 상태와 실제 클러스터 상태의 차이를 어떻게 감지·복구할 것인가**가 핵심이다.
-
-::: warning 실습 상태
-위 다이어그램은 **개념 아키텍처**이며, Harbor·GitLab Runner·Argo CD 등의 실습 완료를 의미하지 않습니다.
-:::
+Kubernetes와 CI/CD는 이 흐름을 실제 운영 환경에 연결하는 기반이다. GitOps를 도입할 때도 **Git 상태와 실제 클러스터 상태의 차이를 어떻게 감지·복구할 것인가**가 핵심이다.
 
 ## 5. 제조 ML: 낮은 MAPE가 좋은 모델을 의미할까?
 
@@ -105,7 +93,6 @@ RAG 서비스는 기반 LLM이 같아도 문서 수집 시점, 청킹, 임베딩
 
 ![rag-pipeline 아키텍처](/diagrams/rag-pipeline.svg)
 
-*구성 요소 간 관계를 단순화한 개념 다이어그램입니다.*
 
 운영 시 최소한 다음 변경 단위를 추적할 필요가 있다.
 
@@ -151,7 +138,7 @@ LLM 애플리케이션의 평가는 **검색 품질 → 생성 품질 → 작업
 
 **예시:** 관련 문서가 총 4개인데 Top-5 검색 결과에서 2개를 찾았고, 나머지 3개는 무관하다면 **Recall@5 = 2/4 = 0.5**, **Precision@5 = 2/5 = 0.4**이다. 검색이 잘 되었는지와 검색 결과가 얼마나 깨끗한지는 다른 문제다.
 
-::: tip Retrieval 평가의 함정
+::: info 검색 평가에서 놓치기 쉬운 부분
 검색 결과의 **chunk 단위**와 정답의 **document 단위**가 다르면 지표가 왜곡될 수 있다. 평가 전에 관련성의 단위, 중복 청크 처리, 정답 문서 집합을 먼저 정의해야 한다.
 :::
 
@@ -214,7 +201,7 @@ LLM-as-a-Judge는 평가자 역할의 LLM에게 **평가 대상 응답과 명시
 }
 ```
 
-이 예시는 **평가 형식을 보여주는 가상의 출력**이다. 실제 평가 실행 결과나 특정 Judge 모델의 점수가 아니다.
+위 입력과 출력은 채점 형식을 설명하기 위한 예시다.
 
 ### 8.4 Judge를 믿어도 될까? — 편향과 캘리브레이션
 
@@ -234,7 +221,7 @@ LLM Judge에는 다음과 같은 오류가 발생할 수 있다.
 4. **재현성 확인:** 모델·프롬프트·루브릭 버전을 기록하고 반복 평가 분산을 확인한다.
 5. **경계 사례 재검토:** 낮은 확신도, 모델 간 불일치, 고위험 답변은 사람이 검토한다.
 
-::: warning 평가 점수는 절대적인 진실이 아니다
+::: warning 평가 점수 해석 아니다
 Judge가 4/5점을 주었다고 해서 답변이 **80% 정확하다**는 뜻은 아니다. 1~5점은 정의한 루브릭의 **서열형 등급**이며, 검증 없이 확률이나 정확도로 해석하면 안 된다.
 :::
 
@@ -272,14 +259,68 @@ Production tracing + drift monitoring
 
 배포 게이트는 **평균 Judge 점수 하나**로 만들기보다, 필수 정책 위반 0건, 주요 골든셋의 회귀 여부, p95 지연시간, 성공당 비용 등 **여러 조건**을 함께 적용하는 편이 안전하다. 점수 기준은 실제 트래픽과 비즈니스 위험을 고려해 설정해야 한다.
 
-### Further reading: Evaluation
 
-- [RAGAS — Metrics](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/)
-- [LangSmith — Evaluation Concepts](https://docs.langchain.com/langsmith/evaluation-concepts)
-- [MT-Bench / Chatbot Arena — LLM-as-a-Judge](https://arxiv.org/abs/2306.05685)
-- [G-Eval — NLG Evaluation using GPT-4](https://arxiv.org/abs/2303.16634)
+## 9. 평가 점수를 배포 결정으로 연결하기
 
-## 9. 시스템 설계의 트레이드오프
+평가 체계를 설계할 때 어려운 부분은 지표를 계산하는 것이 아니라, **서로 다른 지표가 충돌할 때 어떤 변경을 승인할지 결정하는 것**이다.
+
+가령 검색 설정을 변경한 뒤 Recall@5는 높아졌지만 응답 지연과 토큰 비용이 증가하고, 최종 답변의 Groundedness는 떨어졌다고 가정해 보자. 검색 지표 하나만 보면 개선이지만 서비스 전체로 보면 그렇지 않을 수 있다.
+
+### 평가 결과를 해석하는 순서
+
+| 관찰된 변화 | 먼저 의심할 부분 | 확인할 증거 |
+|---|---|---|
+| Recall@K 하락, 생성 품질 하락 | 검색·인덱싱 회귀 | 질의별 검색 결과, 청크 변경, 필터 조건 |
+| Recall@K 유지, Faithfulness 하락 | 컨텍스트 활용 또는 생성 단계 | 프롬프트 차이, 근거 없는 주장, 모델 변경 |
+| Judge 점수 상승, 사람 평가 유지 | Judge 편향 또는 평가셋 문제 | 샘플별 불일치, 루브릭, 평가 모델 버전 |
+| 평균 품질 유지, 특정 업무 실패 | 세그먼트별 회귀 | 업무 유형별·권한별 골든셋 |
+| 성공률 상승, p95 지연 악화 | 추론·검색·도구 호출 비용 | Trace별 단계 시간, 재시도 횟수 |
+
+**평균값만 비교하지 않는다.** 사용자 질의 유형별로 성능을 분해하고, 실패 사례가 기존 버전에서 새로 발생했는지를 확인해야 한다. 같은 평가셋에서 이전 버전과 후보 버전을 나란히 실행하는 **paired evaluation**이 단순 평균 비교보다 원인 분석에 유리하다.
+
+### Release Gate의 예시
+
+아래는 숫자 자체보다 **게이트를 분리하는 구조**를 보여주는 정책 예시다.
+
+```yaml
+release_gate:
+  hard_fail:
+    - schema_validation_failed
+    - unauthorized_tool_execution
+    - critical_safety_violation
+  quality:
+    compare_against: production_baseline
+    require_no_critical_regressions: true
+    review_disputed_judge_cases: true
+  operations:
+    check_p95_latency: true
+    check_cost_per_success: true
+    require_rollback_plan: true
+```
+
+실제 임계값은 서비스 SLO, 데이터 분포, 위험도, 표본 크기를 바탕으로 정해야 한다. Judge 점수에 임의의 통과선을 하나 긋는 것보다, **치명적 실패는 별도 차단하고 나머지 품질은 기준 버전과 비교**하는 방식이 낫다.
+
+### LLM-as-a-Judge를 사용할 때의 설계 판단
+
+- **규칙으로 검증할 수 있는 것은 규칙으로 검증한다.** JSON 스키마, 필수 필드, 허용되지 않은 도구 호출에 LLM Judge를 쓸 이유는 적다.
+- **Judge가 필요한 곳에만 사용한다.** 의미적 정합성, 근거 충실성, 표현의 적절성처럼 정형화하기 어려운 판단에 집중한다.
+- **평가 모델을 바꾸면 기준선도 재검증한다.** 동일한 응답이라도 Judge 모델과 루브릭이 바뀌면 점수 분포가 달라질 수 있다.
+- **사람의 검토를 샘플링 전략에 포함한다.** 무작위 샘플 외에 불일치·저점·고위험 사례를 의도적으로 추출한다.
+
+## 10. 도구보다 먼저 결정할 것
+
+MLflow, Feast, Kubeflow를 한 번에 도입한다고 플랫폼이 완성되지는 않는다. 운영 요구사항이 어느 지점에서 반복적으로 발생하는지 먼저 확인해야 한다.
+
+| 반복되는 문제 | 검토할 선택지 | 도입 전 확인할 것 |
+|---|---|---|
+| 실험 조건과 모델 산출물을 추적하기 어렵다 | MLflow | 아티팩트 저장소, 접근 권한, 보존 정책 |
+| 학습·서빙 피처가 달라진다 | Feast 등 피처 관리 체계 | Point-in-time join, 온라인 조회 지연, 운영 비용 |
+| 학습 파이프라인의 의존성과 실행이 복잡하다 | Kubeflow Pipelines 등 | Kubernetes 운영 역량, 실패 복구, 디버깅 난이도 |
+| 배포 후 품질 회귀를 발견하기 어렵다 | 평가 자동화 + Tracing | 골든셋 관리, 개인정보 처리, 배포 게이트 |
+
+이 선택은 도구의 우열보다 **팀이 감당할 운영 복잡도와 장애 대응 능력**에 달려 있다. 작은 서비스라면 단순한 배치 작업과 CI 파이프라인이 더 나은 출발점일 수도 있다.
+
+## 11. 시스템 설계의 트레이드오프
 
 > **Quality × Reliability × Latency × Cost**
 >
@@ -294,7 +335,7 @@ Production tracing + drift monitoring
 3. **원인 추적:** 결과 점수뿐 아니라 실행 경로를 관찰한다.
 4. **목적에 맞는 복잡도:** 작은 서비스에 과도한 플랫폼을 강요하지 않는다.
 
-## 10. 다음 학습: MLflow · Feast · Kubeflow
+## 12. 다음 학습: MLflow · Feast · Kubeflow
 
 다음 주에는 다음 연결 고리를 더 구체적으로 공부한다.
 
@@ -304,13 +345,13 @@ Production tracing + drift monitoring
 | **Feast** | 학습·서빙 피처의 정의와 시점 정합성을 어떻게 관리하는가? |
 | **Kubeflow** | Kubernetes 환경에서 ML 워크플로를 어떻게 구성하는가? |
 
-이번 주의 Kubernetes·CI/CD 환경 구성은 후속 실습의 기반이므로, **학습 개념과 실제 구축·검증 결과를 구분해** 이어서 기록할 예정이다.
+실험 추적, 피처 관리, 파이프라인 오케스트레이션을 개별 도구가 아닌 하나의 운영 흐름으로 연결해 볼 계획이다.
 
 ---
 
-### Takeaway
+### 마무리
 
-**운영 가능한 AI는 모델 파일이 아니라, 변경을 추적하고 검증하며 되돌릴 수 있는 시스템이다.**
+모델의 품질은 실험 결과로 확인할 수 있지만, 서비스의 품질은 변경과 실패를 다루는 방식에서 드러난다. 평가 지표를 더 많이 수집하는 것보다 **어떤 지표가 악화되었을 때 무엇을 확인하고, 어느 시점에 배포를 멈출 것인지** 정하는 일이 먼저다.
 
 ### Further reading
 
@@ -319,4 +360,6 @@ Production tracing + drift monitoring
 - [MLflow Documentation](https://mlflow.org/docs/latest/index.html)
 - [Feast Documentation](https://docs.feast.dev/)
 - [Kubeflow Documentation](https://www.kubeflow.org/docs/)
-- [VitePress Documentation](https://vitepress.dev/)
+- [RAGAS — Metrics](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/)
+- [MT-Bench / Chatbot Arena — LLM-as-a-Judge](https://arxiv.org/abs/2306.05685)
+- [G-Eval — NLG Evaluation using GPT-4](https://arxiv.org/abs/2303.16634)
