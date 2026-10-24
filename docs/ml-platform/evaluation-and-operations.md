@@ -75,6 +75,33 @@ print({"MAE": mae, "RMSE": rmse, "MAPE(%)": mape, "R2": r2})
 
 실무에서는 평균 지표 외에 **운전 구간별 오차, 시간 순서 기반 검증, 물리적 제약 위반 여부**를 함께 확인한다. 예를 들어 특정 온도 구간의 오차가 크다면 전체 MAPE가 낮아도 운영 의사결정에는 부적합할 수 있다.
 
+### 회귀 지표를 해석할 때의 기준
+
+산업 AI에서는 목표값의 변동 폭과 실제 운전 목적을 함께 봐야 한다. **MAE**는 오차의 절대 크기, **RMSE**는 큰 오차에 대한 민감도, **MAPE**는 실제값 대비 상대 오차, **R²**는 평가 데이터의 평균 예측 대비 설명력을 나타낸다. 특히 R²는 음수가 될 수 있고, MAPE는 실제값이 0이면 정의되지 않으며 0에 가까울 때 불안정하다.
+
+`R² = 1 - SSE/SST`이므로 목표값이 좁은 범위에 몰려 있을 때는 작은 절대오차에도 R²가 낮게 나올 수 있다. 반대로 MAPE가 낮아도 공정 변화에 따른 예측 방향을 제대로 잡지 못하면 최적화에는 적합하지 않을 수 있다. 따라서 **시간·설비·운전 구간별 오차와 단순 기준 모델 대비 개선**을 함께 검토한다.
+
+```python [regression_metrics.py]
+import numpy as np
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+y_true = np.array([100.0, 101.0, 99.0, 100.5])
+y_pred = np.full_like(y_true, 100.0)
+
+print("MAE:", mean_absolute_error(y_true, y_pred))
+print("RMSE:", np.sqrt(mean_squared_error(y_true, y_pred)))
+print("R2:", r2_score(y_true, y_pred))
+# 실제값이 모두 0이 아닐 때만 MAPE 계산
+print("MAPE(%):", np.mean(np.abs((y_true - y_pred) / y_true)) * 100)
+```
+
+```bash [terminal]
+python -m pip install numpy scikit-learn
+python regression_metrics.py
+```
+
+위 수치는 지표 차이를 설명하기 위한 **가상 데이터**이며, 실제 제조 공정의 성능 결과는 아니다.
+
 ## 3. RAG는 모델만 같다고 같은 결과가 나오지 않는다
 
 RAG 서비스는 기반 LLM이 같아도 문서 수집 시점, 청킹, 임베딩, 인덱스, 검색 설정, 프롬프트, 재정렬 방식에 따라 결과가 달라진다.
