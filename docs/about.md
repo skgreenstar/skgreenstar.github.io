@@ -1,16 +1,20 @@
 # About
 
-안녕하세요. AI 모델 개발에서 데이터 엔지니어링, 평가, 배포, 운영까지 전 과정을 다루는 **AI Engineer**입니다.
+AI 모델을 만드는 일과, 그 모델이 실제 환경에서 안정적으로 동작하게 만드는 일을 함께 해왔습니다.
 
-## 관심 분야
+데이터 처리와 모델링에서 시작해 검색·챗봇, RAG·Agent, 제조 데이터 기반 예측, 클라우드 배포와 운영까지 다루는 **AI Engineer**입니다.
 
-- **ML Platform / MLOps:** 실험 재현성, 피처 일관성, 모델 등록, CI/CD/CT
-- **LLMOps:** RAG·Agent 평가, 프롬프트/검색 파이프라인 버전 관리, 추적과 관측
-- **Cloud Native:** Kubernetes, 컨테이너 기반 서빙, 배포 자동화
-- **Industrial AI:** 회귀·시계열 모델링, 데이터 품질, 실무 의사결정
+## 주로 다루는 문제
 
-## Why I write
+- **RAG / Agent:** 검색 품질, 응답 평가, 도구 실행, 추적과 운영
+- **MLOps / LLMOps:** 재현성, 모델·프롬프트 버전 관리, 배포 및 관측
+- **Industrial AI:** 시계열·회귀 모델, 데이터 누수, 현업 제약과 성능 지표
+- **Platform:** Kubernetes, 컨테이너 서빙, CI/CD, 서비스 아키텍처
 
-좋은 모델을 만드는 방법뿐 아니라, **변경을 검증하고 장애를 추적하며 안전하게 운영하는 방법**을 기록합니다.
+## 글을 쓰는 이유
 
-[GitHub](https://github.com/skgreenstar) · [ML Platform Study](https://github.com/skgreenstar/ml-platform-engineering-study)
+모델의 점수만으로 시스템의 품질을 설명하기 어려운 순간이 많습니다. 같은 모델이라도 데이터가 달라지거나 검색 설정이 바뀌면 결과가 달라지고, 평가가 좋아져도 운영 비용이 늘어날 수 있습니다.
+
+이 블로그에는 기술 자체의 소개보다 **어떤 문제에서 무엇을 확인하고, 어떤 선택을 할지**를 중심으로 기록합니다.
+
+[기술 글 보기](/writing/) · [GitHub](https://github.com/skgreenstar)
