@@ -153,28 +153,6 @@ ml-serving/
     └── deployment.yaml
 ```
 
-```python [app/main.py]
-from pathlib import Path
-import json
-from fastapi import FastAPI
-from pydantic import BaseModel
-
-MODEL = json.loads((Path(__file__).parent / "model.json").read_text())
-app = FastAPI()
-
-class PredictRequest(BaseModel):
-    temperature: float
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "model_version": MODEL["version"]}
-
-@app.post("/predict")
-def predict(request: PredictRequest):
-    prediction = MODEL["weight"] * request.temperature + MODEL["bias"]
-    return {"prediction": round(prediction, 3), "model_version": MODEL["version"]}
-```
-
 ### 1단계 · 모델을 학습하고 아티팩트를 생성한다
 
 아래는 합성 데이터로 선형 회귀 모델을 학습한 뒤, **추론에 필요한 계수와 버전만 JSON으로 저장**하는 최소 예시다. 실제 제조 데이터를 사용한 실험 결과는 아니다.
@@ -215,6 +193,31 @@ python train.py
 
 ### 2단계 · API와 이미지를 준비한다
 
+학습으로 생성한 `app/model.json`을 읽는 추론 API를 구성한다. 모델을 먼저 생성한 뒤 API를 실행해야 한다.
+
+```python [app/main.py]
+from pathlib import Path
+import json
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+MODEL = json.loads((Path(__file__).parent / "model.json").read_text())
+app = FastAPI()
+
+class PredictRequest(BaseModel):
+    temperature: float
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "model_version": MODEL["version"]}
+
+@app.post("/predict")
+def predict(request: PredictRequest):
+    prediction = MODEL["weight"] * request.temperature + MODEL["bias"]
+    return {"prediction": round(prediction, 3), "model_version": MODEL["version"]}
+```
+
+
 ```text [requirements.txt]
 fastapi>=0.115,<1
 uvicorn>=0.30,<1
@@ -229,6 +232,10 @@ COPY app/ ./app/
 EXPOSE 8080
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
+
+### 3단계 · 컨테이너와 추론 API를 확인한다
+
+`train.py`를 먼저 실행해 `app/model.json`을 생성한 뒤 컨테이너를 빌드한다. 아래 응답은 예제 데이터로 계산한 예상값이며, 실제 실행 로그는 아니다.
 
 ```bash [terminal]
 # train.py를 먼저 실행해 app/model.json을 생성한다.
@@ -248,9 +255,7 @@ curl -X POST http://localhost:8080/predict \
 }
 ```
 
-### 3단계 · 컨테이너와 추론 API를 확인한다
-
-위 JSON은 `/predict` 호출의 예상 응답이다. `/health`는 `status`와 `model_version`을 반환한다.
+`/health`는 `status`와 `model_version`을 반환한다.
 
 ### 4단계 · Kubernetes에 배포한다
 
