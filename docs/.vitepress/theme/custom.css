@@ -1,1 +1,28 @@
 :root{--vp-c-brand-1:#2563eb;--vp-c-brand-2:#1d4ed8;--vp-c-brand-3:#1e40af;--vp-c-brand-soft:#eff6ff;--vp-font-family-base:Inter,-apple-system,BlinkMacSystemFont,'Noto Sans KR',sans-serif;--vp-layout-max-width:1440px}.VPHome .VPHero .name{letter-spacing:-.06em}.VPHome .VPHero .text{letter-spacing:-.055em}.VPFeature{border-radius:16px!important}.vp-doc h2{margin-top:52px}.vp-doc blockquote{border-left:4px solid var(--vp-c-brand-1);background:var(--vp-c-bg-soft);padding:12px 18px}.vp-doc table{display:table;width:100%}.vp-doc img{border-radius:12px;border:1px solid var(--vp-c-divider)}@media(max-width:760px){.vp-doc table{display:block;overflow-x:auto}}
+
+/* Portfolio landing page: retain the original clean, editorial design. */
+.heemin-home{max-width:1100px;margin:0 auto;padding:10px 10px 55px}
+.heemin-hero{display:grid;grid-template-columns:1.5fr 1fr;gap:50px;align-items:center;padding:65px 0 78px}
+.heemin-eyebrow{font-size:12px;font-weight:800;letter-spacing:.15em;color:#2563eb}
+.heemin-intro h1{font-size:clamp(38px,5.5vw,67px);line-height:1.15;letter-spacing:-.07em;font-weight:800;margin:18px 0 23px;border:0;padding:0}
+.heemin-intro h1 span{color:#2563eb}
+.heemin-intro>p{font-size:18px;line-height:1.8;color:var(--vp-c-text-2);max-width:630px}
+.heemin-art{border-radius:28px;background:linear-gradient(135deg,#edf4ff,#f3faff);display:flex;align-items:center;justify-content:center;min-height:300px;overflow:hidden}
+.heemin-art img{width:100%;max-width:430px;height:auto;border:0}
+.heemin-tags{display:flex;gap:9px;flex-wrap:wrap;margin:25px 0}
+.heemin-tags span{font-size:12px;font-weight:700;color:#365e9c;background:#eef4ff;border:1px solid #dbe7ff;padding:5px 12px;border-radius:30px}
+.heemin-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
+.heemin-actions a{padding:11px 18px;border-radius:10px;border:1px solid var(--vp-c-divider);font-weight:700;text-decoration:none}
+.heemin-actions a.primary{background:#2563eb;color:white;border-color:#2563eb}
+.heemin-section{margin:0 0 76px}
+.heemin-section-heading{display:flex;justify-content:space-between;gap:15px;align-items:start;margin-bottom:25px}
+.heemin-section-heading h2{font-size:28px;letter-spacing:-.045em;margin:0;padding:0;border:0}
+.heemin-section-heading p,.heemin-section-heading>span{font-size:14px;color:var(--vp-c-text-2);margin:6px 0}
+.heemin-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.heemin-card{display:block;padding:27px;border:1px solid var(--vp-c-divider);border-radius:17px;color:var(--vp-c-text-1);text-decoration:none!important;transition:transform .2s,box-shadow .2s}
+.heemin-card:hover{transform:translateY(-3px);box-shadow:0 12px 35px #243c6813}
+.heemin-card small{font-size:11px;font-weight:800;letter-spacing:.07em;color:#2563eb}
+.heemin-card h3{font-size:21px;letter-spacing:-.03em;margin:12px 0}
+.heemin-card p{font-size:14px;color:var(--vp-c-text-2);line-height:1.8;margin:0}
+.vp-doc img[src^="/diagrams/"]{width:100%;background:#f5f8ff;border:1px solid #dce6f5;border-radius:16px}
+@media(max-width:760px){.heemin-hero{grid-template-columns:1fr;padding:30px 0 58px}.heemin-art{min-height:180px}.heemin-art img{max-height:220px}.heemin-cards{grid-template-columns:1fr}.heemin-intro h1{font-size:42px}}
