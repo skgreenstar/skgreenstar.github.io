@@ -1,16 +1,16 @@
 ---
-title: "MLPE Study · Week 01 | CH1–3"
+title: "Week 01 · ML Lifecycle에서 Kubernetes CI/CD까지"
 description: "ML Lifecycle, MLOps, Kubernetes와 GitLab CI/CD를 연결하는 1주차 학습 정리"
 date: 2026-10-25
 outline: deep
 ---
 
-# MLPE Study · Week 01
+# Week 01 · ML Lifecycle에서 Kubernetes CI/CD까지
 
 **학습 범위:** CH1–3 · ML Lifecycle, MLOps 기초, Kubernetes CI/CD(GitLab)  
 **스터디 일정:** 2026.10.18 · Machine Learning Platform Engineering Study
 
-> 이 페이지는 1주차 학습 주제를 중심으로 정리한 공개 기술 노트다. 책의 문장이나 강의 자료를 재현하기보다 핵심 개념과 추가 조사한 구현 예제를 연결했다. 아래 GitLab 예제는 **학습용 설계 예시**이며 실제 클러스터 배포 성공을 주장하지 않는다.
+> CH1~3의 주요 주제를 바탕으로 ML Lifecycle, MLOps, Kubernetes CI/CD가 어떻게 이어지는지 정리했다. GitLab 파이프라인은 추가 조사한 **학습용 예시**이며, 실제 클러스터에서 실행·검증한 결과는 아니다.
 
 ## 1. 이번 주차에서 답하고 싶은 질문
 
@@ -42,10 +42,10 @@ ML Lifecycle은 **무엇을 관리해야 하는지**, MLOps는 **변경을 어�
 |---|---|---|
 | Validate | 코드 테스트·입력 스키마 검증 | 피처 시점 정합성, 데이터 누수 |
 | Build | 컨테이너 이미지 생성·레지스트리 푸시 | 모델 아티팩트와 이미지의 버전 호환성 |
-| Evaluate | 후보 모델 품질 확인 Job 실행 | 기준 모델 대비 회귀 여부와 업무 제약 |
+| Evaluate (확장 단계) | 현재 예제에는 미구현 | 기준 모델 대비 회귀 여부와 업무 제약 |
 | Deploy | 승인된 이미지의 Kubernetes 배포 | 롤백 조건, 리소스·보안·관측 정책 |
 
-### GitLab CI 최소 구조
+### GitLab CI 최소 구조 · 데이터 검증, 이미지 빌드, 수동 배포
 
 아래 YAML은 **기존 Kubernetes Deployment가 준비되어 있고**, GitLab Container Registry를 사용할 수 있으며, Runner에서 Docker-in-Docker와 `kubectl` 실행이 가능하도록 구성한 환경을 전제로 한다. Kubernetes 인증 정보는 CI 변수로 주입해야 한다.
 
@@ -103,7 +103,7 @@ deploy:
 
 **실행 전 준비할 것:** `validate_data.py`와 `train.csv`, `train.py`, `Dockerfile`, `ml-serving` Deployment, 레지스트리 접근 권한, `KUBE_CONTEXT`가 필요하다. Docker-in-Docker의 TLS 및 Runner 설정과 클러스터 접근 방식은 설치 환경에 따라 달라진다. 예시의 `kubectl` 이미지는 실제 사용 전 태그 가용성과 조직 정책을 확인해야 한다.
 
-이 파이프라인은 **데이터 검증 → 이미지 빌드 → 수동 승인 배포**만 보여준다. CT·모델 평가 게이트는 구현하지 않았으며, 실서비스라면 배포 전에 평가 Job과 보안 검증을 추가해야 한다. 또한 GitOps를 선택한다면 `kubectl set image` 대신 선언형 배포 설정을 변경하고 동기화하는 방식이 더 적절할 수 있다.
+이 파이프라인은 **데이터 검증 → 모델 아티팩트 생성·이미지 빌드 → 수동 승인 배포**만 보여준다. CT·모델 평가 게이트는 구현하지 않았으며, 실서비스라면 배포 전에 평가 Job과 보안 검증을 추가해야 한다. 또한 GitOps를 선택한다면 `kubectl set image` 대신 선언형 배포 설정을 변경하고 동기화하는 방식이 더 적절할 수 있다.
 
 ## 4. 실무에 적용할 때 생각할 점
 
