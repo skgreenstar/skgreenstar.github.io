@@ -14,7 +14,7 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Writing', link: '/writing/' },
-      { text: 'ML Platform Study', link: '/ml-platform/week-01' },
+      { text: 'ML Platform', link: '/ml-platform/' },
       { text: 'About', link: '/about' },
       { text: 'GitHub ↗', link: 'https://github.com/skgreenstar' }
     ],
@@ -25,7 +25,8 @@ export default defineConfig({
           { text: '01 · ML Lifecycle', link: '/ml-platform/week-01' },
           { text: '02 · MLOps', link: '/ml-platform/week-02' },
           { text: '03 · Platform Architecture', link: '/ml-platform/week-03' },
-          { text: '심화 · Evaluation', link: '/ml-platform/evaluation-and-operations' }
+          { text: '심화 · 산업 AI 회귀 평가', link: '/ml-platform/industrial-evaluation' },
+          { text: '심화 · RAG / Agent 평가', link: '/ml-platform/evaluation-and-operations' }
         ]}
       ],
       '/writing/': [
