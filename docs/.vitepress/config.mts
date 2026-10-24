@@ -22,7 +22,7 @@ export default defineConfig({
       '/ml-platform/': [
         { text: 'ML Platform Engineering', items: [
           { text: 'Overview', link: '/ml-platform/' },
-          { text: 'Week 01 · 과제 요약 (CH1–3)', link: '/ml-platform/study-week-01' },
+          { text: '1주차 · 학습 정리 (CH1~3)', link: '/ml-platform/study-week-01' },
           { text: '01 · ML Lifecycle', link: '/ml-platform/week-01' },
           { text: '02 · MLOps', link: '/ml-platform/week-02' },
           { text: '03 · Platform Architecture', link: '/ml-platform/week-03' },
