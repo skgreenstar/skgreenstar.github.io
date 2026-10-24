@@ -31,6 +31,8 @@ MLOps는 DevOps를 대체하는 개념이 아니다. **코드 외에 데이터�
 
 ![변경 검증과 배포 흐름](/diagrams/gitops-pipeline.svg)
 
+여기서 **Continuous Delivery**는 배포 가능한 상태를 지속적으로 준비하는 것이며, 운영 반영 전에 수동 승인이 있을 수 있다. **Continuous Deployment**는 검증된 변경을 운영까지 자동 반영한다. 둘 다 CD로 표기될 수 있으므로 문맥을 구분해야 한다.
+
 CT를 자동화하더라도 **재학습 성공 = 배포 승인**은 아니다. 새 모델은 기존 모델과 동일한 평가셋에서 비교하고, 중요한 구간에서 성능이 후퇴하지 않았는지 확인해야 한다.
 
 ## 3. 파이프라인에서 먼저 자동화할 것
@@ -79,7 +81,7 @@ Deploy → Monitor → Roll back if needed
 
 **자동화의 목적은 사람이 판단할 일을 없애는 것이 아니라, 판단에 필요한 증거를 반복 가능하게 만드는 것**이라고 생각한다.
 
-## 코드로 보는 첫 번째 품질 게이트
+## 6. 코드로 보는 첫 번째 품질 게이트
 
 CI에서 가장 먼저 확인할 것은 거창한 학습 파이프라인보다 **입력 데이터가 약속한 형식을 지키는가**다. 아래는 필수 컬럼과 결측치를 확인하는 최소 예시다.
 
@@ -92,7 +94,7 @@ def validate(df: pd.DataFrame) -> None:
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
         raise ValueError(f"Missing columns: {sorted(missing)}")
-    if df[list(REQUIRED_COLUMNS)].isna().any().any():
+    if df[sorted(REQUIRED_COLUMNS)].isna().any().any():
         raise ValueError("Null values in required columns")
 
 if __name__ == "__main__":
@@ -104,6 +106,8 @@ if __name__ == "__main__":
 python -m pip install pandas
 python validate_data.py
 ```
+
+이 예시는 필수 컬럼·결측치만 검사하며, **모델을 학습하거나 성능을 평가하지 않는다.** 따라서 실제 릴리스 게이트는 별도 평가 Job과 승인 단계로 확장해야 한다. 예를 들어 기준 모델과 후보 모델을 동일한 고정 평가셋으로 비교하고, 주요 세그먼트의 회귀와 지연시간을 확인한 뒤 승인한다.
 
 이 코드는 **최소 데이터 계약**만 검사한다. 실제 운영에서는 값의 범위, 데이터 타입, 시점 정합성, 분포 변화 등도 검증해야 한다.
 
@@ -122,6 +126,8 @@ jobs:
       - run: python -m pip install pandas
       - run: python validate_data.py
 ```
+
+이 워크플로는 데이터 검증만 수행하는 **CI의 첫 단계**다. 새 모델 자동 학습(CT)이나 배포(CD)를 수행하지 않는다.
 
 위 워크플로는 저장소 루트에 `validate_data.py`와 `train.csv`가 있는 구조를 가정한다. GitHub Actions에서는 `.github/workflows/data-check.yml`에 저장한다.
 
