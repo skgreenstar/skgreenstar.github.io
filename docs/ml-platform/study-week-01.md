@@ -29,7 +29,7 @@ outline: deep
 ML Lifecycle은 **무엇을 관리해야 하는지**, MLOps는 **변경을 어떤 기준으로 검증할지**, Kubernetes와 CI/CD는 **승인된 산출물을 어떻게 실행 환경에 전달할지**에 답한다.
 
 1. 학습 데이터·피처 정의·모델·평가셋의 버전을 연결한다.
-2. CI에서 코드 테스트와 데이터 계약을 검증한다.
+2. CI에서 데이터 계약을 검증하고, 운영 환경에서는 코드 테스트·모델 평가를 별도의 게이트로 추가한다.
 3. CT가 필요하다면 후보 모델을 학습하고 기준 모델과 비교한다.
 4. 승인된 이미지와 모델 아티팩트를 배포한다.
 5. 운영에서 지연·오류·품질 변화를 관측하고 필요하면 롤백한다.
@@ -65,7 +65,7 @@ ML Lifecycle은 **무엇을 관리해야 하는지**, MLOps는 **변경을 어�
 
 ### GitLab CI 최소 구조 · 데이터 검증, 이미지 빌드, 수동 배포
 
-아래는 단계를 이해하기 위한 최소 구성이다. 이미지 빌드에는 Docker-in-Docker가 가능한 Runner가 필요하고, 배포 Job에는 클러스터 접근 권한이 필요하다. 실제 파이프라인에서는 Runner 권한과 비밀정보 관리부터 확인해야 한다.
+아래는 단계 간 연결을 설명하는 구성 예시다. 이 문서의 데이터 검증 코드와 별도 글의 모델 학습·서빙 코드를 하나의 프로젝트로 정리한 뒤 적용하는 형태다. 이미지 빌드에는 Docker-in-Docker가 가능한 Runner가 필요하고, 배포 Job에는 클러스터 접근 권한이 필요하다. 실제 파이프라인에서는 Runner 권한과 비밀정보 관리부터 확인해야 한다.
 
 ```yaml [.gitlab-ci.yml]
 stages:
@@ -119,7 +119,7 @@ deploy:
     - kubectl rollout status deployment/ml-serving --timeout=180s
 ```
 
-**구성 전 확인 사항:** `validate_data.py`, `train.csv`, `train.py`, `Dockerfile`과 기존 `ml-serving` Deployment가 필요하다. Docker-in-Docker용 Runner 설정, 레지스트리 인증, GitLab Agent 기반 Kubernetes 접근 및 `KUBE_CONTEXT` 설정도 환경에 맞게 준비해야 한다. `registry.example.com/ci/kubectl:1.31`은 조직에서 준비한 kubectl 실행 이미지의 자리표시자다. 실제 사용 가능한 이미지로 교체하고 CLI 호환성을 확인해야 한다.
+**구성 전 확인 사항:** `validate_data.py`, `train.csv`, `train.py`, `Dockerfile`, `requirements.txt`, `app/main.py`와 기존 `ml-serving` Deployment가 필요하다. `train.py`가 빌드 작업 공간에 `app/model.json`을 생성하고, Dockerfile이 해당 파일을 이미지에 포함해야 한다. 문서의 코드는 각각 독립적인 예제이므로 파일 경로와 실행 순서를 통합해야 한다. Docker-in-Docker용 Runner 설정, 레지스트리 인증, GitLab Agent 기반 Kubernetes 접근 및 `KUBE_CONTEXT` 설정도 환경에 맞게 준비해야 한다. `registry.example.com/ci/kubectl:1.31`은 조직에서 준비한 kubectl 실행 이미지의 자리표시자다. 실제 사용 가능한 이미지로 교체하고 CLI 호환성을 확인해야 한다.
 
 여기서 **모델 아티팩트 생성은 예제의 빌드 과정**이지, 새로운 운영 데이터에 대한 CT 파이프라인은 아니다. 별도의 모델 평가·승인 절차 없이 운영에 반영하면 안 된다. 또한 위 방식은 명령형 배포이므로 GitOps를 도입했다면 `kubectl set image` 대신 Git에 선언된 이미지 태그를 변경하고 동기화하는 편이 일관적이다.
 
