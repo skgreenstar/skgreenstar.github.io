@@ -89,7 +89,7 @@ build:
 deploy:
   stage: deploy
   image:
-    name: alpine/k8s:1.31.4
+    name: registry.example.com/ci/kubectl:1.31
     entrypoint: [""]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -101,7 +101,7 @@ deploy:
     - kubectl rollout status deployment/ml-serving --timeout=180s
 ```
 
-**구성 전 확인 사항:** `validate_data.py`, `train.csv`, `train.py`, `Dockerfile`과 기존 `ml-serving` Deployment가 필요하다. Docker-in-Docker용 Runner 설정, 레지스트리 인증, GitLab Agent 기반 Kubernetes 접근 및 `KUBE_CONTEXT` 설정도 환경에 맞게 준비해야 한다. 컨테이너 이미지 태그와 CLI 호환성은 적용 환경에서 확인한다.
+**구성 전 확인 사항:** `validate_data.py`, `train.csv`, `train.py`, `Dockerfile`과 기존 `ml-serving` Deployment가 필요하다. Docker-in-Docker용 Runner 설정, 레지스트리 인증, GitLab Agent 기반 Kubernetes 접근 및 `KUBE_CONTEXT` 설정도 환경에 맞게 준비해야 한다. `registry.example.com/ci/kubectl:1.31`은 조직에서 준비한 kubectl 실행 이미지의 자리표시자다. 실제 사용 가능한 이미지로 교체하고 CLI 호환성을 확인해야 한다.
 
 여기서 **모델 아티팩트 생성은 예제의 빌드 과정**이지, 새로운 운영 데이터에 대한 CT 파이프라인은 아니다. 별도의 모델 평가·승인 절차 없이 운영에 반영하면 안 된다. 또한 위 방식은 명령형 배포이므로 GitOps를 도입했다면 `kubectl set image` 대신 Git에 선언된 이미지 태그를 변경하고 동기화하는 편이 일관적이다.
 
