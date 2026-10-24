@@ -81,6 +81,98 @@ GitOps는 Git에 기록된 원하는 상태와 실제 클러스터 상태를 비
 
 좋은 플랫폼은 구성 요소가 많아서가 아니라, **변경과 실패를 예측 가능한 방식으로 처리할 수 있어서** 가치가 있다.
 
+## 작은 프로젝트로 배포 구조 살펴보기
+
+아키텍처 그림만 보면 각 구성 요소가 추상적으로 느껴질 수 있다. 아래는 **FastAPI 앱을 컨테이너로 패키징하고 Kubernetes에 배포하는 최소 구조**다. 실제 ML 모델 로딩, 인증, 모니터링은 별도로 설계해야 한다.
+
+```text [project structure]
+ml-serving/
+├── app/
+│   └── main.py
+├── requirements.txt
+├── Dockerfile
+└── k8s/
+    └── deployment.yaml
+```
+
+```python [app/main.py]
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+```
+
+```text [requirements.txt]
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+```
+
+```dockerfile [Dockerfile]
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app/ ./app/
+EXPOSE 8080
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+```
+
+```bash [terminal]
+docker build -t ml-serving:local .
+docker run --rm -p 8080:8080 ml-serving:local
+# 별도 터미널에서 확인
+curl http://localhost:8080/health
+```
+
+```json [expected response]
+{
+  "status": "ok"
+}
+```
+
+Kubernetes에서는 이미지를 클러스터가 접근할 수 있는 레지스트리에 푸시해야 한다. `ml-serving:local`은 로컬 Docker 테스트용 이름이다.
+
+```yaml [k8s/deployment.yaml]
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-serving
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ml-serving
+  template:
+    metadata:
+      labels:
+        app: ml-serving
+    spec:
+      containers:
+        - name: api
+          image: registry.example.com/ml-serving:v1
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+```
+
+```bash [terminal]
+# 이미지 주소를 실제 접근 가능한 레지스트리로 바꾼 뒤 실행
+kubectl apply -f k8s/deployment.yaml
+kubectl rollout status deployment/ml-serving
+kubectl get pods -l app=ml-serving
+```
+
+이 예시에서 `registry.example.com`은 자리표시자다. 운영 배포에는 이미지 인증, 리소스 제한, 보안 컨텍스트, 종료 처리, Service 및 네트워크 정책이 추가로 필요하다.
+
+
 ---
 
 **이전 글:** [모델 학습에 CI/CD만 적용하면 충분할까?](/ml-platform/week-02)  
