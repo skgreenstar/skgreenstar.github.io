@@ -87,6 +87,22 @@ GitOps는 Git에 기록된 원하는 상태와 실제 클러스터 상태를 비
 
 도구를 추가하면 기능뿐 아니라 운영 책임도 늘어난다. 작은 규모라면 간단한 CI 작업과 스케줄러만으로도 충분할 수 있다.
 
+### 모델과 이미지의 호환성을 릴리스 단위로 묶기
+
+모델 버전만 되돌려도 추론 코드가 새로운 입력 스키마를 요구한다면 롤백은 실패할 수 있다. 따라서 운영에서 되돌릴 단위는 **모델 파일 하나가 아니라 검증된 릴리스 묶음**이어야 한다.
+
+```yaml [release-manifest.yaml]
+release_id: quality-predictor-2026-10
+model_version: quality-v12
+dataset_snapshot: sensor-snapshot-202610
+feature_schema_version: features-v3
+serving_image: registry.example.com/ml/quality@sha256:<digest>
+evaluation_report: eval-quality-v12
+deployment_config: serving-config-v5
+```
+
+위 값은 릴리스 메타데이터의 구조를 보여주는 예시다. 실제로는 이미지 digest와 모델 체크섬을 확인하고, 스테이징 환경에서 해당 조합을 테스트한 뒤 승인한다. 장애가 발생하면 **마지막으로 승인된 조합 전체**를 기준으로 복구한다.
+
 ## 6. 정상 동작보다 먼저 점검할 실패 경로
 
 플랫폼 구성도를 그릴 때는 정상 경로보다 **실패했을 때의 경로**를 먼저 확인하는 것이 도움이 된다.
