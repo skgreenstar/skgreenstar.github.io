@@ -81,6 +81,28 @@ GitOps는 Git에 기록된 원하는 상태와 실제 클러스터 상태를 비
 
 좋은 플랫폼은 구성 요소가 많아서가 아니라, **변경과 실패를 예측 가능한 방식으로 처리할 수 있어서** 가치가 있다.
 
+## 5.1 산업 AI에서 모델 서빙과 제어를 구분하는 이유
+
+제조 현장의 예측 모델은 **예측 결과를 보여주는 서비스**와 **설비 운전을 실제로 변경하는 제어 시스템**을 구분해야 한다. 모델의 예측값이 바로 제어 명령으로 이어지면, 예측 오차뿐 아니라 지연시간·센서 이상·물리적 제약 위반이 안전 문제로 확대될 수 있다.
+
+따라서 플랫폼 아키텍처에는 모델 앞뒤의 책임 경계를 표시하는 편이 좋다.
+
+```text [industrial-ai-flow]
+Sensor / Historian
+       |
+Data validation + timestamp alignment
+       |
+Feature pipeline -> Versioned model
+       |
+Prediction + uncertainty / quality checks
+       |
+Business rules + operating constraints
+       |
+Operator review or approved control system
+```
+
+이 흐름은 개념적 구성이며, 실제 설비 제어는 별도의 안전 계층과 현장 승인 절차가 필요하다. **예측 API가 정상 응답한다는 사실은 제어에 사용해도 안전하다는 뜻이 아니다.**
+
 ## 6. 작은 프로젝트로 배포 구조 살펴보기
 
 아키텍처 그림만 보면 각 구성 요소가 추상적으로 느껴질 수 있다. 아래는 **작은 예측 모델을 FastAPI로 서빙하고 Kubernetes에 배포하는 최소 구조**다. 학습·모델 로딩과 서빙을 구분하되, 인증과 모니터링 등 운영 기능은 별도로 설계해야 한다.
