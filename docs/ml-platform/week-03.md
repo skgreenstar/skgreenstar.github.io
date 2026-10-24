@@ -159,8 +159,8 @@ y = np.array([2., 9.5, 17., 24.5])
 model = LinearRegression().fit(x, y)
 artifact = {
     "version": "demo-linear-v1",
-    "weight": float(model.coef_[0]),
-    "bias": float(model.intercept_),
+    "weight": round(float(model.coef_[0]), 6),
+    "bias": round(float(model.intercept_), 6),
 }
 Path("app/model.json").write_text(json.dumps(artifact, indent=2))
 print(artifact)
