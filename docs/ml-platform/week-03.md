@@ -81,14 +81,15 @@ GitOps는 Git에 기록된 원하는 상태와 실제 클러스터 상태를 비
 
 좋은 플랫폼은 구성 요소가 많아서가 아니라, **변경과 실패를 예측 가능한 방식으로 처리할 수 있어서** 가치가 있다.
 
-## 작은 프로젝트로 배포 구조 살펴보기
+## 6. 작은 프로젝트로 배포 구조 살펴보기
 
-아키텍처 그림만 보면 각 구성 요소가 추상적으로 느껴질 수 있다. 아래는 **FastAPI 앱을 컨테이너로 패키징하고 Kubernetes에 배포하는 최소 구조**다. 실제 ML 모델 로딩, 인증, 모니터링은 별도로 설계해야 한다.
+아키텍처 그림만 보면 각 구성 요소가 추상적으로 느껴질 수 있다. 아래는 **작은 예측 모델을 FastAPI로 서빙하고 Kubernetes에 배포하는 최소 구조**다. 학습·모델 로딩과 서빙을 구분하되, 인증과 모니터링 등 운영 기능은 별도로 설계해야 한다.
 
 ```text [project structure]
 ml-serving/
 ├── app/
-│   └── main.py
+│   ├── main.py
+│   └── model.json
 ├── requirements.txt
 ├── Dockerfile
 └── k8s/
@@ -96,14 +97,36 @@ ml-serving/
 ```
 
 ```python [app/main.py]
+from pathlib import Path
+import json
 from fastapi import FastAPI
+from pydantic import BaseModel
 
+MODEL = json.loads((Path(__file__).parent / "model.json").read_text())
 app = FastAPI()
+
+class PredictRequest(BaseModel):
+    temperature: float
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "model_version": MODEL["version"]}
+
+@app.post("/predict")
+def predict(request: PredictRequest):
+    prediction = MODEL["weight"] * request.temperature + MODEL["bias"]
+    return {"prediction": round(prediction, 3), "model_version": MODEL["version"]}
 ```
+
+```json [app/model.json]
+{
+  "version": "demo-linear-v1",
+  "weight": 0.75,
+  "bias": 2.0
+}
+```
+
+위 계수는 설명을 위한 임의의 값으로, 학습을 통해 얻은 모델이 아니다. 실제 서비스에서는 학습된 모델 아티팩트의 검증·버전 관리가 필요하다.
 
 ```text [requirements.txt]
 fastapi>=0.115,<1
@@ -125,13 +148,19 @@ docker build -t ml-serving:local .
 docker run --rm -p 8080:8080 ml-serving:local
 # 별도 터미널에서 확인
 curl http://localhost:8080/health
+curl -X POST http://localhost:8080/predict \
+  -H "Content-Type: application/json" \
+  -d '{"temperature": 20}'
 ```
 
 ```json [expected response]
 {
-  "status": "ok"
+  "prediction": 17.0,
+  "model_version": "demo-linear-v1"
 }
 ```
+
+위 JSON은 `/predict` 호출의 예상 응답이다. `/health`는 `status`와 `model_version`을 반환한다.
 
 Kubernetes에서는 이미지를 클러스터가 접근할 수 있는 레지스트리에 푸시해야 한다. `ml-serving:local`은 로컬 Docker 테스트용 이름이다.
 
@@ -155,22 +184,48 @@ spec:
           image: registry.example.com/ml-serving:v1
           ports:
             - containerPort: 8080
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
           readinessProbe:
             httpGet:
               path: /health
               port: 8080
             initialDelaySeconds: 3
             periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-serving
+spec:
+  selector:
+    app: ml-serving
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
 ```
 
+`Service`는 Pod가 교체되어도 클러스터 내부에서 `ml-serving`이라는 이름으로 접근할 수 있게 한다. `ClusterIP`는 외부 인터넷에 서비스를 공개하지 않는다.
+
 ```bash [terminal]
-# 이미지 주소를 실제 접근 가능한 레지스트리로 바꾼 뒤 실행
+# 아래 registry.example.com은 예시 주소다. 실제 레지스트리로 교체한다.
+docker tag ml-serving:local registry.example.com/ml-serving:v1
+docker push registry.example.com/ml-serving:v1
+# Deployment의 image 주소도 같은 레지스트리 이미지로 설정한다.
 kubectl apply -f k8s/deployment.yaml
 kubectl rollout status deployment/ml-serving
 kubectl get pods -l app=ml-serving
+kubectl port-forward service/ml-serving 8081:80
+# 다른 터미널: curl http://localhost:8081/health
 ```
 
-이 예시에서 `registry.example.com`은 자리표시자다. 운영 배포에는 이미지 인증, 리소스 제한, 보안 컨텍스트, 종료 처리, Service 및 네트워크 정책이 추가로 필요하다.
+이 예시에서 `registry.example.com`은 자리표시자다. 레지스트리 로그인과 이미지 Pull 권한이 사전에 필요하다. 위 YAML은 Service와 자원 요청·제한을 포함하지만, 실제 운영에는 보안 컨텍스트, 종료 처리, 네트워크 정책, 모델 아티팩트 무결성 검증 등을 추가로 검토해야 한다. `readinessProbe`는 요청 수신 가능 여부를 판단하며, `startupProbe`나 `livenessProbe`는 초기화 시간과 재시작 정책에 따라 선택한다.
 
 
 ---
