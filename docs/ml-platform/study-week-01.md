@@ -22,6 +22,8 @@ outline: deep
 
 ![ML 변경 관리와 릴리스 승인 흐름](/diagrams/ml-release-gates.svg)
 
+교재 범위를 따라 추가로 확인한 주제도 있다. **ML Engineer에게 필요한 역량**은 [Lifecycle 글](/ml-platform/week-01)에서, **MLOps 성숙도 Level 0~2**는 [MLOps 글](/ml-platform/week-02)에서, **플랫폼 직접 구축과 관리형 서비스 선택 기준(Build vs. Buy)**은 [플랫폼 설계 글](/ml-platform/week-03)에서 정리했다.
+
 ## 2. Lifecycle부터 배포까지 연결하기
 
 ML Lifecycle은 **무엇을 관리해야 하는지**, MLOps는 **변경을 어떤 기준으로 검증할지**, Kubernetes와 CI/CD는 **승인된 산출물을 어떻게 실행 환경에 전달할지**에 답한다.
@@ -125,6 +127,7 @@ RAG·Agent 시스템에서도 원리는 비슷하다. 코드 테스트가 통과
 
 ### 참고 자료
 
+- [Machine Learning Platform Engineering · 공식 목차](https://www.manning.com/preview/machine-learning-platform-engineering/chapter-1)
 - [GitLab CI/CD 공식 문서](https://docs.gitlab.com/ci/)
 - [GitLab Docker-in-Docker](https://docs.gitlab.com/ci/docker/using_docker-in-docker/)
 - [Kubernetes Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
