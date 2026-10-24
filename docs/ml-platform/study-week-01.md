@@ -76,6 +76,11 @@ build:
     DOCKER_TLS_CERTDIR: "/certs"
     DOCKER_TLS_VERIFY: "1"
     DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - python3 -m venv /tmp/model-env
+    - /tmp/model-env/bin/pip install numpy scikit-learn
+    - /tmp/model-env/bin/python train.py
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
     - docker build -t "$IMAGE_TAG" .
@@ -96,7 +101,7 @@ deploy:
     - kubectl rollout status deployment/ml-serving --timeout=180s
 ```
 
-**실행 전 준비할 것:** `validate_data.py`와 `train.csv`, `Dockerfile`, `ml-serving` Deployment, 레지스트리 접근 권한, `KUBE_CONTEXT`가 필요하다. Docker-in-Docker의 TLS 및 Runner 설정과 클러스터 접근 방식은 설치 환경에 따라 달라진다. 예시의 `kubectl` 이미지는 실제 사용 전 태그 가용성과 조직 정책을 확인해야 한다.
+**실행 전 준비할 것:** `validate_data.py`와 `train.csv`, `train.py`, `Dockerfile`, `ml-serving` Deployment, 레지스트리 접근 권한, `KUBE_CONTEXT`가 필요하다. Docker-in-Docker의 TLS 및 Runner 설정과 클러스터 접근 방식은 설치 환경에 따라 달라진다. 예시의 `kubectl` 이미지는 실제 사용 전 태그 가용성과 조직 정책을 확인해야 한다.
 
 이 파이프라인은 **데이터 검증 → 이미지 빌드 → 수동 승인 배포**만 보여준다. CT·모델 평가 게이트는 구현하지 않았으며, 실서비스라면 배포 전에 평가 Job과 보안 검증을 추가해야 한다. 또한 GitOps를 선택한다면 `kubectl set image` 대신 선언형 배포 설정을 변경하고 동기화하는 방식이 더 적절할 수 있다.
 
