@@ -5,6 +5,7 @@ export default defineConfig({
   title: 'Heemin',
   description: 'AI Engineering · MLOps · LLMOps · RAG · Agent',
   cleanUrls: true,
+  appearance: false,
   lastUpdated: true,
   head: [['meta', { name: 'theme-color', content: '#ffffff' }]],
   themeConfig: {
