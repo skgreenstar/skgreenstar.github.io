@@ -18,8 +18,8 @@ description: AI Engineering, MLOps, LLMOps, RAG, AI Agent 기술 블로그
   <section class="heemin-section">
     <div class="heemin-section-heading"><div><h2>Latest writing</h2><p>기술을 선택한 이유와 운영에서 확인할 것들</p></div><span>2026</span></div>
     <div class="heemin-cards">
-      <a class="heemin-card" href="/ml-platform/week-01"><small>ML PLATFORM · EVALUATION</small><h3>모델 성능 다음에 확인해야 할 것들 ↗</h3><p>재현성, 배포, 제조 데이터의 평가 함정, RAG·Agent의 Judge 평가와 운영 판단.</p></a>
-      <div class="heemin-card"><small>NEXT · ML PLATFORM</small><h3>실험에서 운영까지 이어지는 흐름</h3><p>MLflow, Feast, Kubeflow를 중심으로 실험과 운영의 연결을 탐구할 예정입니다.</p></div>
+      <a class="heemin-card" href="/ml-platform/week-01"><small>ML PLATFORM · 01</small><h3>모델을 만들고 나서 시작되는 일들 ↗</h3><p>ML Lifecycle과 재현성, 실험에서 운영으로 넘어갈 때 확인해야 할 것들.</p></a>
+      <a class="heemin-card" href="/ml-platform/week-02"><small>ML PLATFORM · 02</small><h3>모델 학습에 CI/CD만 적용하면 충분할까? ↗</h3><p>데이터와 모델의 변경을 관리하는 MLOps, CI/CD/CT와 배포 승인.</p></a>
     </div>
   </section>
   <section class="heemin-section">
