@@ -1,10 +1,19 @@
 # ML Platform Engineering
 
-모델을 만드는 단계에서 끝내지 않고, **평가·배포·운영까지 이어지는 구조**를 살펴봅니다.
+모델 개발부터 운영까지, 단계별로 무엇을 검증하고 어떤 선택을 해야 하는지 정리합니다.
 
-| 글 | 주요 내용 |
-|---|---|
-| [01. 모델 성능 다음에 확인해야 할 것들](/ml-platform/week-01) | 재현성, CI/CD/CT, RAG·Agent 평가, 배포 판단 |
-| 02. 실험과 운영을 연결하는 도구들 (준비 중) | MLflow, Feast, Kubeflow |
+## 1주차 · ML 시스템의 기반
 
-기술을 개별적으로 나열하기보다, 도입해야 하는 이유와 운영 시 발생하는 문제를 함께 정리합니다.
+### [01. 모델을 만들고 나서 시작되는 일들](/ml-platform/week-01)
+ML Lifecycle, 재현성, 운영 데이터의 변화.
+
+### [02. 모델 학습에 CI/CD만 적용하면 충분할까?](/ml-platform/week-02)
+DevOps와 MLOps의 차이, CI/CD/CT, 재학습과 릴리스 판단.
+
+### [03. ML 플랫폼을 설계할 때 먼저 정할 것들](/ml-platform/week-03)
+Kubernetes, GitOps, 플랫폼 책임 경계와 장애 대응.
+
+## 심화 글
+
+### [모델 성능 다음에 확인해야 할 것들](/ml-platform/evaluation-and-operations)
+제조 ML 평가, RAG·Agent, LLM-as-a-Judge, 배포 게이트.
