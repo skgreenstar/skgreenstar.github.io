@@ -134,7 +134,152 @@ RAGAS 등의 자동 평가는 유용하지만, **Faithfulness는 제공된 근�
 
 Langfuse 같은 추적 도구를 사용할 때도 개인정보·민감정보 마스킹, 로그 보존 기간, 접근 권한을 설계해야 한다. 모든 요청을 무제한 저장하는 것이 곧 좋은 관측 가능성은 아니다.
 
-## 8. 시스템 설계의 트레이드오프
+
+## 8. RAG·Agent 평가 지표를 어떻게 설계할까?
+
+LLM 애플리케이션의 평가는 **검색 품질 → 생성 품질 → 작업 성공 → 운영 품질**로 분리하는 편이 진단에 유리하다. 최종 답변 하나만 점수화하면 어느 단계에서 실패했는지 알기 어렵다.
+
+### 8.1 Retrieval: 필요한 근거를 찾아왔는가?
+
+| 지표 | 측정 대상 | 해석 및 주의점 |
+|---|---|---|
+| **Recall@K** | 정답 관련 문서 중 Top-K에 포함된 비율 | 관련 문서의 정답 라벨이 필요하다. K가 커지면 보통 상승한다. |
+| **Precision@K** | Top-K 중 관련 문서의 비율 | 검색 결과에 노이즈가 얼마나 섞였는지 파악한다. |
+| **MRR** | 첫 번째 관련 문서의 순위 | 첫 정답 문서가 앞에 나오는 것이 중요한 검색에 적합하다. |
+| **nDCG@K** | 관련도 등급과 순위 품질 | 문서별 관련도에 차이가 있을 때 유용하다. |
+| **Hit Rate@K** | Top-K에 관련 문서가 하나라도 있는 질의의 비율 | 찾기 성공 여부를 간단히 확인한다. |
+
+**예시:** 관련 문서가 총 4개인데 Top-5 검색 결과에서 2개를 찾았고, 나머지 3개는 무관하다면 **Recall@5 = 2/4 = 0.5**, **Precision@5 = 2/5 = 0.4**이다. 검색이 잘 되었는지와 검색 결과가 얼마나 깨끗한지는 다른 문제다.
+
+::: tip Retrieval 평가의 함정
+검색 결과의 **chunk 단위**와 정답의 **document 단위**가 다르면 지표가 왜곡될 수 있다. 평가 전에 관련성의 단위, 중복 청크 처리, 정답 문서 집합을 먼저 정의해야 한다.
+:::
+
+### 8.2 Generation: 근거에 충실하고 질문에 답했는가?
+
+| 지표 | 핵심 질문 | Reference 필요 여부 |
+|---|---|---|
+| **Faithfulness / Groundedness** | 생성된 주장이 검색된 컨텍스트로 뒷받침되는가? | 정답 답변은 없어도 평가 가능하지만 근거 컨텍스트가 필요하다. |
+| **Answer Relevancy** | 응답이 사용자 질문에 적절하게 답하는가? | 일반적으로 정답 답변 없이도 평가할 수 있다. |
+| **Answer Correctness** | 실제 정답과 의미적으로 일치하는가? | 일반적으로 정답 답변이 필요하다. |
+| **Context Precision** | 검색 결과 중 유용한 컨텍스트가 상위에 배치됐는가? | 평가 구현에 따라 정답 답변 또는 관련성 라벨이 필요하다. |
+| **Context Recall** | 답변에 필요한 근거가 컨텍스트에 포함됐는가? | 보통 정답 답변이나 근거 라벨이 필요하다. |
+
+**중요:** Faithfulness가 높아도 답변이 사실이라는 보장은 없다. 잘못된 문서에 충실한 답변도 높은 Faithfulness를 받을 수 있다. 반대로 정확한 답변이라도 검색 근거를 벗어나면 Groundedness가 낮아질 수 있다.
+
+또한 RAGAS의 구체적인 메트릭 구현과 입력 필드는 버전에 따라 달라질 수 있으므로, 운영 평가에서는 **메트릭 이름뿐 아니라 라이브러리 버전·평가 프롬프트·Judge 모델까지 고정**해야 한다.
+
+### 8.3 LLM-as-a-Judge: 생성형 AI로 생성형 AI를 평가한다
+
+LLM-as-a-Judge는 평가자 역할의 LLM에게 **평가 대상 응답과 명시적인 채점 기준(rubric)**을 제공해 품질을 판단하게 하는 방식이다. 사람이 모든 답변을 읽기 어려운 상황에서 평가 범위를 넓히는 데 유용하지만, 사람의 판단을 완전히 대체하지는 못한다.
+
+![LLM-as-a-Judge 평가 파이프라인](/diagrams/llm-judge.svg)
+
+**평가 입력 예시**
+
+```json
+{
+  "question": "설비 A의 압력이 상승한 원인은?",
+  "retrieved_context": "최근 밸브 개도율 감소 및 유량 변화 기록",
+  "answer": "밸브 개도율 감소로 압력이 상승했을 가능성이 있습니다.",
+  "reference_answer": "밸브 개도율 및 유량 변화가 주요 검토 요인",
+  "rubric_version": "groundedness-v1"
+}
+```
+
+**Judge 프롬프트 설계 예시**
+
+```text
+역할: 검색 근거에 대한 답변의 충실성을 평가하는 심사자.
+
+평가 기준:
+5 = 모든 핵심 주장이 근거로 뒷받침됨
+4 = 핵심 주장은 뒷받침되나 사소한 과장 있음
+3 = 일부 주장은 뒷받침되지만 중요한 추론이 섞임
+2 = 핵심 주장 상당수가 근거로 확인되지 않음
+1 = 근거와 모순되거나 근거가 거의 없음
+
+규칙:
+- 질문, 검색 컨텍스트, 답변만 사용한다.
+- 유창한 문체에 가산점을 주지 않는다.
+- 근거가 부족하면 높은 점수를 주지 않는다.
+- 점수와 근거가 되는 문장을 JSON으로 반환한다.
+```
+
+```json
+{
+  "score": 4,
+  "reason": "밸브 개도율 감소는 컨텍스트에 있지만, 압력 상승의 직접적인 인과관계는 추가 검증이 필요합니다.",
+  "unsupported_claims": ["밸브 개도율 감소가 압력 상승의 원인"]
+}
+```
+
+이 예시는 **평가 형식을 보여주는 가상의 출력**이다. 실제 평가 실행 결과나 특정 Judge 모델의 점수가 아니다.
+
+### 8.4 Judge를 믿어도 될까? — 편향과 캘리브레이션
+
+LLM Judge에는 다음과 같은 오류가 발생할 수 있다.
+
+- **Position bias:** 두 답변을 비교할 때 먼저 제시된 답변을 선호한다.
+- **Verbosity bias:** 내용이 더 정확하지 않아도 긴 답변을 높게 평가한다.
+- **Self-preference bias:** 평가 모델과 유사한 모델의 문체·출력을 선호할 수 있다.
+- **Prompt sensitivity:** 채점 문구나 척도가 바뀌면 점수가 달라질 수 있다.
+- **Domain mismatch:** 제조·의료·법률처럼 전문성이 필요한 영역에서 잘못된 판단을 할 수 있다.
+
+따라서 운영용 Judge는 다음과 같이 검증한다.
+
+1. **골든셋 구축:** 도메인 전문가가 평가한 정상·오류·경계 사례를 포함한다.
+2. **사람과 비교:** 정확 일치율, 가중 Cohen's κ, 순위 상관 등 평가 척도에 맞는 일치도를 확인한다.
+3. **순서 바꾸기:** Pairwise 평가에서는 A/B 순서를 교환해 결과 안정성을 확인한다.
+4. **재현성 확인:** 모델·프롬프트·루브릭 버전을 기록하고 반복 평가 분산을 확인한다.
+5. **경계 사례 재검토:** 낮은 확신도, 모델 간 불일치, 고위험 답변은 사람이 검토한다.
+
+::: warning 평가 점수는 절대적인 진실이 아니다
+Judge가 4/5점을 주었다고 해서 답변이 **80% 정확하다**는 뜻은 아니다. 1~5점은 정의한 루브릭의 **서열형 등급**이며, 검증 없이 확률이나 정확도로 해석하면 안 된다.
+:::
+
+### 8.5 Agent Evaluation: 답변 품질보다 작업 성공이 중요할 때
+
+Agent는 중간 과정에서 도구를 호출하고 상태를 변경하므로, RAG 답변 평가만으로 충분하지 않다.
+
+| 평가 계층 | 대표 지표 | 확인할 실패 |
+|---|---|---|
+| Goal | **Task Success Rate** | 사용자 목표를 실제로 달성하지 못함 |
+| Tool | **Tool Selection / Argument Accuracy** | 잘못된 도구·파라미터 선택 |
+| Trajectory | **Step Validity / Policy Compliance** | 불필요한 반복, 정책 위반 |
+| Reliability | **Timeout / Recovery Rate** | 도구 오류 후 복구 실패 |
+| Efficiency | **Latency / Tokens / Cost per Success** | 성공했지만 과도한 비용 발생 |
+
+**Task Success Rate = 성공적으로 완료한 작업 수 / 전체 평가 작업 수**로 정의할 수 있다. 다만 무엇을 '성공'으로 볼지는 도메인별로 명확하게 정해야 한다. 예를 들어 조회형 Agent는 정답 제공이 성공일 수 있지만, 업무 실행형 Agent는 **실제 상태 변경의 정확성과 권한 준수**까지 검증해야 한다.
+
+### 8.6 운영 평가 파이프라인 제안
+
+```text
+Versioned Evaluation Dataset
+       ↓
+Run candidate RAG / Agent
+       ↓
+Deterministic checks (schema, citation, tool policy)
+       ↓
+Retrieval metrics + LLM-as-a-Judge
+       ↓
+Human review on sampled / disputed cases
+       ↓
+Compare to baseline + release gate
+       ↓
+Production tracing + drift monitoring
+```
+
+배포 게이트는 **평균 Judge 점수 하나**로 만들기보다, 필수 정책 위반 0건, 주요 골든셋의 회귀 여부, p95 지연시간, 성공당 비용 등 **여러 조건**을 함께 적용하는 편이 안전하다. 점수 기준은 실제 트래픽과 비즈니스 위험을 고려해 설정해야 한다.
+
+### Further reading: Evaluation
+
+- [RAGAS — Metrics](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/)
+- [LangSmith — Evaluation Concepts](https://docs.langchain.com/langsmith/evaluation-concepts)
+- [MT-Bench / Chatbot Arena — LLM-as-a-Judge](https://arxiv.org/abs/2306.05685)
+- [G-Eval — NLG Evaluation using GPT-4](https://arxiv.org/abs/2303.16634)
+
+## 9. 시스템 설계의 트레이드오프
 
 > **Quality × Reliability × Latency × Cost**
 >
@@ -149,7 +294,7 @@ Langfuse 같은 추적 도구를 사용할 때도 개인정보·민감정보 마
 3. **원인 추적:** 결과 점수뿐 아니라 실행 경로를 관찰한다.
 4. **목적에 맞는 복잡도:** 작은 서비스에 과도한 플랫폼을 강요하지 않는다.
 
-## 9. 다음 학습: MLflow · Feast · Kubeflow
+## 10. 다음 학습: MLflow · Feast · Kubeflow
 
 다음 주에는 다음 연결 고리를 더 구체적으로 공부한다.
 
