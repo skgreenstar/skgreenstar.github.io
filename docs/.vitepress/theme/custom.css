@@ -64,15 +64,35 @@ html,body{background:var(--vp-c-bg)}
  .vp-doc table{display:block;overflow-x:auto}
 }
 
-/* Editorial code surfaces: dark terminal cards inside the light site. */
-.vp-doc div[class*="language-"]{border:1px solid #303e56;border-radius:15px;background:#111927;box-shadow:0 10px 28px #18263c13;overflow:hidden;margin:22px 0 30px}
-.vp-doc div[class*="language-"]::before{content:"";display:block;position:absolute;top:16px;left:18px;width:9px;height:9px;border-radius:50%;background:#ff6464;box-shadow:16px 0 #ffbd4a,32px 0 #39c96b;z-index:2}
-.vp-doc div[class*="language-"]>span.lang{position:absolute;top:10px;left:76px;right:auto;color:#aab8cf;font-family:var(--vp-font-family-mono);font-size:12px;font-weight:600;opacity:1}
-.vp-doc div[class*="language-"]>button.copy{top:8px;right:12px;border:1px solid #35455e;background:#1d2a3e;border-radius:7px;opacity:1}
-.vp-doc div[class*="language-"]>button.copy:hover{background:#293b56}
-.vp-doc div[class*="language-"]>span.lang,.vp-doc div[class*="language-"]>button.copy{z-index:3}
-.vp-doc div[class*="language-"]>pre{padding-top:54px!important;padding-bottom:20px!important;background:#111927}
-.vp-doc div[class*="language-"] code{font-size:13px;line-height:1.85}
+/* Code panels use VitePress's LIGHT syntax theme; a dark background made tokens unreadable. */
+:root{--vp-code-block-bg:#f5f8fd;--vp-code-block-color:#243650;--vp-code-copy-code-bg:#e9f0fa;--vp-code-copy-code-hover-bg:#dfe9f8}
+.vp-doc div[class*="language-"]{
+  position:relative;margin:22px 0 30px;border:1px solid #d7e2f0;
+  border-radius:14px;background:#f5f8fd;overflow:hidden;
+  box-shadow:0 5px 18px #17243b0b;
+}
+.vp-doc div[class*="language-"]::before{
+  content:"";position:absolute;z-index:2;top:16px;left:18px;
+  width:9px;height:9px;border-radius:50%;background:#f46b6b;
+  box-shadow:16px 0 #f5ba46,32px 0 #45c681;
+}
+.vp-doc div[class*="language-"]>span.lang{
+  position:absolute;z-index:3;top:9px;left:77px;right:auto;
+  font-size:12px;font-weight:600;color:#526781;opacity:1;
+}
+.vp-doc div[class*="language-"]>button.copy{
+  z-index:3;top:8px;right:12px;opacity:1;
+  border:1px solid #cad8e9;background:#fff;border-radius:7px;
+}
+.vp-doc div[class*="language-"]>button.copy:hover{background:#e7f0ff}
+.vp-doc div[class*="language-"]>pre{
+  padding-top:54px!important;padding-bottom:20px!important;
+  background:transparent!important;
+}
+.vp-doc div[class*="language-"] code{font-size:13px;line-height:1.85;color:#243650}
 .vp-doc div[class*="language-"] .line-numbers-wrapper{padding-top:54px}
-.vp-doc div[class*="language-"] .highlighted{background:#2563eb22}
-@media(max-width:760px){.vp-doc div[class*="language-"]{border-radius:12px;margin-left:0;margin-right:0}.vp-doc div[class*="language-"] code{font-size:12px}}
+.vp-doc div[class*="language-"] .highlighted{background:#dbeafe}
+@media(max-width:760px){
+  .vp-doc div[class*="language-"]{border-radius:12px}
+  .vp-doc div[class*="language-"] code{font-size:12.5px}
+}
