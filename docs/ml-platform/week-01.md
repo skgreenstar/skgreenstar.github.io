@@ -82,6 +82,36 @@ ML Lifecycle에서 놓치기 쉬운 부분은 단계 자체보다 **단계 사�
 
 이 세 질문이 다음 글에서 다룰 MLOps 자동화의 출발점이다.
 
+## 직접 확인해 보기: 데이터 분할이 달라지면
+
+같은 모델이라도 데이터를 어떻게 나누느냐에 따라 평가 결과가 달라진다. 시계열 데이터라면 미래 데이터를 학습에 섞지 않도록 시간 순서를 유지하는 것이 출발점이다.
+
+```python [time_split.py]
+import pandas as pd
+
+df = pd.read_csv("measurements.csv", parse_dates=["timestamp"])
+df = df.sort_values("timestamp")
+
+cutoff = int(len(df) * 0.8)
+train = df.iloc[:cutoff]
+test = df.iloc[cutoff:]
+
+assert train["timestamp"].max() < test["timestamp"].min()
+print(f"train={len(train)}, test={len(test)}")
+```
+
+`measurements.csv`는 `timestamp` 컬럼이 있는 데이터를 가정한다. 이 코드는 시간 분할의 기본 형태이며, 시간적으로 인접한 관측치의 누수나 피처 생성 과정의 미래 정보 사용까지 자동으로 방지하지는 않는다.
+
+```bash [terminal]
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install pandas
+python time_split.py
+```
+
+Windows PowerShell에서는 활성화 명령을 `.venv\Scripts\Activate.ps1`로 바꿔 실행한다.
+
+
 ---
 
 **다음 글:** [모델 학습에 CI/CD만 적용하면 충분할까?](/ml-platform/week-02)
