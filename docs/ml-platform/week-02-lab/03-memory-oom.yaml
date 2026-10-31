@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: memory-oom
+  namespace: week02
+spec:
+  restartPolicy: Never
+  containers:
+    - name: allocator
+      image: python:3.12-alpine
+      command: ["python", "-c"]
+      args:
+        - "import time; data = bytearray(160 * 1024 * 1024); time.sleep(60)"
+      resources:
+        requests:
+          cpu: 20m
+          memory: 32Mi
+        limits:
+          memory: 64Mi
+          cpu: 200m
