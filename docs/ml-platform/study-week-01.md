@@ -3,6 +3,9 @@ title: "Week 01 · ML Lifecycle에서 Kubernetes CI/CD까지"
 description: "ML Lifecycle, MLOps, Kubernetes와 GitLab CI/CD를 연결하는 1주차 학습 정리"
 date: 2026-10-25
 outline: deep
+next:
+  text: '2주차 · Kubernetes 운영 자동화와 리소스 관리'
+  link: '/ml-platform/study-week-02'
 ---
 
 # Week 01 · ML Lifecycle에서 Kubernetes CI/CD까지
