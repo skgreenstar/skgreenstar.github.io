@@ -3,6 +3,10 @@ title: "2주차 · Kubernetes 운영 자동화와 리소스 관리 실습"
 description: "Health Probe, Rolling Update, Requests/Limits와 QoS를 직접 재현하는 MLOps 스터디"
 date: 2026-11-01
 outline: deep
+prev:
+  text: '1주차 · ML 시스템의 기반'
+  link: '/ml-platform/study-week-01'
+next: false
 ---
 
 # 2주차 · Kubernetes 운영 자동화와 리소스 관리
@@ -16,7 +20,7 @@ outline: deep
 - AI 모델 서빙에 적용할 때의 설계 선택을 설명한다.
 :::
 
-## 0. 전체 아키텍처
+## 전체 운영 구조
 
 ![Kubernetes 운영 구조](/diagrams/week02-architecture.svg)
 
@@ -28,7 +32,7 @@ outline: deep
 | requests | 어디에 배치할 수 있는가? | Scheduler의 자원 적합성 판단 기준 |
 | limits | 얼마나 쓸 수 있는가? | CPU quota 기반 제어, Memory 초과 시 OOM 가능 |
 
-## 1. kind 환경 준비
+## 실습 환경 준비
 
 Docker, kind, kubectl이 필요하다. 실습 파일은 같은 저장소의 [week-02-lab](./week-02-lab/README.md)에 정리했다.
 
@@ -39,9 +43,9 @@ kubectl create namespace week02
 kubectl get nodes -o wide
 ```
 
-## 2. 애플리케이션 상태 검사와 자동 복구
+## 애플리케이션 상태 검사와 자동 복구
 
-### 2.1 헬스체크를 왜 나누는가?
+### 1. 헬스체크를 왜 나누는가?
 
 - **Startup**: 모델 로딩·DB 초기 연결처럼 시작이 오래 걸릴 때 조기 재시작을 막는다.
 - **Readiness**: 컨테이너가 실행 중이라도 DB·모델 가중치·초기 캐시가 준비되지 않았다면 트래픽을 차단한다.
@@ -49,7 +53,7 @@ kubectl get nodes -o wide
 
 ![Health Probe 동작](/diagrams/week02-probes.svg)
 
-### 2.2 Probe 실습: 정상 상태 → 트래픽 중단 → 장애
+### 2. Probe 실습: 정상 상태 → 트래픽 중단 → 장애
 
 실습 코드와 Deployment를 배포한다.
 
@@ -82,7 +86,7 @@ kubectl -n week02 describe pod -l app=probe-demo
 
 **관찰할 항목:** Ready 전환 시점, Endpoint 주소 변화, Restart Count, Events의 `Unhealthy`, `Killing`. 단일 replica에서는 readiness 실패 중 요청이 불가능할 수 있다.
 
-### 2.3 RollingUpdate vs Recreate
+### 3. RollingUpdate vs Recreate
 
 ![Deployment 배포 전략 비교](/diagrams/week02-deploy.svg)
 
@@ -116,7 +120,7 @@ kubectl -n week02 rollout undo deployment/probe-demo
 위 이미지 변경은 *의도적으로 호환되지 않는 예*다. 기존 app의 포트·Probe 경로와 nginx가 일치하지 않아 rollout이 정상 완료되지 않을 수 있다. 실제 검증에서는 **동일 API를 제공하는 v2 이미지를 제작**하여 업데이트하고, 잘못된 이미지로 인한 실패는 별도 장애 실험으로 구분하자.
 :::
 
-### 2.4 기록 표
+### 4. 기록 표
 
 | 테스트 | 예상 현상 | 실제 관찰 |
 |---|---|---|
@@ -126,9 +130,9 @@ kubectl -n week02 rollout undo deployment/probe-demo
 | RollingUpdate | Ready 신규 Pod 기준 교체 | 실행 후 기록 |
 | Recreate | 기존 Pod 종료 후 새 버전 시작 | 실행 후 기록 |
 
-## 3. 자원 관리와 성능 최적화
+## 자원 관리와 성능 최적화
 
-### 3.1 Scheduler와 Requests/Limits
+### 1. Scheduler와 Requests/Limits
 
 Scheduler는 Pod에 선언한 resource **requests**와 Node의 allocatable·이미 예약된 requests를 바탕으로 배치 가능 여부를 결정한다. Limit은 런타임 제어 기준이며 스케줄링 예약량과 다르다.
 
@@ -144,7 +148,7 @@ resources:
 
 CPU 1000m는 1 CPU에 해당한다. CPU는 경합·한도에 따라 실행 시간이 제한될 수 있지만 메모리는 동일 방식으로 압축되지 않아 OOM으로 이어질 수 있다.
 
-### 3.2 QoS와 Eviction
+### 2. QoS와 Eviction
 
 | QoS | 조건(일반적인 Pod 수준) | 의미 |
 |---|---|---|
@@ -154,7 +158,7 @@ CPU 1000m는 1 CPU에 해당한다. CPU는 경합·한도에 따라 실행 시�
 
 Node-pressure Eviction은 Priority, Requests 초과 사용 여부, 상대 사용량 등을 고려한다. QoS만으로 모든 축출 순서가 결정되는 것은 아니다. PriorityClass의 `preemptionPolicy: Never`는 **선점을 금지**하지만 높은 우선순위의 스케줄링 순서 자체를 포기하는 것은 아니다.
 
-### 3.3 CPU Throttling 및 OOM 실습
+### 3. CPU Throttling 및 OOM 실습
 
 ```bash
 kubectl apply -f docs/ml-platform/week-02-lab/02-cpu-stress.yaml
@@ -167,7 +171,7 @@ kubectl -n week02 describe pod memory-oom
 
 `kubectl top`은 Metrics Server가 설치되어 있어야 한다. 최소 kind 클러스터에서 작동하지 않으면 `kubectl describe`·컨테이너 cgroup 통계·재시작 이벤트를 활용한다. **Memory OOM은 실제 할당 패턴과 노드 환경에 따라 재현 여부가 달라질 수 있다.**
 
-### 3.4 CPU Overcommit / Replica × Worker
+### 4. CPU Overcommit / Replica × Worker
 
 ![Replica 및 Worker 분산 비교](/diagrams/week02-replica.svg)
 
@@ -175,7 +179,7 @@ kubectl -n week02 describe pod memory-oom
 
 CPU overcommit은 request를 실제 피크보다 낮게 설정해 더 많은 Pod를 배치하는 방법이다. 유휴 시간이 긴 웹 워크로드에는 유효할 수 있지만 동시 부하 시 레이턴시 변동성이 커질 수 있다. CPU limit 미설정은 throttling을 완화할 수 있으나 **클러스터 격리·공정성 정책 검토 후** 적용해야 한다.
 
-### 3.5 Rightsizing 실험 기록
+### 5. Rightsizing 실험 기록
 
 | 단계 | CPU 사용 | Memory 사용 | p95 latency | Restart / OOM |
 |---|---|---|---|---|
@@ -186,13 +190,13 @@ CPU overcommit은 request를 실제 피크보다 낮게 설정해 더 많은 Pod
 
 관찰한 워크로드 특성에 따라 CPU request를 조정하고, Memory는 정상 부하의 장기 최대값과 누수·스파이크를 고려한다. 특정 블로그의 **Memory request=limit, CPU request만 설정** 패턴을 모든 워크로드에 적용하는 것은 피한다.
 
-## 4. 심화 실험 · 가설을 성능 지표로 검증하기
+## 운영 가설을 검증하는 심화 실험
 
 기존 Probe·Deployment·Requests/Limits 실습은 기능 이해를 위한 **기초 검증**으로 두고, 실제 학습의 중심은 성능과 운영 안정성을 비교하는 세 가지 실험에 둔다.
 
 **실행 코드:** [FastAPI + k6 + 분석 스크립트](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-advanced) · [실습 가이드](https://github.com/skgreenstar/skgreenstar.github.io/blob/main/docs/ml-platform/week-02-advanced/README.md)
 
-### 4.1 CPU 제한이 Tail Latency에 미치는 영향
+### 1. CPU 제한이 Tail Latency에 미치는 영향
 
 가설: CPU-bound 요청을 처리할 때 낮은 CPU Limit은 CPU Throttling과 Tail Latency 증가로 이어질 수 있다.
 
@@ -212,7 +216,7 @@ python docs/ml-platform/week-02-advanced/analyze.py results/*.json
 CPU 사용률이 높다는 사실만으로 Throttling을 입증할 수 없다. CPU quota가 설정된 환경에서 실제 throttled periods 또는 시간 증가를 확인해야 한다.
 :::
 
-### 4.2 무중단 배포에서 사용자가 실제로 경험한 실패는?
+### 2. 무중단 배포에서 사용자가 실제로 경험한 실패는?
 
 가설: Deployment rollout 성공 여부와 사용자 관측 오류율은 다를 수 있다.
 
@@ -232,7 +236,7 @@ kubectl -n week02 set env deploy/performance-api READY_DELAY=8
 kubectl -n week02 rollout status deploy/performance-api
 ```
 
-### 4.3 Replicas 증가가 장애 내성을 얼마나 개선할까?
+### 3. Replicas 증가가 장애 내성을 얼마나 개선할까?
 
 같은 요청률에서 Replica 2개와 4개를 비교하고 Pod 하나가 사라졌을 때 남은 처리 용량, 오류율, 회복시간을 살펴본다.
 
@@ -240,7 +244,7 @@ kubectl -n week02 rollout status deploy/performance-api
 
 현재 배포 이미지는 worker 1개이므로 Replica 비교 결과는 **동일 총 Worker 비교가 아님**을 명시한다. 총 Worker를 고정하는 비교는 Pod당 uvicorn worker 수도 바꾸는 후속 실험으로 구분한다.
 
-### 4.4 자동 분석 산출물
+### 4. 자동 분석 산출물
 
 ```text
 results/
@@ -262,7 +266,7 @@ results/
 
 **현재 상태:** 재현용 코드와 측정 자동화는 저장소에 반영했지만, 실습을 실제 kind 클러스터에서 수행한 측정값은 아직 없다. 따라서 숫자를 임의로 기입하거나 가상의 그래프를 실측으로 표시하지 않는다.
 
-## 5. AI 모델 서빙 적용: KServe / vLLM
+## AI 모델 서빙 적용: KServe / vLLM
 
 - **Startup Probe**: 이미지 시작이 아니라 모델 가중치 로딩 및 엔진 초기화 완료 기준.
 - **Readiness Probe**: 모델 로딩, 토크나이저, 요청 처리 준비 여부를 판단. 외부 DB 장애를 적용할지는 실제 요청 경로에 따라 결정.
@@ -270,7 +274,7 @@ results/
 - **RollingUpdate**: 모델 가중치 중복 적재 시 GPU 메모리 여유가 없으면 surge Pod가 Pending될 수 있다.
 - **자원 최적화**: CPU thread / 동시 요청 / GPU KV cache·배치 크기 / replicas를 함께 측정한다.
 
-## 6. 결과 분석 및 회고
+## 실험 결과 해석과 회고
 
 이번 실습에서 확인할 핵심 가설은 **'설정값을 조정하면 단순히 자원 사용량만 달라지는 것이 아니라, 가용성과 업데이트 성공 여부도 바뀐다'**는 것이다.
 
@@ -284,8 +288,17 @@ results/
 
 **개인적 정리:** Kubernetes의 운영 자동화는 실패를 없애는 기능이 아니라, 실패를 올바르게 판단하고 사용자 영향 범위를 최소화하도록 설계하는 기능이다. Probe, 배포 전략, 자원 설정은 별도의 YAML 항목이 아니라 하나의 SLO를 달성하기 위한 연관된 결정들이다.
 
----
+## 실습 코드 및 참고자료
 
-**이전 주차:** [1주차 CH1~3](/ml-platform/study-week-01) · **실습 파일:** [week-02-lab](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-lab)
+실험은 이론 이해를 위한 기초 검증과 성능·가용성 비교를 위한 심화 실험으로 구분했다. 실제 측정 결과를 얻으면 같은 문서에 로그와 그래프를 추가한다.
 
-참고: [Kubernetes Probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/), [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), [Resource Management](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/), [Pod QoS](https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/)
+- [기초 실습 코드 · Probe와 Deployment](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-lab)
+- [심화 실험 코드 · FastAPI / k6 / 결과 분석](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-advanced)
+
+::: details 공식 문서 참고
+- [Kubernetes Health Probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
+- [Deployment와 롤링 업데이트](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+- [컨테이너 리소스 관리](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+- [Pod QoS](https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/)
+:::
+
