@@ -1,0 +1,48 @@
+{
+  "environment": "local Python 3.13/Uvicorn; no Docker, Kubernetes, kind, kubectl or k6",
+  "recorded_at_utc": "2026-10-31T20:24:42.785706+00:00",
+  "probe": {
+    "healthz": 200,
+    "readyz_before_delay": 503,
+    "readyz_after_delay": 200
+  },
+  "protocol": {
+    "requests_per_condition": 100,
+    "concurrency": 8,
+    "work_iterations": [
+      20000,
+      120000,
+      300000
+    ],
+    "repetitions": 1
+  },
+  "runs": [
+    {
+      "iterations": 20000,
+      "requests": 100,
+      "success": 100,
+      "rps": 608.37,
+      "p50_ms": 12.69,
+      "p95_ms": 16.46,
+      "p99_ms": 19.14
+    },
+    {
+      "iterations": 120000,
+      "requests": 100,
+      "success": 100,
+      "rps": 130.56,
+      "p50_ms": 58.45,
+      "p95_ms": 76.6,
+      "p99_ms": 97.84
+    },
+    {
+      "iterations": 300000,
+      "requests": 100,
+      "success": 100,
+      "rps": 56.39,
+      "p50_ms": 137.67,
+      "p95_ms": 208.59,
+      "p99_ms": 254.56
+    }
+  ]
+}
