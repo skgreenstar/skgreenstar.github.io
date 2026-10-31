@@ -316,13 +316,114 @@ results/
 
 **현재 상태:** 재현용 코드와 측정 자동화는 저장소에 반영했지만, 실습을 실제 kind 클러스터에서 수행한 측정값은 아직 없다. 따라서 숫자를 임의로 기입하거나 가상의 그래프를 실측으로 표시하지 않는다.
 
-## AI 모델 서빙 적용: KServe / vLLM
+## KServe와 vLLM으로 연결하는 모델 서빙 아키텍처
 
-- **Startup Probe**: 이미지 시작이 아니라 모델 가중치 로딩 및 엔진 초기화 완료 기준.
-- **Readiness Probe**: 모델 로딩, 토크나이저, 요청 처리 준비 여부를 판단. 외부 DB 장애를 적용할지는 실제 요청 경로에 따라 결정.
-- **Liveness Probe**: 프로세스 교착·회복 불가능 상태만 감지하도록 가볍게 설계.
-- **RollingUpdate**: 모델 가중치 중복 적재 시 GPU 메모리 여유가 없으면 surge Pod가 Pending될 수 있다.
-- **자원 최적화**: CPU thread / 동시 요청 / GPU KV cache·배치 크기 / replicas를 함께 측정한다.
+::: tip 두 기술의 역할
+**KServe는 Kubernetes 상에서 모델 서비스의 배포·라우팅·확장·운영을 선언적으로 관리하는 플랫폼**, **vLLM은 LLM 추론을 수행하는 고성능 서빙 엔진**이다. 서로 대체 관계가 아니라 KServe가 vLLM 엔진을 운영하는 구성이 가능하다.
+:::
+
+### 1. KServe: 모델 배포를 Kubernetes API로 관리하기
+
+KServe는 `InferenceService`, `ServingRuntime` 같은 CRD를 통해 모델 배포를 선언한다. 일반적인 Deployment/Service뿐 아니라 모델 아티팩트 다운로드, 상태 관리, 라우팅, 자동 확장 등을 묶어 운영할 수 있다. KServe 버전 및 배포 모드(Standard/Knative 기반 Serverless, 최신 LLM 전용 API)에 따라 지원 기능과 요구 구성요소는 다르다.
+
+| 기능 | 역할 | 운영 시 확인 사항 |
+|---|---|---|
+| InferenceService | 모델 서비스의 원하는 상태 선언 | 모델 URI·런타임·리소스·버전 |
+| ServingRuntime | 실제 모델 서버 이미지 및 규격 | 지원 모델 형식, 서버 진입점 |
+| Storage initializer | 원격 모델 다운로드 | 객체 스토리지 자격 증명, 다운로드 시간 |
+| Autoscaling | 요청량/동시성 기반 복제 | GPU 확보 시간, 콜드스타트 비용 |
+| Canary / Rollout | 신규 모델 단계적 검증 | 모델 출력 호환성 및 라우팅 정책 |
+
+KServe에서는 모델이 **Pod Ready**여도 요청이 실제 품질과 지연시간 SLO를 충족하는지 별도로 확인해야 한다. 긴 모델 다운로드·초기화, GPU 스케줄링, 외부 저장소 장애가 모두 Cold Start에 영향을 준다.
+
+### 2. vLLM: LLM 요청을 효율적으로 처리하는 엔진
+
+vLLM은 LLM 추론 서버다. 대표적으로 **PagedAttention을 통한 KV Cache 메모리 관리**, **Continuous Batching**, OpenAI 호환 API, Tensor/Pipeline Parallelism 등을 활용해 모델과 하드웨어 특성에 맞춰 처리량을 개선한다.
+
+| 운영 지표 | 의미 | 주된 병목 |
+|---|---|---|
+| TTFT (Time To First Token) | 첫 토큰까지의 대기시간 | Prefill, 대기열, 모델 초기화 |
+| TPOT / ITL | 출력 토큰 생성 지연 | Decode, 배치 크기, 경합 |
+| Throughput (tokens/s) | 초당 처리 토큰 수 | GPU 연산, 메모리 대역폭 |
+| KV Cache 사용량 | 동시 세션의 캐시 점유 | 컨텍스트 길이, 동시성 |
+| Queue / Running requests | 대기 중·처리 중 요청 | 과부하, concurrency |
+| GPU Memory / OOM | 가중치·KV Cache 등 메모리 사용 | 긴 입력, 메모리 설정, 복제본 수 |
+
+OpenAI 호환 API가 있다고 해서 API 표면 및 모델 출력이 모든 OpenAI 엔드포인트와 완전히 같지는 않다. 라이브러리 버전에 따라 지원 필드를 검증해야 한다. vLLM은 `/metrics` 엔드포인트를 제공하므로 Prometheus와 연계해 엔진 메트릭을 관찰할 수 있다.
+
+### 3. KServe + vLLM 운영 구조
+
+```text
+Client / AI Agent / RAG
+        │
+        ▼
+API Gateway · 인증 · Rate Limit
+        │
+        ▼
+KServe InferenceService / LLMInferenceService
+        │
+        ├─ Routing / Scaling / Rollout
+        │
+        ▼
+vLLM Serving Pod (GPU)
+        ├─ Model weights / Tokenizer
+        ├─ Prefill + Decode scheduler
+        ├─ KV Cache / Continuous batching
+        ├─ /health, /metrics 등 상태·관측 엔드포인트
+        └─ OpenAI-compatible inference API
+        │
+        ▼
+Metrics / Logs / Traces + SLO / Alerting
+```
+
+**중요:** 위 구조는 개념적 참조 아키텍처다. 실제 `InferenceService`에 vLLM을 등록하는 방식은 KServe 릴리스, 지원 `ServingRuntime`, 설치 모드에 따라 달라진다. 설치 버전에 맞는 공식 예제와 CRD 스키마를 먼저 확인한다.
+
+### 4. Health Probe를 모델 서버에 적용할 때
+
+- **Startup:** 모델 다운로드 및 GPU 초기화가 완료될 시간을 고려한다. 시작에 수 분이 걸리는데 liveness를 일찍 시작하면 무한 재시작에 빠질 수 있다.
+- **Readiness:** 모델 엔진이 요청을 처리할 준비가 됐는지 확인한다. 단순 프로세스 생존과 분리한다. 모델의 첫 요청 워밍업이 필요하다면 트래픽을 보내기 전에 처리한다.
+- **Liveness:** 프로세스 교착이나 복구 불가능 상태를 판단한다. 단순 대기열 증가나 외부 의존성의 일시 장애만으로 재시작하지 않는다.
+- **종료:** SIGTERM, 기존 요청 처리, Endpoint 반영 및 `terminationGracePeriodSeconds`를 함께 설계한다. 생성 중인 스트리밍 응답이 끊기지 않는지 실제로 측정한다.
+
+### 5. GPU에서 RollingUpdate가 실패하는 이유
+
+GPU Pod 2개가 이미 GPU 2개를 점유하는 클러스터를 가정하자. `maxUnavailable: 0`, `maxSurge: 1`이면 새 Pod를 먼저 만들어야 하지만 **추가 GPU가 없다면 Pending 상태**로 머물 수 있다. 반대로 `maxUnavailable: 1`은 진행 가능성을 높이지만 일시적인 모델 처리 용량 감소를 허용한다.
+
+해결 방향: 배포 시 GPU 여유 용량 확보, 별도 노드 풀/Blue-Green, 요청 drain, 모델 아티팩트 사전 준비, **토큰 기준 처리량과 TTFT/TPOT를 모니터링한 단계적 절체**.
+
+### 6. 실무 시나리오: RAG 서비스에서 LLM 응답이 느려질 때
+
+| 현상 | 진단 가설 | 우선 확인 |
+|---|---|---|
+| TTFT만 상승 | 긴 Prompt, Prefill 병목, Queue | 입력 토큰 길이, 대기 요청 |
+| TPOT 상승 | Decode 경합, KV Cache, 배치 크기 | 캐시 점유, 토큰 처리량 |
+| 배포 후 503 | 모델 로딩 전 Ready 판정 또는 GPU Pending | startup/readiness, Pod events |
+| GPU OOM | KV Cache/Context 또는 모델 중복 적재 | GPU 메모리, max model length |
+| 배포 중 스트리밍 끊김 | 종료 처리·커넥션 drain 미흡 | SIGTERM, termination grace, 실제 연결 |
+| Scale-out이 느림 | GPU 노드 증설·이미지 및 모델 다운로드 | 노드 오토스케일링, 아티팩트 캐시 |
+
+**성능 평가 방식:** 고정 QPS만으로 비교하지 말고 입력/출력 토큰 길이 분포, 동시 요청 수, TTFT p95, TPOT p95, 성공률, 처리량(tokens/s), GPU 사용량을 함께 측정한다.
+
+### 7. 직접 실행해볼 vLLM 관찰 명령
+
+다음은 **GPU가 있는 별도 서버에서 실행할 예제**이며 여기서는 실행하지 않았다. 모델 및 이미지 버전은 실제 호환 환경에서 검증한다.
+
+```bash
+vllm serve <MODEL_ID> --host 0.0.0.0 --port 8000
+curl -fsS http://localhost:8000/health
+curl -fsS http://localhost:8000/v1/models
+curl -fsS http://localhost:8000/metrics | head
+```
+
+추론 테스트는 모델 ID, 입력/출력 토큰 수, 동시성을 고정하고 TTFT·TPOT와 GPU 메모리의 변화를 기록한다.
+
+### 8. 실제 Kubernetes 검증을 위한 k3s 가이드
+
+[k3s 운영 실험 및 증적 수집 절차](https://github.com/skgreenstar/skgreenstar.github.io/blob/main/docs/ml-platform/week-02-advanced/K3S-EXPERIMENT.md)
+
+현재 실행 환경은 `/sys/fs/cgroup`이 읽기 전용이며 k3s 바이너리가 없고 패키지 다운로드 DNS가 실패하여 **k3s를 실제 실행하지 못했다.** 따라서 실제 확인된 것은 앞의 로컬 FastAPI 기준선뿐이다. k3s 실험 파일은 실행 방법 및 결과 수집 양식이며 측정 데이터가 아니다.
+
+참고: [KServe 소개](https://www.kubeflow.org/docs/ecosystem/kserve/introduction/), [KServe CRD](https://kserve.github.io/website/docs/reference/crd-api), [vLLM Metrics](https://docs.vllm.ai/en/latest/usage/metrics/), [K3s 요구사항](https://docs.k3s.io/installation/requirements)
 
 ## Troubleshooting · 실습 시 주의한 점
 
