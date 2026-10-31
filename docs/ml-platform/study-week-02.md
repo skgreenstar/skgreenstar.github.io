@@ -425,15 +425,19 @@ curl -fsS http://localhost:8000/metrics | head
 
 참고: [KServe 소개](https://www.kubeflow.org/docs/ecosystem/kserve/introduction/), [KServe CRD](https://kserve.github.io/website/docs/reference/crd-api), [vLLM Metrics](https://docs.vllm.ai/en/latest/usage/metrics/), [K3s 요구사항](https://docs.k3s.io/installation/requirements)
 
-## Troubleshooting · 실습 시 주의한 점
+## 실험 결과에서 확인한 점
 
-| 항목 | 원인 또는 한계 | 개선 방향 |
-|---|---|---|
-| 로컬 실험에서 Pod 상태가 보이지 않음 | Kubernetes 환경이 아님 | 실제 kind 클러스터에서 kubelet Event·Endpoint 별도 수집 |
-| `/readyz=503`인데 `/healthz=200` | Alive와 Ready는 서로 다른 상태 | 헬스 체크 신호를 분리하여 설계 |
-| p95 증가를 CPU throttling이라고 볼 수 없음 | CPU quota 제한을 측정하지 않음 | cgroup `cpu.stat` 및 Prometheus 계측 추가 |
-| 단일 측정의 신뢰성 | 반복 측정과 환경 통제 부족 | 동일 조건 최소 3회 이상 반복 및 변동성 분석 |
-| k6 목표 RPS와 실제 RPS 차이 가능 | 부하 생성기 자체가 병목일 수 있음 | dropped iterations·VU·생성기 자원 함께 검토 |
+### Readiness와 Liveness의 상태 차이
+
+로컬 FastAPI 서버에 초기화 지연 2초를 설정한 후 상태 엔드포인트를 호출했다. 초기화 중 `/healthz`는 **HTTP 200**, `/readyz`는 **HTTP 503**을 반환했고, 초기화 완료 후 `/readyz`가 **HTTP 200**으로 바뀌었다.
+
+이 결과로 *프로세스가 실행 중인 상태(Alive)*와 *실제 요청을 처리할 준비가 된 상태(Ready)*를 구분할 필요성을 확인했다.
+
+### 요청당 계산량에 따른 응답 지연
+
+동시 요청 8개, 조건별 100개 요청을 보내고 연산량을 변경했다. 20K에서 300K로 증가할 때 **p95는 16.46ms → 208.59ms**, 처리량은 **608.37 → 56.39 RPS**로 변화했다.
+
+이는 로컬 API 성능 기준선의 관찰 결과이며, Kubernetes CPU 제한을 적용해 얻은 값은 아니다. CPU 제한과 배포 전략의 실제 영향은 별도 Kubernetes 실험에서 검증해야 한다.
 
 ## Q&A · 학습하며 확인한 질문
 
