@@ -1,5 +1,5 @@
 ---
-title: "2주차 · Kubernetes 운영 자동화와 리소스 관리 실습"
+title: "2주차 · CH4~5 Kubernetes 운영 자동화와 리소스 관리"
 description: "Health Probe, Rolling Update, Requests/Limits와 QoS를 직접 재현하는 MLOps 스터디"
 date: 2026-11-01
 outline: deep
@@ -9,7 +9,7 @@ prev:
 next: false
 ---
 
-# 2주차 · Kubernetes 운영 자동화와 리소스 관리
+# 2주차 · CH4~5 Kubernetes 운영 자동화와 리소스 관리
 
 > **학습 방식:** 핵심 개념 → 동작 구조 → 가설 → kind 실습 → 관찰/해석. 아래의 출력은 *예상 동작*이며, 직접 측정한 결과와 구분한다.
 
@@ -43,7 +43,7 @@ kubectl create namespace week02
 kubectl get nodes -o wide
 ```
 
-## 애플리케이션 상태 검사와 자동 복구
+## Chapter 4. Automated Operations — 운영 자동화
 
 ### 1. 헬스체크를 왜 나누는가?
 
@@ -130,7 +130,7 @@ kubectl -n week02 rollout undo deployment/probe-demo
 | RollingUpdate | Ready 신규 Pod 기준 교체 | 실행 후 기록 |
 | Recreate | 기존 Pod 종료 후 새 버전 시작 | 실행 후 기록 |
 
-## 자원 관리와 성능 최적화
+## Chapter 5. Resource Management — 리소스 관리
 
 ### 1. Scheduler와 Requests/Limits
 
@@ -190,21 +190,55 @@ CPU overcommit은 request를 실제 피크보다 낮게 설정해 더 많은 Pod
 
 관찰한 워크로드 특성에 따라 CPU request를 조정하고, Memory는 정상 부하의 장기 최대값과 누수·스파이크를 고려한다. 특정 블로그의 **Memory request=limit, CPU request만 설정** 패턴을 모든 워크로드에 적용하는 것은 피한다.
 
-## 직접 실행한 로컬 기준선 실험
+## 직접 실행한 기록 — FastAPI 로컬 기준선
 
-Kubernetes 비교 실험 전에 FastAPI 서버를 로컬 Python/Uvicorn으로 실제 실행했다. **이 결과는 kind, k6, CPU Limit 및 RollingUpdate를 실행한 결과가 아니다.** 추후 Kubernetes 실험과 비교할 때 기준선 자료로만 사용한다.
+::: tip 실험 상태
+**실제로 실행한 범위:** FastAPI/Uvicorn HTTP Health Check와 동시 요청 부하 테스트  
+**아직 실행하지 않은 범위:** Docker/kind의 Pod, CPU Throttling, OOMKilled, RollingUpdate, Kubernetes Endpoint 변화
+:::
 
-- 측정 조건: 연산 반복 수 20,000 / 120,000 / 300,000, 조건별 100 요청, 동시 요청 8개, 단일 반복
-- Health Check: 초기화 지연 2초 동안 `/healthz=200`, `/readyz=503` → 이후 `/readyz=200`
-- 측정 결과 원본: [로컬 기준선 JSON](https://github.com/skgreenstar/skgreenstar.github.io/blob/main/docs/ml-platform/week-02-advanced/results/local-baseline-2026-11-01.json)
+### 실험 환경 및 목적
 
-| 연산 반복 | 성공 / 총 요청 | RPS | p50 | p95 | p99 |
+실습 환경은 로컬 Python 3.13/Uvicorn 서버다. Docker·kind·kubectl·k6가 없는 실행 환경에서 Kubernetes를 사용하지 않고, 먼저 **애플리케이션의 초기 상태와 CPU 연산량별 HTTP 응답 특성**을 측정했다.
+
+| 항목 | 실행 조건 |
+|---|---|
+| 측정 기록 시각 | 2026-11-01 05:24 KST |
+| 클라이언트 | HTTP 병렬 요청, 동시성 8 |
+| 부하 조건 | 연산 반복 20K / 120K / 300K |
+| 각 조건 요청 | 100건, 1회 측정 |
+| 관찰 지표 | 성공 건수, RPS, p50/p95/p99 |
+| 원본 데이터 | [실제 측정 JSON](https://github.com/skgreenstar/skgreenstar.github.io/blob/main/docs/ml-platform/week-02-advanced/results/local-baseline-2026-11-01.json) |
+
+### 실험 A. 서버는 살아 있지만 트래픽 준비가 안 된 경우
+
+`READY_DELAY=2`로 초기화 지연을 부여하고 `/healthz`와 `/readyz`를 요청했다.
+
+| 요청 시점 | Endpoint | 실제 응답 | 해석 |
+|---|---|---|---|
+| 초기화 지연 중 | `/healthz` | **200 OK** | 프로세스는 살아 있음 |
+| 초기화 지연 중 | `/readyz` | **503** | 트래픽 수신 준비 미완료 |
+| 초기화 지연 이후 | `/readyz` | **200 OK** | 트래픽 수신 가능한 상태 |
+
+이 실험은 **애플리케이션 레벨의 응답 상태**를 검증한 것이다. Kubernetes Service가 실제 Endpoint를 제거하는 과정은 아직 측정하지 않았다.
+
+### 실험 B. 요청당 계산량과 Tail Latency
+
+요청당 CPU 연산량만 변경하고 요청 수와 동시성은 고정했다.
+
+| 연산 횟수 | 성공 | 처리량 | p50 | p95 | p99 |
 |---:|---:|---:|---:|---:|---:|
-| 20,000 | 100/100 | 608.37 | 12.69ms | 16.46ms | 19.14ms |
-| 120,000 | 100/100 | 130.56 | 58.45ms | 76.60ms | 97.84ms |
-| 300,000 | 100/100 | 56.39 | 137.67ms | 208.59ms | 254.56ms |
+| 20,000 | 100/100 | 608.37 RPS | 12.69ms | 16.46ms | 19.14ms |
+| 120,000 | 100/100 | 130.56 RPS | 58.45ms | 76.60ms | 97.84ms |
+| 300,000 | 100/100 | 56.39 RPS | 137.67ms | 208.59ms | 254.56ms |
 
-**해석:** 요청당 계산량이 커지자 RPS는 떨어지고 꼬리 지연은 증가했다. 그러나 CPU quota나 throttling을 측정하지 않았으므로 Kubernetes 리소스 제한 효과를 입증한 것은 아니다. 한 번씩만 실행한 측정이며 신뢰구간이나 환경 재현성까지 확인한 벤치마크는 아니다.
+![실제 로컬 측정: 연산량에 따른 p95·p99](/diagrams/week02-local-measured.svg)
+
+**관찰 결과:** 연산량이 20K에서 300K로 증가할 때 처리량은 608.37 → 56.39 RPS로 줄고, p95 지연은 16.46 → 208.59ms로 늘었다. 기준선 실험에서는 요청 실패가 없었다.
+
+**원인에 대한 해석:** 요청당 수행하는 CPU 연산이 늘어난 것이 직접적인 변화 조건이다. 그러나 CPU Limit 변경이나 cgroup throttling을 실험하지 않았으므로 **CPU Throttling의 결과로 해석하면 안 된다.**
+
+**한계:** 단일 실행·100요청 기준이므로 실행 환경 노이즈, 워밍업, 반복 측정, 신뢰구간은 검증하지 않았다. 이후 kind 환경에서 동일한 API·동일한 부하를 실행해 Kubernetes resource limit의 차이를 비교해야 한다.
 
 ## 운영 가설을 검증하는 심화 실험
 
@@ -289,6 +323,30 @@ results/
 - **Liveness Probe**: 프로세스 교착·회복 불가능 상태만 감지하도록 가볍게 설계.
 - **RollingUpdate**: 모델 가중치 중복 적재 시 GPU 메모리 여유가 없으면 surge Pod가 Pending될 수 있다.
 - **자원 최적화**: CPU thread / 동시 요청 / GPU KV cache·배치 크기 / replicas를 함께 측정한다.
+
+## Troubleshooting · 실습 시 주의한 점
+
+| 항목 | 원인 또는 한계 | 개선 방향 |
+|---|---|---|
+| 로컬 실험에서 Pod 상태가 보이지 않음 | Kubernetes 환경이 아님 | 실제 kind 클러스터에서 kubelet Event·Endpoint 별도 수집 |
+| `/readyz=503`인데 `/healthz=200` | Alive와 Ready는 서로 다른 상태 | 헬스 체크 신호를 분리하여 설계 |
+| p95 증가를 CPU throttling이라고 볼 수 없음 | CPU quota 제한을 측정하지 않음 | cgroup `cpu.stat` 및 Prometheus 계측 추가 |
+| 단일 측정의 신뢰성 | 반복 측정과 환경 통제 부족 | 동일 조건 최소 3회 이상 반복 및 변동성 분석 |
+| k6 목표 RPS와 실제 RPS 차이 가능 | 부하 생성기 자체가 병목일 수 있음 | dropped iterations·VU·생성기 자원 함께 검토 |
+
+## Q&A · 학습하며 확인한 질문
+
+**Q. Readiness와 Liveness는 왜 별도 엔드포인트여야 할까?**
+
+A. 외부 서비스가 잠깐 실패한 상황과 실제 프로세스 교착을 구분하기 위해서다. 외부 의존성 오류를 무조건 Liveness 실패로 연결하면 불필요한 재시작이 이어질 수 있다.
+
+**Q. `maxUnavailable: 0`이면 모든 요청이 반드시 성공할까?**
+
+A. 아니다. 준비 상태와 실제 요청 성공에는 종료 처리, 커넥션 draining, 앱 오류, 노드 문제 등의 차이가 존재한다.
+
+**Q. CPU Limits를 없애면 모든 문제가 해결될까?**
+
+A. CPU quota로 인한 throttling은 줄일 수 있지만, 노드 경쟁·테넌트 간 간섭·비용·SLO 문제는 따로 고려해야 한다.
 
 ## 실험 결과 해석과 회고
 
