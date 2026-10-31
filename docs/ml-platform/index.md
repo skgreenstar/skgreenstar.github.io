@@ -16,6 +16,11 @@ MLOps, CI/CD/CT, 데이터 계약과 릴리스 게이트.
 ### [03. ML 플랫폼을 설계할 때 먼저 정할 것들](/ml-platform/week-03)
 플랫폼 책임 경계, 컨테이너와 Kubernetes, 학습 아티팩트 서빙.
 
+## 2주차 · Kubernetes 운영 자동화와 리소스 관리
+
+**[2주차 학습 정리 · CH4~5 개념과 Hands-on](/ml-platform/study-week-02)**  
+Health Probe 장애 재현, RollingUpdate·Rollback, CPU/Memory Requests·Limits 및 QoS 실습.
+
 ## 심화 · Evaluation
 
 ### [MAPE는 낮은데 R²는 왜 낮을까?](/ml-platform/industrial-evaluation)
