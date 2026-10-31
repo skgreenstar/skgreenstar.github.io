@@ -186,7 +186,83 @@ CPU overcommit은 request를 실제 피크보다 낮게 설정해 더 많은 Pod
 
 관찰한 워크로드 특성에 따라 CPU request를 조정하고, Memory는 정상 부하의 장기 최대값과 누수·스파이크를 고려한다. 특정 블로그의 **Memory request=limit, CPU request만 설정** 패턴을 모든 워크로드에 적용하는 것은 피한다.
 
-## 4. AI 모델 서빙 적용: KServe / vLLM
+## 4. 심화 실험 · 가설을 성능 지표로 검증하기
+
+기존 Probe·Deployment·Requests/Limits 실습은 기능 이해를 위한 **기초 검증**으로 두고, 실제 학습의 중심은 성능과 운영 안정성을 비교하는 세 가지 실험에 둔다.
+
+**실행 코드:** [FastAPI + k6 + 분석 스크립트](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-advanced) · [실습 가이드](https://github.com/skgreenstar/skgreenstar.github.io/blob/main/docs/ml-platform/week-02-advanced/README.md)
+
+### 4.1 CPU 제한이 Tail Latency에 미치는 영향
+
+가설: CPU-bound 요청을 처리할 때 낮은 CPU Limit은 CPU Throttling과 Tail Latency 증가로 이어질 수 있다.
+
+- **독립 변수:** CPU limits = 250m / 500m / (확장 실험: 1000m / 제한 없음)
+- **통제 변수:** 동일 API 이미지·RPS·Replica·요청 작업량·시험 시간, 워밍업
+- **종속 변수:** p50·p95·p99, 처리량, 오류율, dropped iterations, throttling 비율
+- **실험 프로토콜:** 각 조건 3회 이상 반복하고 변인 순서를 교차한다. 컨테이너 cgroup 또는 Prometheus의 throttling 계측과 k6 지연시간을 비교한다.
+
+```bash
+k6 run -e RATE=30 -e DURATION=60s \
+  --summary-export results/cpu250-run1.json \
+  docs/ml-platform/week-02-advanced/loadtest.js
+python docs/ml-platform/week-02-advanced/analyze.py results/*.json
+```
+
+::: info 검증 포인트
+CPU 사용률이 높다는 사실만으로 Throttling을 입증할 수 없다. CPU quota가 설정된 환경에서 실제 throttled periods 또는 시간 증가를 확인해야 한다.
+:::
+
+### 4.2 무중단 배포에서 사용자가 실제로 경험한 실패는?
+
+가설: Deployment rollout 성공 여부와 사용자 관측 오류율은 다를 수 있다.
+
+정상 트래픽을 계속 보낸 상태에서 새로운 Pod의 초기화 지연을 유도하고 `maxSurge`·`maxUnavailable`를 조정한다.
+
+- **측정:** 배포 시작·완료 시각, 요청 실패율, p95/p99, Endpoint 변화
+- **분석:** readiness 통과 시점, 종료 중 연결 처리, 자원 부족으로 인한 Pod Pending 여부
+- **비교:** `maxUnavailable: 0`과 `1`, 준비 시간 0초와 8초
+
+```bash
+# 첫 번째 터미널: 부하
+k6 run -e RATE=30 -e DURATION=180s \
+  --summary-export results/rollout.json \
+  docs/ml-platform/week-02-advanced/loadtest.js
+# 두 번째 터미널: rollout
+kubectl -n week02 set env deploy/performance-api READY_DELAY=8
+kubectl -n week02 rollout status deploy/performance-api
+```
+
+### 4.3 Replicas 증가가 장애 내성을 얼마나 개선할까?
+
+같은 요청률에서 Replica 2개와 4개를 비교하고 Pod 하나가 사라졌을 때 남은 처리 용량, 오류율, 회복시간을 살펴본다.
+
+![Pod 분산과 장애 영향 비교](/diagrams/week02-replica.svg)
+
+현재 배포 이미지는 worker 1개이므로 Replica 비교 결과는 **동일 총 Worker 비교가 아님**을 명시한다. 총 Worker를 고정하는 비교는 Pod당 uvicorn worker 수도 바꾸는 후속 실험으로 구분한다.
+
+### 4.4 자동 분석 산출물
+
+```text
+results/
+├── cpu250-run1.json
+├── cpu500-run1.json
+├── rollout.json
+├── replicas2.json
+├── replicas4.json
+└── summary.csv     # analyze.py가 생성
+```
+
+| 측정 항목 | 질문 | 판정 기준 |
+|---|---|---|
+| p95/p99 | CPU 제한 또는 배포 중 꼬리 지연이 악화됐는가? | 동일 부하 조건에서 비교 |
+| HTTP 실패율 | rollout 중 사용자 오류가 발생했는가? | 시간대별·조건별 비교 |
+| RPS / dropped iterations | 목표 부하를 실제로 만들었는가? | k6 생성기 한계 확인 |
+| CPU throttling | 실제 CPU quota 제어가 발생했는가? | cgroup/Prometheus 별도 수집 |
+| 회복시간 | 장애 이후 정상 처리량으로 복귀했는가? | 장애 주입 시각을 기록 |
+
+**현재 상태:** 재현용 코드와 측정 자동화는 저장소에 반영했지만, 실습을 실제 kind 클러스터에서 수행한 측정값은 아직 없다. 따라서 숫자를 임의로 기입하거나 가상의 그래프를 실측으로 표시하지 않는다.
+
+## 5. AI 모델 서빙 적용: KServe / vLLM
 
 - **Startup Probe**: 이미지 시작이 아니라 모델 가중치 로딩 및 엔진 초기화 완료 기준.
 - **Readiness Probe**: 모델 로딩, 토크나이저, 요청 처리 준비 여부를 판단. 외부 DB 장애를 적용할지는 실제 요청 경로에 따라 결정.
@@ -194,7 +270,7 @@ CPU overcommit은 request를 실제 피크보다 낮게 설정해 더 많은 Pod
 - **RollingUpdate**: 모델 가중치 중복 적재 시 GPU 메모리 여유가 없으면 surge Pod가 Pending될 수 있다.
 - **자원 최적화**: CPU thread / 동시 요청 / GPU KV cache·배치 크기 / replicas를 함께 측정한다.
 
-## 5. 결과 분석 및 회고
+## 6. 결과 분석 및 회고
 
 이번 실습에서 확인할 핵심 가설은 **'설정값을 조정하면 단순히 자원 사용량만 달라지는 것이 아니라, 가용성과 업데이트 성공 여부도 바뀐다'**는 것이다.
 
