@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: performance-api, namespace: week02}
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  selector:
+    matchLabels: {app: performance-api}
+  template:
+    metadata:
+      labels: {app: performance-api}
+    spec:
+      terminationGracePeriodSeconds: 20
+      containers:
+      - name: api
+        image: week02-performance:local
+        imagePullPolicy: IfNotPresent
+        ports: [{containerPort: 8080}]
+        readinessProbe:
+          httpGet: {path: /readyz, port: 8080}
+          periodSeconds: 2
+        livenessProbe:
+          httpGet: {path: /healthz, port: 8080}
+          periodSeconds: 5
+        resources:
+          requests: {cpu: 100m, memory: 64Mi}
+          limits: {cpu: 250m, memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: performance-api, namespace: week02}
+spec:
+  selector: {app: performance-api}
+  ports: [{port: 80, targetPort: 8080}]
