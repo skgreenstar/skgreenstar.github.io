@@ -190,6 +190,22 @@ CPU overcommit은 request를 실제 피크보다 낮게 설정해 더 많은 Pod
 
 관찰한 워크로드 특성에 따라 CPU request를 조정하고, Memory는 정상 부하의 장기 최대값과 누수·스파이크를 고려한다. 특정 블로그의 **Memory request=limit, CPU request만 설정** 패턴을 모든 워크로드에 적용하는 것은 피한다.
 
+## 직접 실행한 로컬 기준선 실험
+
+Kubernetes 비교 실험 전에 FastAPI 서버를 로컬 Python/Uvicorn으로 실제 실행했다. **이 결과는 kind, k6, CPU Limit 및 RollingUpdate를 실행한 결과가 아니다.** 추후 Kubernetes 실험과 비교할 때 기준선 자료로만 사용한다.
+
+- 측정 조건: 연산 반복 수 20,000 / 120,000 / 300,000, 조건별 100 요청, 동시 요청 8개, 단일 반복
+- Health Check: 초기화 지연 2초 동안 `/healthz=200`, `/readyz=503` → 이후 `/readyz=200`
+- 측정 결과 원본: [로컬 기준선 JSON](https://github.com/skgreenstar/skgreenstar.github.io/blob/main/docs/ml-platform/week-02-advanced/results/local-baseline-2026-11-01.json)
+
+| 연산 반복 | 성공 / 총 요청 | RPS | p50 | p95 | p99 |
+|---:|---:|---:|---:|---:|---:|
+| 20,000 | 100/100 | 608.37 | 12.69ms | 16.46ms | 19.14ms |
+| 120,000 | 100/100 | 130.56 | 58.45ms | 76.60ms | 97.84ms |
+| 300,000 | 100/100 | 56.39 | 137.67ms | 208.59ms | 254.56ms |
+
+**해석:** 요청당 계산량이 커지자 RPS는 떨어지고 꼬리 지연은 증가했다. 그러나 CPU quota나 throttling을 측정하지 않았으므로 Kubernetes 리소스 제한 효과를 입증한 것은 아니다. 한 번씩만 실행한 측정이며 신뢰구간이나 환경 재현성까지 확인한 벤치마크는 아니다.
+
 ## 운영 가설을 검증하는 심화 실험
 
 기존 Probe·Deployment·Requests/Limits 실습은 기능 이해를 위한 **기초 검증**으로 두고, 실제 학습의 중심은 성능과 운영 안정성을 비교하는 세 가지 실험에 둔다.
