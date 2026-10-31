@@ -1,11 +1,11 @@
 ---
-title: "2주차 · CH4~5 Kubernetes 운영 자동화와 리소스 관리 실습"
+title: "2주차 · Kubernetes 운영 자동화와 리소스 관리 실습"
 description: "Health Probe, Rolling Update, Requests/Limits와 QoS를 직접 재현하는 MLOps 스터디"
 date: 2026-11-01
 outline: deep
 ---
 
-# 2주차 · Kubernetes 운영 자동화와 리소스 관리 (CH4~5)
+# 2주차 · Kubernetes 운영 자동화와 리소스 관리
 
 > **학습 방식:** 핵심 개념 → 동작 구조 → 가설 → kind 실습 → 관찰/해석. 아래의 출력은 *예상 동작*이며, 직접 측정한 결과와 구분한다.
 
@@ -18,20 +18,7 @@ outline: deep
 
 ## 0. 전체 아키텍처
 
-```mermaid
-flowchart TD
-    A["Deployment / replicas"] --> B["Scheduler"]
-    B --> C["Node + Pod"]
-    C --> S["Startup Probe"]
-    S --> R["Readiness Probe"]
-    S --> L["Liveness Probe"]
-    R --> E["Service Endpoints"]
-    E --> T["User Traffic"]
-    L --> K["kubelet container restart"]
-    U["Requests / Limits"] --> B
-    U --> C
-    V["RollingUpdate strategy"] --> A
-```
+![Kubernetes 운영 구조](/diagrams/week02-architecture.svg)
 
 | 설정 | 핵심 질문 | Kubernetes 동작 |
 |---|---|---|
@@ -52,7 +39,7 @@ kubectl create namespace week02
 kubectl get nodes -o wide
 ```
 
-## 2. CH4 — Automated Operations
+## 2. 애플리케이션 상태 검사와 자동 복구
 
 ### 2.1 헬스체크를 왜 나누는가?
 
@@ -60,23 +47,7 @@ kubectl get nodes -o wide
 - **Readiness**: 컨테이너가 실행 중이라도 DB·모델 가중치·초기 캐시가 준비되지 않았다면 트래픽을 차단한다.
 - **Liveness**: 애플리케이션 내부가 회복 불가한 상태라면 재시작한다. 외부 DB 장애만으로 실패하도록 만들면 연쇄 장애를 유발할 수 있다.
 
-```mermaid
-sequenceDiagram
-    participant K as kubelet
-    participant P as Pod
-    participant S as Service
-    K->>P: startup /startup
-    P-->>K: 200 OK
-    K->>P: readiness /readyz
-    P-->>K: 503
-    Note over S,P: 트래픽 수신 대상 제외
-    K->>P: readiness /readyz
-    P-->>K: 200 OK
-    S->>P: Request
-    K->>P: liveness /healthz
-    P-->>K: 503 연속 실패
-    K->>P: 컨테이너 재시작
-```
+![Health Probe 동작](/diagrams/week02-probes.svg)
 
 ### 2.2 Probe 실습: 정상 상태 → 트래픽 중단 → 장애
 
@@ -113,15 +84,7 @@ kubectl -n week02 describe pod -l app=probe-demo
 
 ### 2.3 RollingUpdate vs Recreate
 
-```mermaid
-flowchart LR
-    A["v1: 3 Pods"] --> B["RollingUpdate"]
-    B --> C["v1 + v2 공존"]
-    C --> D["v2: 3 Pods"]
-    A --> E["Recreate"]
-    E --> F["v1 전부 종료"]
-    F --> G["v2 생성: 서비스 공백 가능"]
-```
+![Deployment 배포 전략 비교](/diagrams/week02-deploy.svg)
 
 | 전략 | 장점 | 비용·위험 |
 |---|---|---|
@@ -163,7 +126,7 @@ kubectl -n week02 rollout undo deployment/probe-demo
 | RollingUpdate | Ready 신규 Pod 기준 교체 | 실행 후 기록 |
 | Recreate | 기존 Pod 종료 후 새 버전 시작 | 실행 후 기록 |
 
-## 3. CH5 — Resource Management
+## 3. 자원 관리와 성능 최적화
 
 ### 3.1 Scheduler와 Requests/Limits
 
@@ -206,13 +169,7 @@ kubectl -n week02 describe pod memory-oom
 
 ### 3.4 CPU Overcommit / Replica × Worker
 
-```mermaid
-flowchart TB
-    A["총 동시 Worker 36개"] --> B["2 Pods × 18 Workers"]
-    A --> C["6 Pods × 6 Workers"]
-    B --> D["Pod 1개 장애: 50% 용량 손실"]
-    C --> E["Pod 1개 장애: 약 16.7% 용량 손실"]
-```
+![Replica 및 Worker 분산 비교](/diagrams/week02-replica.svg)
 
 복제본 증가가 무조건 좋은 것은 아니다. 프로세스 시작·모델 가중치·캐시가 Pod마다 중복될 수 있다. 특히 vLLM·GPU 모델 서빙에서는 **가중치 메모리 중복 비용**까지 고려해야 한다.
 
