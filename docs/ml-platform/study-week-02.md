@@ -46,11 +46,13 @@ next:
 
 **확인한 점:** 동일 Pod가 Running 상태를 유지한 채 Ready만 변경됐고, 재시작 횟수는 0으로 유지됐다. EndpointSlice의 주소는 남아 있으면서 `ready` 조건이 false로 변경됐다가 복구됐다.
 
-이번 기록은 **Pod와 EndpointSlice의 상태 전환**을 확인한 결과다. Service 경유 실제 요청의 성공·실패, Recreate, CPU 제한·OOM은 아직 결과를 수집하지 않았다.
+이번 기록은 **Pod와 EndpointSlice의 상태 전환**을 확인한 결과다. Service 경유 실제 요청의 성공·실패와 CPU 제한·OOM은 아직 결과를 수집하지 않았다.
 
 **Liveness 재시작·복구 확인:** `/server-error` 호출 후 HTTP 503 실패 감지 → `Killing` 이벤트를 확인했고, 후속 조회에서 동일 Pod의 `RESTARTS=1`, `1/1 Running`을 확인했다. 이전 컨테이너 종료 기록은 `lastReason=Error exitCode=137`이었다. 앞선 Liveness 이벤트와 함께 재시작 경위를 해석하며, 종료 코드 137만으로 OOM을 판정하지 않는다.
 
 **RollingUpdate 완료:** `maxSurge=1`, `maxUnavailable=0`에서 `LAB_VERSION=v2`를 추가했다. 새 Pod가 Pending → ContainerCreating → Running(0/1) → Running(1/1) 순서로 준비된 후 기존 Pod가 Terminating으로 전환됐다. 새 Pod의 `LAB_VERSION=v2`와 revision 1 → 2를 확인했다. 이는 Pod 교체 순서의 검증이며 실제 요청의 무중단 성공을 측정한 결과는 아니다. **롤백도 완료했다.** revision 1을 지정해 되돌린 뒤 새 Pod의 `1/1 Running`, `LAB_VERSION=(unset)`과 새 revision 3을 확인했다. 기존 revision 1 템플릿을 재사용하며 이력 번호는 새로 부여됐다. `last-applied-configuration` 미갱신 경고는 별도로 기록했다.
+
+**Recreate 완료:** 전략을 `Recreate`로 변경한 뒤 `LAB_VERSION=recreate`로 Pod 템플릿을 갱신했다. 기존 Pod의 Terminating → Error(0/1) 이후 새 Pod가 Pending → ContainerCreating → Running → Ready로 전환됐고, rollout 성공과 새 환경변수를 확인했다. 기존 Pod의 Error 종료 원인은 이번 출력만으로 단정하지 않았다. RollingUpdate와 교체 순서가 다름을 관찰했으며, Service 요청 오류율이나 중단 시간을 직접 측정한 것은 아니다.
 
 [실행 명령과 터미널 출력 보기](/ml-platform/week-04#kind-readiness-result)
 

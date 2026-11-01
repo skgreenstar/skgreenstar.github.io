@@ -113,7 +113,7 @@ kubectl -n week02 rollout undo deployment/probe-demo
 | Liveness 실패 | 임계값 이후 컨테이너 재시작 | 실제 확인: HTTP 503 → Killing → 동일 Pod RESTARTS=1, 1/1 Running 복구 |
 | RollingUpdate | Ready 신규 Pod 기준 교체 | 실제 확인: 새 Pod 1/1 Ready 후 기존 Pod Terminating, LAB_VERSION=v2, revision 2 |
 | Rollback | 지정한 revision의 Pod 템플릿 복원 | 실제 확인: revision 1로 undo, LAB_VERSION=(unset), 새 Pod Ready, revision 3 |
-| Recreate | 기존 Pod 종료 후 새 버전 시작 | 실행 후 기록 |
+| Recreate | 기존 Pod 종료 후 새 버전 시작 | 실제 확인: 기존 Pod Terminating → Error 후 새 Pod 생성·Ready, LAB_VERSION=recreate |
 
 ## 실제 kind 실행 기록 {#kind-readiness-result}
 
@@ -383,6 +383,68 @@ REVISION  CHANGE-CAUSE
 ### kubectl apply 경고의 의미
 
 실제 경고는 롤백 시 `kubectl.kubernetes.io/last-applied-configuration` annotation을 갱신하지 않는다는 내용이었다. **롤백은 성공했지만, apply용 설정 기록이 실제 복원된 설정과 함께 갱신되는 것은 아니라는 점**을 구분한다. 향후 선언형 배포로 관리할 때는 원하는 설정을 원본 YAML에 반영하고, 적용 전 차이를 확인한다. 이번 실습은 명령형 변경과 undo의 동작을 확인한 것이다.
+
+
+## Recreate · 실제 kind 실행 기록
+
+### 실행 명령
+
+```bash
+# 별도 터미널
+kubectl --context kind-mlops-lab -n week02 get pods -l app=probe-demo -w
+
+# 기존 터미널
+k patch deployment probe-demo --type=merge -p '{"spec":{"strategy":{"type":"Recreate","rollingUpdate":null}}}'
+k get deployment probe-demo -o 'jsonpath={"strategy="}{.spec.strategy.type}{"\n"}'
+k set env deployment/probe-demo LAB_VERSION=recreate
+k rollout status deployment/probe-demo --timeout=180s
+k get pods -l app=probe-demo
+k exec deployment/probe-demo -- python -c 'import os; print("LAB_VERSION=" + os.getenv("LAB_VERSION", "(unset)"))'
+```
+
+### 실제 출력
+
+같은 상태가 반복된 행은 생략했다.
+
+```text
+deployment.apps/probe-demo patched
+strategy=Recreate
+deployment.apps/probe-demo env updated
+Waiting for deployment "probe-demo" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "probe-demo" rollout to finish: 0 of 1 updated replicas are available...
+deployment "probe-demo" successfully rolled out
+
+NAME                          READY   STATUS    RESTARTS   AGE
+probe-demo-6d7dd5b4b7-54nsz    1/1     Running   0          4s
+
+LAB_VERSION=recreate
+```
+
+### watch로 관찰한 교체 순서
+
+```text
+NAME                          READY   STATUS              RESTARTS   AGE
+probe-demo-68c54c584d-bxjnl    1/1     Running             0          4m9s
+probe-demo-68c54c584d-bxjnl    1/1     Terminating         0          4m56s
+probe-demo-68c54c584d-bxjnl    0/1     Error               0          5m27s
+probe-demo-6d7dd5b4b7-54nsz    0/1     Pending             0          0s
+probe-demo-6d7dd5b4b7-54nsz    0/1     ContainerCreating   0          0s
+probe-demo-6d7dd5b4b7-54nsz    0/1     Running             0          0s
+probe-demo-6d7dd5b4b7-54nsz    1/1     Running             0          4s
+```
+
+### RollingUpdate와 비교
+
+| 항목 | RollingUpdate 실제 관찰 | Recreate 실제 관찰 |
+|---|---|---|
+| 기존 Pod 종료 시작 | 새 Pod Ready 이후 | 새 Pod 생성 이전 |
+| 새 Pod 생성 | 기존 Pod 실행 중 | 기존 Pod가 종료 상태가 된 뒤 |
+| 최종 결과 | 새 Pod 1/1 Running, LAB_VERSION=v2 | 새 Pod 1/1 Running, LAB_VERSION=recreate |
+| 실제 요청 가용성 | 미측정 | 미측정 |
+
+**확인한 점:** Recreate는 기존 Pod가 종료 상태가 된 뒤 새 Pod가 생성·준비되는 순서였다. 기존 Pod의 Error(0/1)와 새 Pod의 정상 기동을 구분한다. Error의 정확한 원인은 이 출력만으로 알 수 없으며, 종료 코드·Events·이전 로그를 추가 확인해야 한다. rollout 자체는 성공했고 새 Pod의 재시작 횟수는 0이었다.
+
+**시간 해석:** watch 출력의 기존 Pod AGE 차이는 참고할 수 있지만, 연속 Service 요청으로 중단 시간을 측정한 값은 아니다. 신규 Pod의 AGE 4s 역시 전체 배포 소요시간이 아니라 해당 Pod가 생성된 뒤의 상대 나이다.
 
 
 ---
