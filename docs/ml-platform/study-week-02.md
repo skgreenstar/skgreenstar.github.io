@@ -46,7 +46,9 @@ next:
 
 **확인한 점:** 동일 Pod가 Running 상태를 유지한 채 Ready만 변경됐고, 재시작 횟수는 0으로 유지됐다. EndpointSlice의 주소는 남아 있으면서 `ready` 조건이 false로 변경됐다가 복구됐다.
 
-이번 기록은 **Pod와 EndpointSlice의 상태 전환**을 확인한 결과다. Service 경유 실제 요청의 성공·실패, Liveness 장애 재시작, 배포·롤백, CPU 제한·OOM은 아직 결과를 수집하지 않았다.
+이번 기록은 **Pod와 EndpointSlice의 상태 전환**을 확인한 결과다. Service 경유 실제 요청의 성공·실패, 배포·롤백, CPU 제한·OOM은 아직 결과를 수집하지 않았다.
+
+**Liveness 후속 관찰:** `/server-error` 호출 후 Events에서 `Liveness probe failed: HTTP probe failed with statuscode: 503`과 `Container app failed liveness probe, will be restarted`를 확인했다. 같은 시점의 `RESTARTS`는 0이고 종료 이력도 비어 있어, 장애 감지·종료 요청까지 확인했으며 재시작 완료는 후속 관찰이 필요하다.
 
 [실행 명령과 터미널 출력 보기](/ml-platform/week-04#kind-readiness-result)
 
