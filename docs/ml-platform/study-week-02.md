@@ -1,136 +1,81 @@
 ---
-title: "Week 02 · Kubernetes 운영 자동화와 리소스 최적화"
-description: "CH4~5 핵심 개념과 운영 실험, KServe·vLLM 모델 서빙을 연결하는 2주차 학습 정리"
-date: 2026-11-01
+title: "Week 02 · 실험 추적에서 모델 운영까지"
+description: "MLflow·Feast·KFP와 kind 운영 실습을 연결하는 2주차 학습 정리"
 outline: deep
 prev:
   text: '1주차 · ML 시스템의 기반'
   link: '/ml-platform/study-week-01'
 next:
-  text: '04. 컨테이너가 실행 중이면 서비스도 정상일까?'
-  link: '/ml-platform/week-04'
+  text: 'MLflow · 모델 학습과 재로딩'
+  link: '/ml-platform/mlflow-model-lifecycle'
 ---
 
-# Week 02 · Kubernetes 운영 자동화와 리소스 최적화
+# Week 02 · 실험 추적에서 모델 운영까지
 
-**학습 범위:** CH4–5 · 운영 자동화, 리소스 관리 + KServe·vLLM 확장 학습
+**교재 범위:** CH4 · MLflow와 Feast / CH5 · Kubeflow Pipelines  
+**확장 실습:** kind의 Probe·배포 전략·CPU·메모리·QoS, KServe·vLLM 개념
 
-1주차에서 검증된 모델을 배포하는 흐름을 살펴봤다면, 이번에는 **배포한 서비스가 언제 요청을 받고, 어떻게 교체되며, 어느 정도의 자원으로 동작해야 하는지**를 연결한다. 개념과 실습은 세 편의 상세 글로 나누고, 이 페이지에서는 전체 흐름과 학습 기준을 정리한다.
+모델을 선택할 근거를 MLflow에 남기고, 동일한 피처와 등록 모델을 Feast·KFP로 연결한다. 여기에 직접 실행한 Kubernetes 운영 실습을 더해 **어떤 모델을 어떤 자원으로 실행하고, 장애가 나면 어떻게 복구하는가**까지 학습 범위를 확장한다.
 
-> **학습 방식:** 핵심 개념 → 동작 구조 → 가설 → kind 실습 → 관찰/해석. 실제 실행 결과는 별도 기록하고, 후속 실습의 예상 동작과 구분한다.
+## 1. 교재 학습과 모델 파이프라인
 
-::: tip 이번 주 학습 목표
-- Startup / Readiness / Liveness Probe의 역할을 구분하고 장애를 재현한다.
-- RollingUpdate·Recreate의 가용성 차이를 검증하고 롤백한다.
-- CPU·Memory Requests/Limits, QoS와 자원 경합을 관찰한다.
-- AI 모델 서빙에 적용할 때의 설계 선택을 설명한다.
-:::
+| 단계 | 핵심 질문 | 연결 글 |
+|---|---|
+| MLflow · CH4 | 어떤 데이터·설정으로 선택한 모델을 다시 사용할 수 있는가? | [학습·실험 비교·모델 등록·재로딩](/ml-platform/mlflow-model-lifecycle) |
+| Feast · CH4 | 예측 시각에 사용할 수 있던 피처를 같은 정의로 조회하는가? | [피처 계약과 Offline·Online 조회](/ml-platform/model-pipeline) |
+| KFP · CH5 | 고정 모델과 피처로 배치 추론을 반복 실행하는가? | [컴포넌트와 결과 검증 설계](/ml-platform/model-pipeline) |
 
-## 실제 kind 실습 결과 · Readiness와 Liveness
+MLflow 실행 코드는 합성 제조 품질 데이터와 세 모델을 사용한다. 검증 RMSE로 모델을 선택하고, 등록한 고정 버전을 재로딩해 예측값 일치를 검사한다. 데이터 CSV·피처 계약·선택 모델 URI를 후속 Feast·KFP의 입력으로 재사용한다.
 
-기존 로컬 FastAPI 기준선에 이어, 개인 PC의 **kind 클러스터에서 Probe 앱을 배포하고 Readiness 장애·복구를 실행**했다. 아래 기록은 PC 터미널에서 실행한 출력을 바탕으로 정리했다.
+## 2. kind에서 완료한 운영 실습
 
-| 환경 | 확인값 |
+| 실습 | 실행 결과 |
+|---|---|
+| Readiness 장애·복구 | healthz=200, readyz=503 / Ready 1→0→1 / EndpointSlice ready true→false→true / 재시작 0 |
+| Liveness 장애 | HTTP 503 → Killing → 동일 Pod 재시작 1회 → Ready 복구 |
+| RollingUpdate | 새 Pod Ready 후 기존 Pod Terminating / LAB_VERSION=v2 / revision 2 |
+| Rollback | revision 1 템플릿 복원 / LAB_VERSION 제거 / 새 Pod Ready / revision 3 |
+| Recreate | 기존 Pod 종료 상태 이후 신규 Pod 생성·Ready / LAB_VERSION=recreate |
+| CPU limit 100m | 10.006초 동안 CPU 1.001782초 사용 / 제어 주기 100개에서 throttling |
+| Memory limit 64Mi | 160Mi 할당 시도 → OOMKilled / exitCode=137 / 재시작 0 |
+| QoS 등급 | Guaranteed·Burstable·BestEffort 세 구성의 실제 등급 확인 |
+
+이 기록은 개인 PC에서 실행한 터미널 출력에 근거한다. 배포 전략은 Pod 교체 순서, 자원 실습은 quota·OOM 종료·QoS 등급을 검증했다. 요청 가용성 비교와 노드 압박 시 eviction 실험은 별도의 검증 범위다.
+
+## 3. 상세 글
+
+### [04. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
+Probe·RollingUpdate·Recreate·롤백의 명령, 로그, 결과 해석.
+
+### [05. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
+CPU cgroup 통계, OOMKilled, QoS 세 등급과 로컬 API 기준선.
+
+### [06. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
+모델 서빙의 개념과 책임 경계, GPU 메모리·초기화·스트리밍 운영 지표.
+
+## 4. 실행 환경과 재현 코드
+
+| 항목 | 구성 |
 |---|---|
 | Docker | Linux / aarch64 |
-| kind 클러스터 / 컨텍스트 | `mlops-lab` / `kind-mlops-lab` |
-| 노드 / Kubernetes | `mlops-lab-control-plane` · Ready / v1.37.0 |
-| 컨테이너 런타임 | containerd 2.3.4 |
-| 실습 대상 | `week02` 네임스페이스 · `probe-demo` Deployment |
+| kind 클러스터 / 컨텍스트 | mlops-lab / kind-mlops-lab |
+| 노드 | mlops-lab-control-plane, Kubernetes v1.37.0 |
+| 런타임 / 네임스페이스 | containerd 2.3.4 / week02 |
 
-| 단계 | 관찰한 HTTP 응답 | Pod 상태 | RESTARTS | EndpointSlice |
-|---|---|---|---:|---|
-| 정상 배포 | HTTP 응답 별도 수집 없음 | `1/1 Running` | 0 | `ready=true` |
-| Readiness 장애 주입 | `/healthz=200`, `/readyz=503` | `0/1 Running` | 0 | `ready=false` |
-| 정상 복구 | `/traffic-on=200` | `1/1 Running` | 0 | `ready=true` |
+- [MLflow 학습·등록 코드](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/labs/week02-mlflow)
+- [Kubernetes 기초 실습 YAML](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-lab)
+- [후속 부하 실험 코드](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-advanced)
 
-**확인한 점:** 동일 Pod가 Running 상태를 유지한 채 Ready만 변경됐고, 재시작 횟수는 0으로 유지됐다. EndpointSlice의 주소는 남아 있으면서 `ready` 조건이 false로 변경됐다가 복구됐다.
+## 5. 이번 주에 정리한 기준
 
-이번 기록은 **Pod와 EndpointSlice의 상태 전환**을 확인한 결과다. Service 경유 실제 요청의 성공·실패는 아직 측정하지 않았다.
+모델 품질은 고정된 데이터·피처·모델 버전과 연결해 비교한다. 운영 상태는 별도로 검증한다. 프로세스가 살아 있는 상태와 트래픽을 받을 준비가 된 상태는 달랐고, CPU 제한은 throttling으로, 메모리 제한은 OOM 종료로 나타났다. 배포·롤백에서는 선택한 설정과 Pod 교체 순서가 연결됐다.
 
-**Liveness 재시작·복구 확인:** `/server-error` 호출 후 HTTP 503 실패 감지 → `Killing` 이벤트를 확인했고, 후속 조회에서 동일 Pod의 `RESTARTS=1`, `1/1 Running`을 확인했다. 이전 컨테이너 종료 기록은 `lastReason=Error exitCode=137`이었다. 앞선 Liveness 이벤트와 함께 재시작 경위를 해석하며, 종료 코드 137만으로 OOM을 판정하지 않는다.
+앞으로는 동일 모델 버전을 이 운영 실습의 실행 대상으로 사용한다. MLflow의 선택 근거, Feast의 피처 계약, KFP의 단계별 산출물이 맞물려야 모델 품질과 운영 결과를 하나의 계보로 추적할 수 있다.
 
-**RollingUpdate 완료:** `maxSurge=1`, `maxUnavailable=0`에서 `LAB_VERSION=v2`를 추가했다. 새 Pod가 Pending → ContainerCreating → Running(0/1) → Running(1/1) 순서로 준비된 후 기존 Pod가 Terminating으로 전환됐다. 새 Pod의 `LAB_VERSION=v2`와 revision 1 → 2를 확인했다. 이는 Pod 교체 순서의 검증이며 실제 요청의 무중단 성공을 측정한 결과는 아니다. **롤백도 완료했다.** revision 1을 지정해 되돌린 뒤 새 Pod의 `1/1 Running`, `LAB_VERSION=(unset)`과 새 revision 3을 확인했다. 기존 revision 1 템플릿을 재사용하며 이력 번호는 새로 부여됐다. `last-applied-configuration` 미갱신 경고는 별도로 기록했다.
+### 참고 자료
 
-**Recreate 완료:** 전략을 `Recreate`로 변경한 뒤 `LAB_VERSION=recreate`로 Pod 템플릿을 갱신했다. 기존 Pod의 Terminating → Error(0/1) 이후 새 Pod가 Pending → ContainerCreating → Running → Ready로 전환됐고, rollout 성공과 새 환경변수를 확인했다. 기존 Pod의 Error 종료 원인은 이번 출력만으로 단정하지 않았다. RollingUpdate와 교체 순서가 다름을 관찰했으며, Service 요청 오류율이나 중단 시간을 직접 측정한 것은 아니다.
-
-**CPU 제한·Throttling 실측 완료:** `cpu-stress` Pod의 CPU limit 100m에서 `cpu.max=10000 100000`을 확인했다. 10.006초 동안 CPU 사용 시간은 1.001782초 증가했고(평균 약 100m), 제어 주기 100개 중 100개에서 throttling이 기록됐다. 누적 throttling 시간은 1.262760초 증가했다. 이 결과는 quota 작동 확인이며 HTTP 지연시간 실험과 구분한다. [CPU 실행 로그와 해석](/ml-platform/week-05#kind-cpu-result)
-
-**메모리 OOM 실측 완료:** memory request 32Mi / limit 64Mi인 Pod에서 160Mi 할당을 시도했다. 실제 출력은 `0/1 OOMKilled`, `reason=OOMKilled exitCode=137 restarts=0`이었다. QoS는 Burstable, restartPolicy는 Never로 확인했다. 앞선 Liveness 실험의 `Error/137`과 달리 이번에는 종료 사유 `OOMKilled`로 OOM을 확인했다. [메모리 실습 로그와 해석](/ml-platform/week-05#kind-memory-result)
-
-**QoS 세 등급 실측 완료:** CPU·메모리 request=limit인 `qos-guaranteed`는 Guaranteed, 자원 설정이 없는 `qos-besteffort`는 BestEffort, request와 limit이 다른 `memory-oom`은 Burstable로 확인됐다. 등급 부여를 확인했으며, 노드 압박에 따른 eviction 순서를 실험한 것은 아니다. [QoS 실제 출력](/ml-platform/week-05#kind-qos-result)
-
-[실행 명령과 터미널 출력 보기](/ml-platform/week-04#kind-readiness-result)
-
-## 1. 운영 자동화에서 모델 서빙까지
-
-| 주제 | 핵심 질문 | 상세 글 |
-|---|---|---|
-| 운영 자동화 · CH4 | 언제 트래픽을 받고, 언제 재시작하며, 어떻게 교체하는가? | [04. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04) |
-| 리소스 관리 · CH5 | 자원 설정과 복제본 수가 성능·가용성에 미치는 영향은? | [05. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05) |
-| 모델 서빙 · 확장 | Kubernetes 운영 원칙을 ML·LLM 서비스에 어떻게 적용하는가? | [06. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06) |
-
-## 2. Probe·배포·자원 설정을 하나의 운영 구조로 보기
-
-![Kubernetes 운영 구조](/diagrams/week02-architecture.svg)
-
-| 설정 | 핵심 질문 | Kubernetes 동작 |
-|---|---|---|
-| startupProbe | 초기화가 끝났는가? | 성공 전 liveness/readiness 검사 지연, 지정 횟수 실패 시 재시작 |
-| readinessProbe | 지금 트래픽을 받을 수 있는가? | 실패 시 Service의 정상 Endpoint에서 제외 |
-| livenessProbe | 현재 컨테이너를 재시작해야 하는가? | 연속 실패 임계값 충족 시 컨테이너 재시작 |
-| requests | 어디에 배치할 수 있는가? | Scheduler의 자원 적합성 판단 기준 |
-| limits | 얼마나 쓸 수 있는가? | CPU quota 기반 제어, Memory 초과 시 OOM 가능 |
-
-## 3. 개념에서 실험으로 연결하기
-
-1. **상태를 구분한다.** Startup·Readiness·Liveness로 초기화, 트래픽 수신, 재시작 조건을 나눈다.
-2. **변경을 제어한다.** RollingUpdate·Recreate를 비교하고 롤백 경로를 확인한다.
-3. **자원을 설계한다.** Requests/Limits와 QoS, Replica·Worker 구성을 함께 살펴본다.
-4. **사용자 영향을 측정한다.** 로컬 기준선과 운영 가설 실험을 통해 지연시간·오류율·회복시간을 비교한다.
-5. **모델 서빙에 적용한다.** KServe와 vLLM에서 모델 로딩, GPU 자원, 긴 스트리밍 요청을 고려한다.
-
-실습 명령과 배포 예제는 [운영 자동화 글](/ml-platform/week-04)에, **기존 로컬 측정값·그래프와 심화 실험 절차**는 [리소스 관리 글](/ml-platform/week-05)에 모았다. KServe·vLLM의 개념과 실무 지표는 [모델 서빙 글](/ml-platform/week-06)에서 이어서 읽을 수 있다.
-
-## 4. 학습하며 확인한 질문
-
-**Q. Readiness와 Liveness는 왜 별도 엔드포인트여야 할까?**
-
-A. 외부 서비스가 잠깐 실패한 상황과 실제 프로세스 교착을 구분하기 위해서다. 외부 의존성 오류를 무조건 Liveness 실패로 연결하면 불필요한 재시작이 이어질 수 있다.
-
-**Q. `maxUnavailable: 0`이면 모든 요청이 반드시 성공할까?**
-
-A. 아니다. 준비 상태와 실제 요청 성공에는 종료 처리, 커넥션 draining, 앱 오류, 노드 문제 등의 차이가 존재한다.
-
-**Q. CPU Limits를 없애면 모든 문제가 해결될까?**
-
-A. CPU quota로 인한 throttling은 줄일 수 있지만, 노드 경쟁·테넌트 간 간섭·비용·SLO 문제는 따로 고려해야 한다.
-
-## 5. 실험 결과 해석과 회고
-
-이번 실습에서 확인할 핵심 가설은 **'설정값을 조정하면 단순히 자원 사용량만 달라지는 것이 아니라, 가용성과 업데이트 성공 여부도 바뀐다'**는 것이다.
-
-실험마다 스크린샷과 `kubectl get/describe/logs`를 추가한 후 아래 질문에 답한다.
-
-1. Readiness 실패 중 컨테이너는 살아 있는데 요청은 왜 실패했는가?
-2. Startup Probe가 없으면 초기화가 긴 모델 서버에 어떤 일이 생기는가?
-3. maxUnavailable=0인데 롤아웃이 멈추는 조건은 무엇인가?
-4. CPU throttling이 Health Probe 실패로 이어질 수 있는가?
-5. replicas와 worker 수를 어떻게 정해야 단일 장애 영향과 메모리 비용 사이에서 균형을 얻는가?
-
-**개인적 정리:** Kubernetes의 운영 자동화는 실패를 없애는 기능이 아니라, 실패를 올바르게 판단하고 사용자 영향 범위를 최소화하도록 설계하는 기능이다. Probe, 배포 전략, 자원 설정은 별도의 YAML 항목이 아니라 하나의 SLO를 달성하기 위한 연관된 결정들이다.
-
-## 실습 코드 및 참고자료
-
-실험은 이론 이해를 위한 기초 검증과 성능·가용성 비교를 위한 심화 실험으로 구분했다. 실제 측정 결과를 얻으면 [리소스 관리와 성능 실험 글](/ml-platform/week-05)에 로그와 그래프를 추가한다.
-
-- [기초 실습 코드 · Probe와 Deployment](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-lab)
-- [심화 실험 코드 · FastAPI / k6 / 결과 분석](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-advanced)
-
-::: details 공식 문서 참고
-- [Kubernetes Health Probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
-- [Deployment와 롤링 업데이트](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
-- [컨테이너 리소스 관리](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
-- [Pod QoS](https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/)
-:::
-
+- [교재 CH4](https://livebook.manning.com/learn/machine-learning-platform-engineering/chapter-4)
+- [교재 CH5](https://livebook.manning.com/learn/machine-learning-platform-engineering/chapter-5)
+- [Kubernetes Probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
+- [Kubernetes Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+- [Kubernetes 자원 관리](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)

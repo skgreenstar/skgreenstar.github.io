@@ -16,10 +16,16 @@ MLOps, CI/CD/CT, 데이터 계약과 릴리스 게이트.
 ### [03. ML 플랫폼을 설계할 때 먼저 정할 것들](/ml-platform/week-03)
 플랫폼 책임 경계, 컨테이너와 Kubernetes, 학습 아티팩트 서빙.
 
-## 2주차 · Kubernetes 운영 자동화와 리소스 관리
+## 2주차 · 실험 추적에서 모델 운영까지
 
-**[2주차 학습 정리 · 운영 자동화와 리소스 최적화](/ml-platform/study-week-02)**  
-Health Probe 장애 재현, RollingUpdate·Rollback, CPU/Memory Requests·Limits 및 QoS 실습.
+**[2주차 학습 정리 · MLflow·Feast·KFP와 운영 검증](/ml-platform/study-week-02)**  
+CH4~5의 실험 추적·피처 관리·파이프라인과 kind 운영 실습을 연결합니다.
+
+### [MLflow · 학습에서 모델 등록과 재로딩까지](/ml-platform/mlflow-model-lifecycle)
+동일 데이터로 세 모델 비교, 검증 기준 선택, 등록 모델 예측 일치 검증.
+
+### [Feast·KFP · 같은 피처와 같은 모델로 추론하기](/ml-platform/model-pipeline)
+MLflow의 데이터·입력 계약·고정 모델 버전을 이어받는 연결 설계.
 
 ### [04. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
 Startup·Readiness·Liveness Probe, 배포 전략과 롤백.

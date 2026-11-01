@@ -13,7 +13,7 @@ next:
 
 # 04. 컨테이너가 실행 중이면 서비스도 정상일까?
 
-**학습 범위:** CH4 · Automated Operations  
+**확장 실습:** Kubernetes 운영 자동화  
 **핵심 질문:** 실행 상태, 트래픽 수신 준비, 재시작 필요성을 어떻게 구분할까?
 
 ## 실습 환경 준비
@@ -27,7 +27,7 @@ kubectl create namespace week02
 kubectl get nodes -o wide
 ```
 
-## Chapter 4. Automated Operations — 운영 자동화
+## Kubernetes 운영 자동화
 
 ### 1. 헬스체크를 왜 나누는가?
 
@@ -106,16 +106,15 @@ kubectl -n week02 rollout undo deployment/probe-demo
 
 ### 4. 기록 표
 
-| 테스트 | 예상 현상 | 실제 관찰 |
+| 테스트 | 예상 현상 | 실행 결과 |
 |---|---|---|
-| Startup 실패 | Liveness/Readiness 동작 보류, 반복 실패 시 재시작 | 실행 후 기록 |
 | Readiness 실패 | EndpointSlice 준비 조건 변경 | 실제 확인: Pod 0/1 Running, RESTARTS=0, ready=false → 복구 후 1/1·ready=true |
 | Liveness 실패 | 임계값 이후 컨테이너 재시작 | 실제 확인: HTTP 503 → Killing → 동일 Pod RESTARTS=1, 1/1 Running 복구 |
 | RollingUpdate | Ready 신규 Pod 기준 교체 | 실제 확인: 새 Pod 1/1 Ready 후 기존 Pod Terminating, LAB_VERSION=v2, revision 2 |
 | Rollback | 지정한 revision의 Pod 템플릿 복원 | 실제 확인: revision 1로 undo, LAB_VERSION=(unset), 새 Pod Ready, revision 3 |
 | Recreate | 기존 Pod 종료 후 새 버전 시작 | 실제 확인: 기존 Pod Terminating → Error 후 새 Pod 생성·Ready, LAB_VERSION=recreate |
 
-## 실제 kind 실행 기록 {#kind-readiness-result}
+## kind 실습 기록 {#kind-readiness-result}
 
 개인 PC에서 실행한 터미널 출력을 기록했다. Docker는 `linux / aarch64`, 클러스터는 `mlops-lab`, 컨텍스트는 `kind-mlops-lab`이다. 노드 `mlops-lab-control-plane`은 Kubernetes v1.37.0, containerd 2.3.4에서 Ready 상태였다.
 
@@ -173,7 +172,7 @@ k get endpointslices -l kubernetes.io/service-name=probe-demo \
   -o 'jsonpath={range .items[*].endpoints[*]}{.addresses}{" ready="}{.conditions.ready}{"\n"}{end}'
 ```
 
-### 1. 정상 배포 · 실제 출력
+### 1. 정상 배포 · 실행 로그
 
 ```text
 namespace/week02 created
@@ -191,7 +190,7 @@ probe-demo-68c54c584d-62p2t     1/1     Running   0          6s    <POD_IP>
 
 Pod 출력에서는 이름·상태·재시작 횟수·AGE·IP 열을 발췌했다. 공개용 로그의 Pod IP는 `<POD_IP>`로 마스킹했으며, 같은 표시는 동일한 Pod 주소를 뜻한다. 상태값과 측정 결과는 원래 출력대로 유지했다.
 
-### 2. Readiness 장애 · 실제 출력
+### 2. Readiness 장애 · 실행 로그
 
 ```text
 /traffic-off 200 traffic disabled
@@ -205,7 +204,7 @@ probe-demo-68c54c584d-62p2t     0/1     Running   0          30s
 ["<POD_IP>"] ready=false
 ```
 
-### 3. 복구 · 실제 출력
+### 3. 복구 · 실행 로그
 
 ```text
 200 traffic enabled
@@ -217,7 +216,7 @@ probe-demo-68c54c584d-62p2t     1/1     Running   0          48s
 ["<POD_IP>"] ready=true
 ```
 
-### 4. Liveness 장애 감지 · 실제 출력
+### 4. Liveness 장애 감지 · 실행 로그
 
 `/server-error` 호출로 앱의 healthy 상태를 false로 변경했다.
 
@@ -239,7 +238,7 @@ Normal   Killing    Container app failed liveness probe, will be restarted
 
 **판정:** Liveness 실패 감지와 컨테이너 종료 요청은 확인됐다. 그러나 이 출력 시점에는 `RESTARTS=0`이고 `lastState.terminated`가 비어 있어 재시작 완료를 단정하지 않는다. 종료 유예와 다음 기동·상태 갱신을 거친 후 재시작 횟수와 Ready 복구를 추가 확인한다. Readiness와 healthy 상태를 별도로 관리하는 실습 앱이므로, Liveness 실패 시점에도 READY가 1/1로 표시될 수 있다.
 
-### 5. Liveness 재시작 완료 · 실제 출력
+### 5. Liveness 재시작 완료 · 실행 로그
 
 종료 요청 직후의 관찰에 이어 상태를 다시 조회했다.
 
@@ -275,7 +274,7 @@ restarts=1 lastReason=Error exitCode=137
 **추가 검증 범위:** 이번 요청은 Pod 내부 주소로 실행했다. Service 경유 요청 차단 여부나 실패율은 직접 측정하지 않았다. 표의 AGE는 각 출력 시점의 Pod 나이이며, 장애 감지·복구 소요시간을 정밀 측정한 값은 아니다. Liveness는 후속 출력에서 재시작과 Ready 복구까지 확인했다. RollingUpdate는 뒤의 실제 실행 기록에서 교체 순서를 확인했다. 롤백도 뒤의 실제 실행 기록에서 환경변수 제거와 Ready 복구까지 확인했다.
 
 
-## RollingUpdate · 실제 kind 실행 기록
+## RollingUpdate · kind 실습 기록
 
 ### 변경 전 설정
 
@@ -338,7 +337,7 @@ REVISION  CHANGE-CAUSE
 - 이어지는 롤백 실습에서 revision 1 템플릿 복원을 확인했다.
 
 
-## Rollback · 실제 kind 실행 기록
+## Rollback · kind 실습 기록
 
 ### 실행 명령
 
@@ -385,7 +384,7 @@ REVISION  CHANGE-CAUSE
 실제 경고는 롤백 시 `kubectl.kubernetes.io/last-applied-configuration` annotation을 갱신하지 않는다는 내용이었다. **롤백은 성공했지만, apply용 설정 기록이 실제 복원된 설정과 함께 갱신되는 것은 아니라는 점**을 구분한다. 향후 선언형 배포로 관리할 때는 원하는 설정을 원본 YAML에 반영하고, 적용 전 차이를 확인한다. 이번 실습은 명령형 변경과 undo의 동작을 확인한 것이다.
 
 
-## Recreate · 실제 kind 실행 기록
+## Recreate · kind 실습 기록
 
 ### 실행 명령
 
@@ -435,12 +434,11 @@ probe-demo-6d7dd5b4b7-54nsz    1/1     Running             0          4s
 
 ### RollingUpdate와 비교
 
-| 항목 | RollingUpdate 실제 관찰 | Recreate 실제 관찰 |
+| 항목 | RollingUpdate 실행 결과 | Recreate 실행 결과 |
 |---|---|---|
 | 기존 Pod 종료 시작 | 새 Pod Ready 이후 | 새 Pod 생성 이전 |
 | 새 Pod 생성 | 기존 Pod 실행 중 | 기존 Pod가 종료 상태가 된 뒤 |
 | 최종 결과 | 새 Pod 1/1 Running, LAB_VERSION=v2 | 새 Pod 1/1 Running, LAB_VERSION=recreate |
-| 실제 요청 가용성 | 미측정 | 미측정 |
 
 **확인한 점:** Recreate는 기존 Pod가 종료 상태가 된 뒤 새 Pod가 생성·준비되는 순서였다. 기존 Pod의 Error(0/1)와 새 Pod의 정상 기동을 구분한다. Error의 정확한 원인은 이 출력만으로 알 수 없으며, 종료 코드·Events·이전 로그를 추가 확인해야 한다. rollout 자체는 성공했고 새 Pod의 재시작 횟수는 0이었다.
 

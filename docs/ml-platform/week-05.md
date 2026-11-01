@@ -13,10 +13,10 @@ next:
 
 # 05. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?
 
-**학습 범위:** CH5 · Resource Management + 성능·가용성 실험  
+**확장 실습:** Kubernetes 리소스 관리와 성능 검증  
 **핵심 질문:** 자원 예약·사용 한도·복제본 수는 지연시간과 장애 영향에 어떻게 연결될까?
 
-## Chapter 5. Resource Management — 리소스 관리
+## Kubernetes 리소스 관리
 
 ### 1. Scheduler와 Requests/Limits
 
@@ -65,18 +65,17 @@ kubectl -n week02 describe pod memory-oom
 
 CPU overcommit은 request를 실제 피크보다 낮게 설정해 더 많은 Pod를 배치하는 방법이다. 유휴 시간이 긴 웹 워크로드에는 유효할 수 있지만 동시 부하 시 레이턴시 변동성이 커질 수 있다. CPU limit 미설정은 throttling을 완화할 수 있으나 **클러스터 격리·공정성 정책 검토 후** 적용해야 한다.
 
-### 5. Rightsizing 실험 기록
+### 5. 실행 결과로 정리한 자원 설정
 
-| 단계 | CPU 사용 | Memory 사용 | p95 latency | Restart / OOM |
-|---|---|---|---|---|
-| 초기화 | 실측 | 실측 | 해당 없음 | 실측 |
-| 정상 부하 | 실측 | 실측 | 실측 | 실측 |
-| 피크 부하 | 실측 | 실측 | 실측 | 실측 |
-| 설정 변경 후 | 실측 | 실측 | 실측 | 실측 |
+| 실습 | 설정 | 실행 결과 |
+|---|---|---|
+| CPU 부하 | request 50m / limit 100m | 10.006초 동안 CPU 약 1.002초 사용, 100개 주기에서 throttling |
+| 메모리 할당 | request 32Mi / limit 64Mi | 160Mi 할당 시 OOMKilled, exitCode 137 |
+| QoS 비교 | 자원 설정 세 가지 | Guaranteed·Burstable·BestEffort 각각 확인 |
 
-관찰한 워크로드 특성에 따라 CPU request를 조정하고, Memory는 정상 부하의 장기 최대값과 누수·스파이크를 고려한다. 특정 블로그의 **Memory request=limit, CPU request만 설정** 패턴을 모든 워크로드에 적용하는 것은 피한다.
+CPU는 quota에 의해 실행 시간이 제한됐고, 메모리는 한도 초과 시 종료됐다. 아래 로그에서 설정·출력·해석을 연결한다.
 
-## 실제 kind 실행 기록 · CPU Limit과 Throttling {#kind-cpu-result}
+## kind 실습 기록 · CPU Limit과 Throttling {#kind-cpu-result}
 
 개인 PC의 `kind-mlops-lab` 클러스터, `week02` 네임스페이스에서 저장소의 `cpu-stress` Pod를 실행했다. 이미지 `python:3.12-alpine`은 반복 CPU 연산을 수행한다. Pod는 `1/1 Running`, 재시작 횟수 0으로 확인됐다.
 
@@ -117,7 +116,7 @@ for key in ["usage_usec", "nr_periods", "nr_throttled", "throttled_usec"]:
 '
 ```
 
-### 실제 출력
+### 실행 로그
 
 ```text
 pod/cpu-stress created
@@ -149,7 +148,7 @@ throttled_usec delta= 1262760
 
 **해석의 경계:** 주기 기준 throttling 비율 100%는 **매 주기 한 번 이상 제한이 기록됐다**는 뜻이다. CPU가 전체 벽시계 시간의 100% 동안 정지했다는 뜻이 아니다. 이 수치는 동일 컨테이너에서 실행한 측정용 Python 프로세스의 자원 사용도 포함한다. 단일 구간 관찰이며, CPU limit별 비교나 HTTP p95/p99 지연 영향은 아직 측정하지 않았다.
 
-## 실제 kind 실행 기록 · 메모리 제한과 OOMKilled {#kind-memory-result}
+## kind 실습 기록 · 메모리 제한과 OOMKilled {#kind-memory-result}
 
 CPU 부하 Pod를 삭제한 뒤, 같은 `week02` 네임스페이스에서 저장소의 `memory-oom` Pod를 실행했다. 메모리 limit 64Mi에 대해 Python이 160Mi 크기의 bytearray를 할당하도록 구성했다.
 
@@ -165,7 +164,7 @@ k get pod memory-oom -o 'jsonpath={range .status.containerStatuses[*]}{"reason="
 k get pod memory-oom -o 'jsonpath={range .spec.containers[*]}{"memory request="}{.resources.requests.memory}{" limit="}{.resources.limits.memory}{"\n"}{end}{"QoS="}{.status.qosClass}{" restartPolicy="}{.spec.restartPolicy}{"\n"}'
 ```
 
-### 실제 출력
+### 실행 로그
 
 ```text
 pod "cpu-stress" deleted from week02 namespace
@@ -197,7 +196,7 @@ QoS=Burstable restartPolicy=Never
 
 **검증 범위:** 컨테이너의 메모리 한도 초과 실험이며, 노드 전체 메모리 압박에 따른 eviction 순서나 QoS 등급별 보호 효과를 실측한 결과는 아니다. AGE 2s는 조회 시점의 Pod 나이이며 정밀한 OOM 발생 시간 측정값으로 사용하지 않는다.
 
-## 실제 kind 실행 기록 · QoS 세 등급 비교 {#kind-qos-result}
+## kind 실습 기록 · QoS 세 등급 비교 {#kind-qos-result}
 
 앞선 OOM 실습의 Burstable Pod에 더해 비교용 Pod 두 개를 생성했다. 동일한 `week02` 네임스페이스에서 CPU·메모리 request와 limit 설정에 따른 QoS 등급을 조회했다.
 
@@ -322,7 +321,9 @@ memory-oom       Burstable    20m           200m        32Mi          64Mi
 
 **한계:** 단일 실행·100요청 기준이므로 실행 환경 노이즈, 워밍업, 반복 측정, 신뢰구간은 검증하지 않았다. 이후 kind 환경에서 동일한 API·동일한 부하를 실행해 Kubernetes resource limit의 차이를 비교해야 한다.
 
-## 운영 가설을 검증하는 심화 실험
+::: details 후속 성능 실험 설계와 실행 코드
+
+### 후속 성능 실험 설계
 
 기존 Probe·Deployment·Requests/Limits 실습은 기능 이해를 위한 **기초 검증**으로 두고, 실제 학습의 중심은 성능과 운영 안정성을 비교하는 세 가지 실험에 둔다.
 
@@ -396,7 +397,10 @@ results/
 | CPU throttling | 실제 CPU quota 제어가 발생했는가? | cgroup/Prometheus 별도 수집 |
 | 회복시간 | 장애 이후 정상 처리량으로 복귀했는가? | 장애 주입 시각을 기록 |
 
-**심화 실험 상태:** 위 kind CPU-stress 실습에서 100m quota와 throttling 카운터는 실제 측정했다. 이 절의 k6 기반 CPU limit별 지연시간 비교·연속 요청 중 배포 오류율·Replica별 성능 비교 결과는 아직 수집하지 않았다.
+위 실측은 CPU quota·메모리 한도·QoS 검증이다. 이 절은 요청 지연과 Replica 비교를 위한 후속 프로토콜이다.
+
+
+:::
 
 ## 실험 결과에서 확인한 점
 

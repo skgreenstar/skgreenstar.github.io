@@ -1,0 +1,31 @@
+name: Validate MLflow lab
+on:
+  push:
+    paths:
+      - 'labs/week02-mlflow/**'
+      - '.github/workflows/validate-mlflow-lab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: labs/week02-mlflow/requirements.txt
+      - run: pip install -r requirements.txt
+        working-directory: labs/week02-mlflow
+      - run: python train_compare_register.py
+        working-directory: labs/week02-mlflow
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-lab-ci-validation
+          path: |
+            labs/week02-mlflow/outputs/comparison.csv
+            labs/week02-mlflow/outputs/selection.json
+            labs/week02-mlflow/outputs/dataset_contract.json
+            labs/week02-mlflow/outputs/requirements-resolved.txt
