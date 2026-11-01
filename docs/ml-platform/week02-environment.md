@@ -48,11 +48,11 @@ MLflow Deployment는 서버 프로세스를 유지하고 Job은 학습을 한 �
 | 학습 결과 파일 | mlflow-results PVC | 비교표·선택 모델 URI·예측 CSV |
 | 피처 정의 | Feast 연결 단계에서 구성 | Registry에 Entity·FeatureView 등록 |
 | 피처 값 | Offline / Online Store 연결 단계 | 과거 이력 / 최신 값 조회 |
-| 파이프라인 파일 | KFP 연결 단계에서 구성 | 단계 간 Dataset·최종 결과 보관 |
+| 파이프라인 파일 | MinIO · KFP 연결 단계에서 구성 | 단계 간 Dataset·최종 결과 보관 |
 
-현재 MLflow는 SQLite와 PVC를 사용하는 단일 서버 학습 환경이다. PostgreSQL·S3 호환 스토리지·Redis가 이미 설치된 구성으로 기술하지 않는다. 확장 시에는 저장소 endpoint, bucket, 접근 권한, 보존 정책을 정하고 Job/Pod가 실제로 읽고 쓸 수 있는지 검사한다. S3 호환 저장소의 제품 이름보다 API 호환성과 연결 설정이 핵심이다.
+현재 MLflow는 SQLite와 PVC를 사용하는 단일 서버 학습 환경이다. 후속 KFP 실습의 파일 저장소는 kind 안의 **MinIO**, Feast Online Store는 **Redis**로 구성한다. MinIO의 내부 Service 주소·bucket·접근 권한·보존 정책을 정하고 컴포넌트 Pod가 실제로 읽고 쓸 수 있는지 검사한다. 기존 MLflow 아티팩트는 현재 PVC에 유지하고, MinIO 설치·연결 결과는 실행 후 확인한다.
 
-PVC는 네임스페이스에 속한다. KFP 컴포넌트가 다른 네임스페이스에서 실행되면 기존 PVC를 이름만으로 공유할 수 없다. 모델은 MLflow API로, 단계 간 파일은 해당 환경의 아티팩트 저장소로 전달한다.
+PVC는 네임스페이스에 속한다. KFP 컴포넌트가 다른 네임스페이스에서 실행되면 기존 PVC를 이름만으로 공유할 수 없다. 모델은 MLflow API로, 단계 간 파일은 MinIO 아티팩트 저장소로 전달한다.
 
 ## 4. 실습에서 확인한 저장·기동 이슈
 

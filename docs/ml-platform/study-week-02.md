@@ -57,6 +57,17 @@ MLflow의 Run은 학습 설정·점수·아티팩트를 묶는다. Registry는 �
 
 교재의 분류 데이터와 다른 예제지만 실험 추적→피처 관리→배치 추론의 연결 원리는 같다. 합성 데이터 성능을 실제 제조 성능으로 표현하지 않고, 교재의 accuracy·분류 확률과 우리 회귀 지표를 섞지 않는다.
 
+### 저장소 구성 · MinIO
+
+KFP의 중간 Dataset과 최종 결과 파일은 **kind 안의 MinIO**에 저장하는 구성으로 연결한다. MinIO는 파일을 bucket과 object 단위로 보관하는 오브젝트 스토리지다. Feast의 최신 피처 값은 **Redis**, 현재 완료한 MLflow 서버 데이터·모델 파일은 기존 **PVC**를 사용한다. MinIO 설치와 KFP 연결은 다음 실행 단계이며, 기존 MLflow 저장소를 이미 MinIO로 옮겼다는 의미는 아니다.
+
+| 저장 대상 | 사용할 구성 |
+|---|---|
+| KFP 중간 Dataset·최종 결과 | MinIO |
+| Feast Online 최신 피처 | Redis |
+| 현재 MLflow DB·모델 아티팩트 | 기존 mlflow-data PVC |
+| 현재 학습 CSV·선택 결과 | 기존 mlflow-results PVC |
+
 ## 4. 직접 실행한 MLflow 기록
 
 MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job에서 세 후보 학습·비교·등록 모델 재로딩을 실행했다. 초기 서버 OOM을 복구한 뒤 Job은 **Complete 1/1, 9초**로 종료했다. 당시 서버는 **1/1 Running, 재시작 0**이었다.
