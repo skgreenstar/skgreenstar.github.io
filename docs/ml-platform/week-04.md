@@ -183,12 +183,12 @@ Waiting for deployment "probe-demo" rollout to finish: 0 of 1 updated replicas a
 deployment "probe-demo" successfully rolled out
 
 NAME                          READY   STATUS    RESTARTS   AGE   IP
-probe-demo-68c54c584d-62p2t     1/1     Running   0          6s    10.244.0.5
+probe-demo-68c54c584d-62p2t     1/1     Running   0          6s    <POD_IP>
 
-["10.244.0.5"] ready=true
+["<POD_IP>"] ready=true
 ```
 
-Pod 출력에서는 이름·상태·재시작 횟수·AGE·IP 열을 발췌했다.
+Pod 출력에서는 이름·상태·재시작 횟수·AGE·IP 열을 발췌했다. 공개용 로그의 Pod IP는 `<POD_IP>`로 마스킹했으며, 같은 표시는 동일한 Pod 주소를 뜻한다. 상태값과 측정 결과는 원래 출력대로 유지했다.
 
 ### 2. Readiness 장애 · 실제 출력
 
@@ -201,7 +201,7 @@ pod/probe-demo-68c54c584d-62p2t condition met
 NAME                          READY   STATUS    RESTARTS   AGE
 probe-demo-68c54c584d-62p2t     0/1     Running   0          30s
 
-["10.244.0.5"] ready=false
+["<POD_IP>"] ready=false
 ```
 
 ### 3. 복구 · 실제 출력
@@ -213,7 +213,7 @@ pod/probe-demo-68c54c584d-62p2t condition met
 NAME                          READY   STATUS    RESTARTS   AGE
 probe-demo-68c54c584d-62p2t     1/1     Running   0          48s
 
-["10.244.0.5"] ready=true
+["<POD_IP>"] ready=true
 ```
 
 ### 4. Liveness 장애 감지 · 실제 출력
