@@ -1,15 +1,15 @@
 ---
-title: "06. KServe와 vLLM으로 모델을 어떻게 운영할까?"
+title: "08. KServe와 vLLM으로 모델을 어떻게 운영할까?"
 description: "KServe와 vLLM의 개념, 역할 구분, 서빙 지표와 Kubernetes 운영 설계"
 date: 2026-11-01
 outline: deep
 prev:
-  text: '05. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?'
+  text: '07. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?'
   link: '/ml-platform/week-05'
 next: false
 ---
 
-# 06. KServe와 vLLM으로 모델을 어떻게 운영할까?
+# 08. KServe와 vLLM으로 모델을 어떻게 운영할까?
 
 **학습 범위:** 확장 · ML/LLM 모델 서빙  
 **핵심 질문:** Kubernetes 운영 설정을 모델 배포·GPU 자원·토큰 생성에 어떻게 적용할까?

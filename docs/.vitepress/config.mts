@@ -31,11 +31,11 @@ export default defineConfig({
         ]},
         { text: '2주차 · 실험 추적에서 모델 운영까지', items: [
           { text: '학습 정리 · CH4~5', link: '/ml-platform/study-week-02' },
-          { text: 'MLflow · 학습·등록·재로딩', link: '/ml-platform/mlflow-model-lifecycle' },
-          { text: 'Feast·KFP · 연결 설계', link: '/ml-platform/model-pipeline' },
-          { text: '04 · 운영 자동화', link: '/ml-platform/week-04' },
-          { text: '05 · 리소스 관리와 성능 실험', link: '/ml-platform/week-05' },
-          { text: '06 · KServe와 vLLM', link: '/ml-platform/week-06' }
+          { text: '04 · MLflow 학습·등록·재로딩', link: '/ml-platform/mlflow-model-lifecycle' },
+          { text: '05 · Feast·KFP 연결 설계', link: '/ml-platform/model-pipeline' },
+          { text: '06 · 운영 자동화', link: '/ml-platform/week-04' },
+          { text: '07 · 리소스 관리와 성능 실험', link: '/ml-platform/week-05' },
+          { text: '08 · KServe와 vLLM', link: '/ml-platform/week-06' }
         ]},
         { text: '심화 · Evaluation', items: [
           { text: '산업 AI 회귀 평가', link: '/ml-platform/industrial-evaluation' },

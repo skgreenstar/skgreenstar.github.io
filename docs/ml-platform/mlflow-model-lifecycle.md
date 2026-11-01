@@ -1,15 +1,15 @@
 ---
-title: "MLflow · 학습에서 모델 등록과 재로딩까지"
+title: "04. MLflow · 학습에서 모델 등록과 재로딩까지"
 outline: deep
 prev:
   text: '2주차 · 학습 정리'
   link: '/ml-platform/study-week-02'
 next:
-  text: 'Feast·KFP 연결'
+  text: '05 · Feast·KFP 연결 설계'
   link: '/ml-platform/model-pipeline'
 ---
 
-# MLflow · 학습에서 모델 등록과 재로딩까지
+# 04. MLflow · 학습에서 모델 등록과 재로딩까지
 
 **CH4 · 실험 추적과 모델 관리**
 

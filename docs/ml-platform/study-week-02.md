@@ -6,7 +6,7 @@ prev:
   text: '1주차 · ML 시스템의 기반'
   link: '/ml-platform/study-week-01'
 next:
-  text: 'MLflow · 모델 학습과 재로딩'
+  text: '04 · MLflow 학습·등록·재로딩'
   link: '/ml-platform/mlflow-model-lifecycle'
 ---
 
@@ -44,13 +44,19 @@ MLflow 실행 코드는 합성 제조 품질 데이터와 세 모델을 사용�
 
 ## 3. 상세 글
 
-### [04. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
+### [04. MLflow · 학습에서 모델 등록과 재로딩까지](/ml-platform/mlflow-model-lifecycle)
+모델 학습·실험 비교·등록·재로딩 검증.
+
+### [05. Feast·KFP · 같은 피처와 같은 모델로 추론하기](/ml-platform/model-pipeline)
+피처 계약·고정 모델 버전·배치 추론 연결 설계.
+
+### [06. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
 Probe·RollingUpdate·Recreate·롤백의 명령, 로그, 결과 해석.
 
-### [05. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
+### [07. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
 CPU cgroup 통계, OOMKilled, QoS 세 등급과 로컬 API 기준선.
 
-### [06. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
+### [08. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
 모델 서빙의 개념과 책임 경계, GPU 메모리·초기화·스트리밍 운영 지표.
 
 ## 4. 실행 환경과 재현 코드

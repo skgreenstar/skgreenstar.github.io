@@ -21,19 +21,19 @@ MLOps, CI/CD/CT, 데이터 계약과 릴리스 게이트.
 **[2주차 학습 정리 · MLflow·Feast·KFP와 운영 검증](/ml-platform/study-week-02)**  
 CH4~5의 실험 추적·피처 관리·파이프라인과 kind 운영 실습을 연결합니다.
 
-### [MLflow · 학습에서 모델 등록과 재로딩까지](/ml-platform/mlflow-model-lifecycle)
+### [04. MLflow · 학습에서 모델 등록과 재로딩까지](/ml-platform/mlflow-model-lifecycle)
 동일 데이터로 세 모델 비교, 검증 기준 선택, 등록 모델 예측 일치 검증.
 
-### [Feast·KFP · 같은 피처와 같은 모델로 추론하기](/ml-platform/model-pipeline)
+### [05. Feast·KFP · 같은 피처와 같은 모델로 추론하기](/ml-platform/model-pipeline)
 MLflow의 데이터·입력 계약·고정 모델 버전을 이어받는 연결 설계.
 
-### [04. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
+### [06. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
 Startup·Readiness·Liveness Probe, 배포 전략과 롤백.
 
-### [05. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
+### [07. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
 Requests/Limits·QoS, 로컬 측정 기록과 성능·가용성 실험.
 
-### [06. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
+### [08. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
 모델 서빙의 개념, KServe·vLLM 역할과 실무 운영 지표.
 
 ## 심화 · Evaluation

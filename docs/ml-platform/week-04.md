@@ -1,17 +1,17 @@
 ---
-title: "04. 컨테이너가 실행 중이면 서비스도 정상일까?"
+title: "06. 컨테이너가 실행 중이면 서비스도 정상일까?"
 description: "Health Probe, 배포 전략과 롤백을 연결하는 Kubernetes 운영 자동화"
 date: 2026-11-01
 outline: deep
 prev:
-  text: '2주차 · 학습 정리'
-  link: '/ml-platform/study-week-02'
+  text: '05 · Feast·KFP 연결 설계'
+  link: '/ml-platform/model-pipeline'
 next:
-  text: '05. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?'
+  text: '07. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?'
   link: '/ml-platform/week-05'
 ---
 
-# 04. 컨테이너가 실행 중이면 서비스도 정상일까?
+# 06. 컨테이너가 실행 중이면 서비스도 정상일까?
 
 **확장 실습:** Kubernetes 운영 자동화  
 **핵심 질문:** 실행 상태, 트래픽 수신 준비, 재시작 필요성을 어떻게 구분할까?

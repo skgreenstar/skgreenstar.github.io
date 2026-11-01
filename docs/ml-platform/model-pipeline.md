@@ -1,9 +1,15 @@
 ---
-title: "Feast·KFP · 같은 피처와 같은 모델로 추론하기"
+title: "05. Feast·KFP · 같은 피처와 같은 모델로 추론하기"
 outline: deep
+prev:
+  text: '04 · MLflow 학습·등록·재로딩'
+  link: '/ml-platform/mlflow-model-lifecycle'
+next:
+  text: '06 · 운영 자동화'
+  link: '/ml-platform/week-04'
 ---
 
-# Feast·KFP · 같은 피처와 같은 모델로 추론하기
+# 05. Feast·KFP · 같은 피처와 같은 모델로 추론하기
 
 **CH4 · Feast / CH5 · Kubeflow Pipelines**
 
