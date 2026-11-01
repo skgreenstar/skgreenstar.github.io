@@ -31,7 +31,7 @@ quality는 목표값이므로 온라인 피처에 포함하지 않는다. 동일
 ## 2. KFP 배치 추론 구성
 
 | 단계 | 입력 | 검증·출력 |
-|---|---|
+|---|---|---|
 | 입력 검증 | 원본·dataset_contract.json | 해시·필수 컬럼 |
 | 피처 조회 | Entity·예측 시각 | Feast 피처 Dataset |
 | 모델 추론 | Dataset·고정 model_uri | 예측 Dataset |
@@ -46,7 +46,7 @@ KFP의 Input/Output 아티팩트로 단계 간 데이터를 전달하고, 모델
 3. Feast 조회에 미래 시점 값이 섞이지 않는지 확인한다.
 4. KFP에서 단계별 로그·산출물·실패 지점을 확인한다.
 
-실행 순서는 MLflow → Feast → KFP다. 각 단계의 설치 버전과 실제 산출물을 확인한 뒤 다음 단계로 연결한다.
+실행 순서는 kind의 MLflow Deployment·Service·PVC → Kubernetes 학습 Job → Feast 조회 Job → KFP 배치 추론이다. Feast 코드도 Pod 안에서 실행하고 KFP의 각 컴포넌트도 Kubernetes Pod로 실행한다. 서버 아티팩트 API와 고정 모델 URI로 데이터를 전달하며, 서로 다른 네임스페이스의 PVC를 직접 공유한다고 가정하지 않는다. 각 단계의 설치 버전과 실제 산출물을 확인한 뒤 다음 단계로 연결한다.
 
 ## 4. 기존 운영 실습과 연결
 

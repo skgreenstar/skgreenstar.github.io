@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -54,17 +55,21 @@ def scores(y, prediction):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", default="outputs")
+    parser.add_argument("--tracking-uri", default=os.environ.get("MLFLOW_TRACKING_URI"))
     args = parser.parse_args()
     out = Path(args.output_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
-    # One DB and artifact location per working directory; no credentials or external server.
-    db_path = Path("mlflow.db").resolve()
-    mlflow.set_tracking_uri("sqlite:///" + str(db_path))
+    # Kubernetes Jobs use the HTTP Service; standalone CI may use SQLite.
+    tracking_uri = args.tracking_uri or ("sqlite:///" + str(Path("mlflow.db").resolve()))
+    mlflow.set_tracking_uri(tracking_uri)
+    remote = tracking_uri.startswith(("http://", "https://"))
     experiment_name = "week02-manufacturing-quality"
     experiment = mlflow.get_experiment_by_name(experiment_name)
-    experiment_id = experiment.experiment_id if experiment else mlflow.create_experiment(
-        experiment_name, artifact_location=(out / "artifacts").as_uri()
-    )
+    if experiment:
+        experiment_id = experiment.experiment_id
+    else:
+        options = {} if remote else {"artifact_location": (out / "artifacts").as_uri()}
+        experiment_id = mlflow.create_experiment(experiment_name, **options)
     mlflow.set_experiment(experiment_id=experiment_id)
     frame = dataset()
     data_path = out / "synthetic_manufacturing.csv"
@@ -152,7 +157,9 @@ def main():
     print(comparison.to_string(index=False))
     print("\nREGISTRY RELOAD VERIFICATION")
     print(json.dumps(result, indent=2))
-    print("\nOpen UI: mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5050")
+    print("\nTracking URI:", tracking_uri)
+    if remote:
+        print("Kubernetes UI: kubectl --context kind-mlops-lab -n week02 port-forward svc/mlflow 5050:5000")
 
 
 if __name__ == "__main__":

@@ -20,12 +20,12 @@ next:
 ## 1. 교재 학습과 모델 파이프라인
 
 | 단계 | 핵심 질문 | 연결 글 |
-|---|---|
+|---|---|---|
 | MLflow · CH4 | 어떤 데이터·설정으로 선택한 모델을 다시 사용할 수 있는가? | [학습·실험 비교·모델 등록·재로딩](/ml-platform/mlflow-model-lifecycle) |
 | Feast · CH4 | 예측 시각에 사용할 수 있던 피처를 같은 정의로 조회하는가? | [피처 계약과 Offline·Online 조회](/ml-platform/model-pipeline) |
 | KFP · CH5 | 고정 모델과 피처로 배치 추론을 반복 실행하는가? | [컴포넌트와 결과 검증 설계](/ml-platform/model-pipeline) |
 
-MLflow 실행 코드는 합성 제조 품질 데이터와 세 모델을 사용한다. 검증 RMSE로 모델을 선택하고, 등록한 고정 버전을 재로딩해 예측값 일치를 검사한다. 데이터 CSV·피처 계약·선택 모델 URI를 후속 Feast·KFP의 입력으로 재사용한다.
+MLflow 서버는 kind의 Deployment·Service·PVC로 배포하고, 학습·비교·등록·재로딩은 Kubernetes Job에서 실행한다. PC에서는 Docker 이미지 준비와 kubectl 명령을 사용한다. 학습 코드는 합성 제조 품질 데이터와 세 모델을 사용한다. 검증 RMSE로 모델을 선택하고, 등록한 고정 버전을 재로딩해 예측값 일치를 검사한다. 데이터 CSV·피처 계약·선택 모델 URI를 후속 Feast·KFP의 입력으로 재사용한다.
 
 ## 2. kind에서 완료한 운영 실습
 

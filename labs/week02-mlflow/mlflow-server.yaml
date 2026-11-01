@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-data
+  namespace: week02
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-results
+  namespace: week02
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: week02
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: tracking-server
+          image: mlops-week02-mlflow:0.1
+          imagePullPolicy: Never
+          command: ["python", "-m", "mlflow", "server"]
+          args:
+            - --backend-store-uri
+            - sqlite:////mlflow/mlflow.db
+            - --serve-artifacts
+            - --artifacts-destination
+            - /mlflow/artifacts
+            - --default-artifact-root
+            - "mlflow-artifacts:/"
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "5000"
+            - --workers
+            - "1"
+            - --allowed-hosts
+            - "mlflow:5000,mlflow.week02.svc.cluster.local:5000,127.0.0.1:5050,localhost:5050,127.0.0.1:5000,localhost:5000"
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 5000
+              httpHeaders:
+                - name: Host
+                  value: "mlflow:5000"
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+              httpHeaders:
+                - name: Host
+                  value: "mlflow:5000"
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /mlflow
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mlflow-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: week02
+spec:
+  type: ClusterIP
+  selector:
+    app: mlflow
+  ports:
+    - port: 5000
+      targetPort: 5000
