@@ -111,7 +111,7 @@ kubectl -n week02 rollout undo deployment/probe-demo
 | Startup 실패 | Liveness/Readiness 동작 보류, 반복 실패 시 재시작 | 실행 후 기록 |
 | Readiness 실패 | EndpointSlice 준비 조건 변경 | 실제 확인: Pod 0/1 Running, RESTARTS=0, ready=false → 복구 후 1/1·ready=true |
 | Liveness 실패 | 임계값 이후 컨테이너 재시작 | 실제 확인: HTTP 503 → Killing → 동일 Pod RESTARTS=1, 1/1 Running 복구 |
-| RollingUpdate | Ready 신규 Pod 기준 교체 | 실행 후 기록 |
+| RollingUpdate | Ready 신규 Pod 기준 교체 | 실제 확인: 새 Pod 1/1 Ready 후 기존 Pod Terminating, LAB_VERSION=v2, revision 2 |
 | Recreate | 기존 Pod 종료 후 새 버전 시작 | 실행 후 기록 |
 
 ## 실제 kind 실행 기록 {#kind-readiness-result}
@@ -271,7 +271,70 @@ restarts=1 lastReason=Error exitCode=137
 
 **직접 확인한 범위:** Readiness 실패 중 `/healthz=200`과 `/readyz=503`이 동시에 관찰됐고, 컨테이너 재시작 없이 Pod와 EndpointSlice의 준비 상태가 바뀌었다.
 
-**추가 검증 범위:** 이번 요청은 Pod 내부 주소로 실행했다. Service 경유 요청 차단 여부나 실패율은 직접 측정하지 않았다. 표의 AGE는 각 출력 시점의 Pod 나이이며, 장애 감지·복구 소요시간을 정밀 측정한 값은 아니다. Liveness는 후속 출력에서 재시작과 Ready 복구까지 확인했다. RollingUpdate·롤백 결과는 후속 실습에서 별도로 수집한다.
+**추가 검증 범위:** 이번 요청은 Pod 내부 주소로 실행했다. Service 경유 요청 차단 여부나 실패율은 직접 측정하지 않았다. 표의 AGE는 각 출력 시점의 Pod 나이이며, 장애 감지·복구 소요시간을 정밀 측정한 값은 아니다. Liveness는 후속 출력에서 재시작과 Ready 복구까지 확인했다. RollingUpdate는 뒤의 실제 실행 기록에서 교체 순서를 확인했다. 롤백 결과는 후속 실습에서 별도로 수집한다.
+
+
+## RollingUpdate · 실제 kind 실행 기록
+
+### 변경 전 설정
+
+```text
+롤백 기준 revision=1
+strategy=RollingUpdate maxSurge=1 maxUnavailable=0
+```
+
+기존 앱 이미지·코드는 유지하고 Pod 템플릿에 환경변수 `LAB_VERSION=v2`를 추가했다. 이 값은 애플리케이션 응답 버전이 아니라 **Pod 템플릿의 변경을 확인하기 위한 표식**이다.
+
+### 실행 명령
+
+```bash
+# 기존 터미널: 롤백 기준 revision 기록
+LAB_BASE_REVISION=$(k get deployment probe-demo -o 'jsonpath={.metadata.annotations.deployment\.kubernetes\.io/revision}')
+
+# 별도 터미널: Pod 상태 관찰
+kubectl --context kind-mlops-lab -n week02 get pods -l app=probe-demo -w
+
+# 기존 터미널: 변경 적용 및 확인
+k set env deployment/probe-demo LAB_VERSION=v2
+k rollout status deployment/probe-demo --timeout=180s
+k get pods -l app=probe-demo
+k exec deployment/probe-demo -- python -c 'import os; print("LAB_VERSION=" + os.getenv("LAB_VERSION", "(unset)"))'
+k rollout history deployment/probe-demo
+```
+
+### 관찰한 Pod 교체 순서
+
+아래는 watch 출력의 주요 상태 전환을 발췌한 것이다. 같은 상태가 반복된 행은 생략했다.
+
+```text
+NAME                          READY   STATUS              RESTARTS   AGE
+probe-demo-c6767f7f4-z6xtq     0/1     Pending             0          0s
+probe-demo-c6767f7f4-z6xtq     0/1     ContainerCreating   0          0s
+probe-demo-c6767f7f4-z6xtq     0/1     Running             0          0s
+probe-demo-c6767f7f4-z6xtq     1/1     Running             0          4s
+probe-demo-68c54c584d-62p2t    1/1     Terminating         1          19m
+```
+
+```text
+deployment.apps/probe-demo env updated
+Waiting for deployment "probe-demo" rollout to finish: 1 old replicas are pending termination...
+deployment "probe-demo" successfully rolled out
+
+LAB_VERSION=v2
+
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+```
+
+### 결과 해석
+
+- 새 Pod가 Ready가 된 뒤 기존 Pod가 종료 단계로 전환되는 순서를 관찰했다.
+- 새 Pod의 재시작 횟수는 0이며 환경변수 `LAB_VERSION=v2`가 적용됐다.
+- Deployment revision이 1에서 2로 증가했다.
+- rollout 성공 직후에도 기존 Pod가 Terminating으로 보였다. 이 조회만으로 기존 Pod의 완전 삭제까지 확인한 것은 아니다.
+- 사용자 요청을 계속 보내며 오류율을 측정하지 않았으므로 **요청 무중단을 실측했다고 해석하지 않는다.**
+- 다음 단계는 revision 1로 롤백한 뒤 환경변수와 Pod 상태의 복원을 확인하는 것이다.
 
 
 ---
