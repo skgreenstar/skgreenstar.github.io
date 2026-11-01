@@ -149,11 +149,59 @@ throttled_usec delta= 1262760
 
 **해석의 경계:** 주기 기준 throttling 비율 100%는 **매 주기 한 번 이상 제한이 기록됐다**는 뜻이다. CPU가 전체 벽시계 시간의 100% 동안 정지했다는 뜻이 아니다. 이 수치는 동일 컨테이너에서 실행한 측정용 Python 프로세스의 자원 사용도 포함한다. 단일 구간 관찰이며, CPU limit별 비교나 HTTP p95/p99 지연 영향은 아직 측정하지 않았다.
 
+## 실제 kind 실행 기록 · 메모리 제한과 OOMKilled {#kind-memory-result}
+
+CPU 부하 Pod를 삭제한 뒤, 같은 `week02` 네임스페이스에서 저장소의 `memory-oom` Pod를 실행했다. 메모리 limit 64Mi에 대해 Python이 160Mi 크기의 bytearray를 할당하도록 구성했다.
+
+### 실행 명령
+
+```bash
+k delete pod cpu-stress
+k apply -f https://raw.githubusercontent.com/skgreenstar/skgreenstar.github.io/main/docs/ml-platform/week-02-lab/03-memory-oom.yaml
+k wait --for=jsonpath='{.status.phase}'=Failed pod/memory-oom --timeout=120s
+k get pod memory-oom
+
+k get pod memory-oom -o 'jsonpath={range .status.containerStatuses[*]}{"reason="}{.state.terminated.reason}{" exitCode="}{.state.terminated.exitCode}{" restarts="}{.restartCount}{"\n"}{end}'
+k get pod memory-oom -o 'jsonpath={range .spec.containers[*]}{"memory request="}{.resources.requests.memory}{" limit="}{.resources.limits.memory}{"\n"}{end}{"QoS="}{.status.qosClass}{" restartPolicy="}{.spec.restartPolicy}{"\n"}'
+```
+
+### 실제 출력
+
+```text
+pod "cpu-stress" deleted from week02 namespace
+pod/memory-oom created
+pod/memory-oom condition met
+
+NAME         READY   STATUS      RESTARTS   AGE
+memory-oom   0/1     OOMKilled   0          2s
+
+reason=OOMKilled exitCode=137 restarts=0
+memory request=32Mi limit=64Mi
+QoS=Burstable restartPolicy=Never
+```
+
+### 관찰 결과
+
+| 항목 | 실제 확인 | 해석 |
+|---|---|---|
+| Memory request / limit | 32Mi / 64Mi | 예약량과 사용 한도는 다른 값 |
+| 프로그램의 할당 시도 | YAML에 160Mi bytearray 할당 | 메모리 limit보다 큰 할당을 의도 |
+| 종료 사유 | OOMKilled | 메모리 OOM 종료를 직접 확인 |
+| 종료 코드 | 137 | 종료 사유와 함께 해석 |
+| 재시작 횟수 | 0 | restartPolicy=Never에서 종료 후 재시작하지 않음 |
+| QoS | Burstable | CPU·메모리 request와 limit이 같지 않은 구성 |
+
+**CPU 제한 실습과 비교:** CPU 부하 Pod는 Running을 유지하면서 throttling이 기록됐다. 메모리 실습에서는 프로세스가 OOMKilled로 종료됐다. 두 자원 한도가 다른 방식으로 나타나는 것을 실제 관찰했다.
+
+**Liveness 실습과 비교:** 앞선 Probe 앱은 Liveness 실패·Killing 후 `lastReason=Error exitCode=137`을 남기고 재시작됐다. 이번에는 `reason=OOMKilled`와 `restartPolicy=Never`를 확인했다. 같은 종료 코드 137만으로 두 사건의 원인을 동일하게 취급하지 않는다.
+
+**검증 범위:** 컨테이너의 메모리 한도 초과 실험이며, 노드 전체 메모리 압박에 따른 eviction 순서나 QoS 등급별 보호 효과를 실측한 결과는 아니다. AGE 2s는 조회 시점의 Pod 나이이며 정밀한 OOM 발생 시간 측정값으로 사용하지 않는다.
+
 ## 직접 실행한 기록 — FastAPI 로컬 기준선
 
 ::: tip 실험 상태
 **실제로 실행한 범위:** FastAPI/Uvicorn HTTP Health Check와 동시 요청 부하 테스트  
-**이 로컬 기준선 실험에 포함되지 않은 범위:** Kubernetes Pod·CPU 제한·OOM·배포 변경. 이후 kind에서 실행한 CPU 제한 실습은 위 기록에, Probe·배포 실습은 [운영 자동화 글](/ml-platform/week-04)에 별도로 정리했다.
+**이 로컬 기준선 실험에 포함되지 않은 범위:** Kubernetes Pod·CPU 제한·OOM·배포 변경. 이후 kind에서 실행한 CPU 제한·메모리 OOM 실습은 위 기록에, Probe·배포 실습은 [운영 자동화 글](/ml-platform/week-04)에 별도로 정리했다.
 :::
 
 ### 실험 환경 및 목적
