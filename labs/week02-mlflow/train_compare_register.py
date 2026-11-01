@@ -108,6 +108,8 @@ def main():
             mlflow.log_metric("fit_seconds", fit_seconds)
             info = mlflow.sklearn.log_model(
                 model, name="model",
+                # Only trust the tree type built by this script, not arbitrary imported models.
+                skops_trusted_types=["sklearn.tree._tree.Tree"] if name == "random_forest" else [],
                 signature=infer_signature(train[FEATURES], model.predict(train[FEATURES])),
                 input_example=train[FEATURES].head(3),
             )
