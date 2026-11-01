@@ -58,6 +58,8 @@ next:
 
 **메모리 OOM 실측 완료:** memory request 32Mi / limit 64Mi인 Pod에서 160Mi 할당을 시도했다. 실제 출력은 `0/1 OOMKilled`, `reason=OOMKilled exitCode=137 restarts=0`이었다. QoS는 Burstable, restartPolicy는 Never로 확인했다. 앞선 Liveness 실험의 `Error/137`과 달리 이번에는 종료 사유 `OOMKilled`로 OOM을 확인했다. [메모리 실습 로그와 해석](/ml-platform/week-05#kind-memory-result)
 
+**QoS 세 등급 실측 완료:** CPU·메모리 request=limit인 `qos-guaranteed`는 Guaranteed, 자원 설정이 없는 `qos-besteffort`는 BestEffort, request와 limit이 다른 `memory-oom`은 Burstable로 확인됐다. 등급 부여를 확인했으며, 노드 압박에 따른 eviction 순서를 실험한 것은 아니다. [QoS 실제 출력](/ml-platform/week-05#kind-qos-result)
+
 [실행 명령과 터미널 출력 보기](/ml-platform/week-04#kind-readiness-result)
 
 ## 1. 운영 자동화에서 모델 서빙까지

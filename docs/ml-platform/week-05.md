@@ -197,6 +197,81 @@ QoS=Burstable restartPolicy=Never
 
 **검증 범위:** 컨테이너의 메모리 한도 초과 실험이며, 노드 전체 메모리 압박에 따른 eviction 순서나 QoS 등급별 보호 효과를 실측한 결과는 아니다. AGE 2s는 조회 시점의 Pod 나이이며 정밀한 OOM 발생 시간 측정값으로 사용하지 않는다.
 
+## 실제 kind 실행 기록 · QoS 세 등급 비교 {#kind-qos-result}
+
+앞선 OOM 실습의 Burstable Pod에 더해 비교용 Pod 두 개를 생성했다. 동일한 `week02` 네임스페이스에서 CPU·메모리 request와 limit 설정에 따른 QoS 등급을 조회했다.
+
+### 비교용 Pod 생성
+
+```bash
+k apply -f - <<'YAML'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-guaranteed
+  labels:
+    lab: qos-demo
+spec:
+  restartPolicy: Never
+  containers:
+    - name: app
+      image: python:3.12-alpine
+      command: ["python", "-c", "import time; time.sleep(3600)"]
+      resources:
+        requests:
+          cpu: 50m
+          memory: 32Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-besteffort
+  labels:
+    lab: qos-demo
+spec:
+  restartPolicy: Never
+  containers:
+    - name: app
+      image: python:3.12-alpine
+      command: ["python", "-c", "import time; time.sleep(3600)"]
+YAML
+
+k wait --for=condition=Ready pod -l lab=qos-demo --timeout=180s
+```
+
+```text
+pod/qos-guaranteed created
+pod/qos-besteffort created
+pod/qos-besteffort condition met
+pod/qos-guaranteed condition met
+```
+
+### QoS 조회와 실제 출력
+
+```bash
+k get pods qos-guaranteed qos-besteffort memory-oom -o 'custom-columns=NAME:.metadata.name,QOS:.status.qosClass,CPU_REQUEST:.spec.containers[0].resources.requests.cpu,CPU_LIMIT:.spec.containers[0].resources.limits.cpu,MEM_REQUEST:.spec.containers[0].resources.requests.memory,MEM_LIMIT:.spec.containers[0].resources.limits.memory'
+```
+
+```text
+NAME             QOS          CPU_REQUEST   CPU_LIMIT   MEM_REQUEST   MEM_LIMIT
+qos-guaranteed   Guaranteed   50m           50m         32Mi          32Mi
+qos-besteffort   BestEffort   <none>        <none>      <none>        <none>
+memory-oom       Burstable    20m           200m        32Mi          64Mi
+```
+
+### 확인한 점
+
+| Pod | 실제 QoS | 해당 설정과의 연결 |
+|---|---|---|
+| qos-guaranteed | Guaranteed | 단일 컨테이너의 CPU·메모리 request와 limit이 각각 같음 |
+| qos-besteffort | BestEffort | CPU·메모리 request와 limit을 지정하지 않음 |
+| memory-oom | Burstable | CPU·메모리 request와 limit이 서로 다름 |
+
+세 등급이 실제로 부여되는 것을 확인했다. 앞서 OOMKilled로 종료된 Pod에도 Burstable 등급이 기록돼 있었다. **Guaranteed라는 이름이 무조건적인 생존이나 OOM 방지를 뜻하는 것은 아니다.** 이번 실습에서는 노드 메모리 압박이나 eviction을 유도하지 않았으므로 등급별 축출 순서·보호 효과를 실측했다고 쓰지 않는다.
+
 ## 직접 실행한 기록 — FastAPI 로컬 기준선
 
 ::: tip 실험 상태
