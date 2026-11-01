@@ -17,7 +17,7 @@ next:
 
 1주차에서 검증된 모델을 배포하는 흐름을 살펴봤다면, 이번에는 **배포한 서비스가 언제 요청을 받고, 어떻게 교체되며, 어느 정도의 자원으로 동작해야 하는지**를 연결한다. 개념과 실습은 세 편의 상세 글로 나누고, 이 페이지에서는 전체 흐름과 학습 기준을 정리한다.
 
-> **학습 방식:** 핵심 개념 → 동작 구조 → 가설 → kind 실습 → 관찰/해석. 아래의 출력은 *예상 동작*이며, 직접 측정한 결과와 구분한다.
+> **학습 방식:** 핵심 개념 → 동작 구조 → 가설 → kind 실습 → 관찰/해석. 실제 실행 결과는 별도 기록하고, 후속 실습의 예상 동작과 구분한다.
 
 ::: tip 이번 주 학습 목표
 - Startup / Readiness / Liveness Probe의 역할을 구분하고 장애를 재현한다.
@@ -25,6 +25,30 @@ next:
 - CPU·Memory Requests/Limits, QoS와 자원 경합을 관찰한다.
 - AI 모델 서빙에 적용할 때의 설계 선택을 설명한다.
 :::
+
+## 실제 kind 실습 결과 · Readiness 장애와 복구
+
+기존 로컬 FastAPI 기준선에 이어, 개인 PC의 **kind 클러스터에서 Probe 앱을 배포하고 Readiness 장애·복구를 실행**했다. 아래 기록은 PC 터미널에서 실행한 출력을 바탕으로 정리했다.
+
+| 환경 | 확인값 |
+|---|---|
+| Docker | Linux / aarch64 |
+| kind 클러스터 / 컨텍스트 | `mlops-lab` / `kind-mlops-lab` |
+| 노드 / Kubernetes | `mlops-lab-control-plane` · Ready / v1.37.0 |
+| 컨테이너 런타임 | containerd 2.3.4 |
+| 실습 대상 | `week02` 네임스페이스 · `probe-demo` Deployment |
+
+| 단계 | 관찰한 HTTP 응답 | Pod 상태 | RESTARTS | EndpointSlice |
+|---|---|---|---:|---|
+| 정상 배포 | HTTP 응답 별도 수집 없음 | `1/1 Running` | 0 | `ready=true` |
+| Readiness 장애 주입 | `/healthz=200`, `/readyz=503` | `0/1 Running` | 0 | `ready=false` |
+| 정상 복구 | `/traffic-on=200` | `1/1 Running` | 0 | `ready=true` |
+
+**확인한 점:** 동일 Pod가 Running 상태를 유지한 채 Ready만 변경됐고, 재시작 횟수는 0으로 유지됐다. EndpointSlice의 주소는 남아 있으면서 `ready` 조건이 false로 변경됐다가 복구됐다.
+
+이번 기록은 **Pod와 EndpointSlice의 상태 전환**을 확인한 결과다. Service 경유 실제 요청의 성공·실패, Liveness 장애 재시작, 배포·롤백, CPU 제한·OOM은 아직 결과를 수집하지 않았다.
+
+[실행 명령과 터미널 출력 보기](/ml-platform/week-04#kind-readiness-result)
 
 ## 1. 운영 자동화에서 모델 서빙까지
 
