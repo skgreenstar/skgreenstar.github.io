@@ -38,7 +38,23 @@ EDA에서는 시간 범위·설비별 행 수·결측·분포·목표값 관계�
 
 원본 데이터·전처리·피처 순서·분할 기준이 다르면 모델 점수만 직접 비교하기 어렵다. 같은 시간 분할을 유지한 채 검증 점수로 후보를 선택하고, 최종 평가 데이터는 선택 이후 확인한다. 평균 예측 모델을 기준으로 두어 복잡한 모델이 실제로 개선했는지 비교한다.
 
-MLflow의 데이터 입력 메타데이터 기록이 원본 CSV 전체 복사를 자동 보장하지는 않는다. 이 실습은 CSV와 SHA-256·입력 계약을 별도 산출물로 저장한다. EDA 그림을 추가할 때도 Run의 아티팩트로 저장해 데이터 버전과 함께 추적한다.
+MLflow의 데이터 입력 메타데이터 기록이 원본 CSV 전체 복사를 자동 보장하지는 않는다. 이 실습은 CSV와 SHA-256·입력 계약을 별도 산출물로 저장한다. EDA 그림도 해당 Run의 아티팩트로 보관하면 데이터 버전과 함께 추적할 수 있다.
+
+### 피처와 품질의 관계를 직접 살펴보기
+
+학습 코드의 seed 42 생성 함수를 사용해 1,000행을 다시 구성했다. 설비는 8개이며 결측값은 0개였다. 아래 그림의 선은 전체 데이터의 12개 구간별 평균이고, 회색 점은 겹침을 줄이기 위해 125행만 표시한 표본이다.
+
+![합성 제조 데이터의 온도·압력·속도와 품질 관계: 온도는 곡선, 압력은 상승, 속도는 상대적으로 약한 경향](/images/week02-feature-quality.svg)
+
+| 피처 | 품질과의 Pearson 상관계수 | 그림에서 읽을 수 있는 것 |
+|---|---:|---|
+| temperature | 0.013 | 중앙 구간에서 높고 양 끝에서 낮아지는 곡선 관계 |
+| pressure | 0.628 | 압력이 높은 구간에서 평균 품질이 높아지는 경향 |
+| speed | 0.145 | 상대적으로 약한 상승 경향과 큰 산포 |
+
+특히 온도는 상관계수가 거의 0인데도 품질과 무관하지 않다. 낮은 온도에서 중앙 구간까지 올라갈 때는 품질이 증가하고, 중앙을 지나면 감소하므로 하나의 직선 기울기로 설명하기 어렵다. **상관계수가 작다는 이유만으로 피처를 제거하면 비선형 관계를 놓칠 수 있다.**
+
+이 모양은 생성식의 `-0.025 × (temperature - 75)²` 항과 연결된다. 압력과 속도는 각각 양의 계수를 가진 항이지만, 각 그림에는 다른 피처와 노이즈의 영향도 함께 섞여 있다. 따라서 구간 평균을 개별 변수의 인과 효과나 실제 공정 최적 조건으로 해석하지 않는다.
 
 ## 1. 데이터와 비교 기준
 
@@ -55,6 +71,16 @@ seed 42로 생성한 **합성 제조 품질 데이터 1,000행**을 사용한다
 ## 2. 실험마다 남기는 근거
 
 MLflow Run에 파라미터·검증 RMSE/MAE/R²·학습 시간을 기록한다. 모델에는 signature와 입력 예시를 포함하고, CSV·SHA-256·입력 계약·실제 설치 패키지 버전도 저장한다. test 점수로 후보를 고르지 않도록 선택과 최종 평가를 분리했다.
+
+### 검증 점수로 모델을 선택한 이유
+
+같은 시간 분할과 입력 피처를 유지한 세 후보의 검증 RMSE를 비교했다. 아래 그림은 기존 실험 비교표에 기록한 수치를 시각화한 것이다. 최종 평가 점수를 모델 선택에 사용하지 않는다.
+
+![평균 기준 모델 4.251555, Ridge 3.297208, RandomForest 0.983442의 검증 RMSE 비교](/images/week02-model-comparison.svg)
+
+RandomForest의 검증 RMSE는 **0.983442**로 평균 기준 모델 **4.251555**보다 약 **76.9% 낮았다**. 이는 RMSE 감소율이며 정확도나 업무 비용 절감률을 뜻하지 않는다. Ridge도 평균 모델보다 개선됐지만, 현재 입력에는 온도의 제곱항을 별도 추가하지 않아 곡선 관계를 직접 표현하기 어렵다. 트리 기반 모델이 이 패턴을 더 잘 표현한 것이 결과와 부합한다.
+
+다만 세 후보 중 최저 점수라는 사실만으로 모든 모델보다 우수하다고 결론 내리지는 않는다. 후속 비교에서는 같은 분할을 유지한 채 제곱항을 추가한 Ridge와 비교해, 차이가 비선형 표현력에서 비롯됐는지 더 좁혀볼 수 있다. 선택 후 확인한 RandomForest의 최종 평가 RMSE는 **0.923904**였다. 단일 합성 데이터 분할의 결과이므로 실제 공정·다른 기간에 대한 일반화는 별도 평가 대상이다.
 
 ## Kubernetes 실행 결과 · 실습 화면 ①
 
@@ -199,6 +225,23 @@ kind에서 Job Complete와 UI의 세 Run·모델 연결을 확인했다. 실행�
 | test_predictions.csv | 후속 배치 추론 결과와 대조 |
 | requirements-resolved.txt | 실제 설치 버전 기록 |
 
+### 코드에서 고정 버전과 피처 순서를 지키기
+
+다음은 후속 추론에서 재사용하는 핵심 흐름이다. `selection.json`은 앞선 실험에서 선택해 저장한 결과이며, 추론할 때 다시 최고 점수의 모델을 검색하지 않는다.
+
+```python
+selection = json.loads(Path("selection.json").read_text())
+features = selection["features"]
+model = mlflow.sklearn.load_model(selection["model_uri"])
+
+feature_frame = pd.read_parquet("features.parquet")
+prediction = model.predict(feature_frame[features])
+```
+
+`model_uri`는 어떤 버전을 로드할지, `features`는 어떤 이름과 순서로 입력할지 고정한다. Entity와 시각은 모델 입력과 분리해 두되 최종 결과에 보존한다. 기존 예측과 비교할 때는 행 순서만 믿지 않고 Entity·예측 시각으로 먼저 결합한다.
+
+등록 전후 예측 일치 검사는 모델이 같은 동작을 유지하는지 확인한다. 반면 RMSE는 정답과 비교한 품질을 평가한다. 두 검사를 구분해야 “같은 모델을 잘 불러왔다”와 “좋은 예측을 한다”를 혼동하지 않는다.
+
 ## Kubernetes 서버 OOM 복구 기록
 
 kind 배포 후 서버 Pod에서 CrashLoopBackOff, restarts=5, lastReason=OOMKilled, exitCode=137을 관찰했다. 서버가 종료된 동안 학습 Job은 experiments/get-by-name API의 Connection refused로 실패했다. 서버 로그의 Starlette 경고와 OOM 종료 사유를 구분했다.
@@ -241,4 +284,5 @@ k get pods -l app=mlflow
 - [실행 코드](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/labs/week02-mlflow)
 - [MLflow Tracking](https://mlflow.org/docs/latest/ml/tracking/)
 - [Model Registry](https://mlflow.org/docs/latest/ml/model-registry/workflow/)
+
 

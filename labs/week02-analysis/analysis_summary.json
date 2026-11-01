@@ -1,0 +1,32 @@
+{
+  "rows": 1000,
+  "missing_values": 0,
+  "entities": 8,
+  "seed": 42,
+  "source_sha256": "7e9f99173f575f306da31af9862d636d3d57aff0a9d71b9764271e11fa7debfe",
+  "correlations": {
+    "temperature": 0.012521250356016578,
+    "pressure": 0.6280289288316,
+    "speed": 0.14496171672510919
+  },
+  "ranges": {
+    "temperature": [
+      55.04932250047632,
+      94.96418921896955
+    ],
+    "pressure": [
+      2.003112464994233,
+      7.996531455345127
+    ],
+    "speed": [
+      80.05939963558316,
+      139.98592021486064
+    ],
+    "quality": [
+      76.50864509314478,
+      98.65474451157007
+    ]
+  },
+  "rmse_reduction_vs_baseline_pct": 76.86865158747798,
+  "metric_source": "Existing validation comparison in mlflow-model-lifecycle.md; no training rerun"
+}

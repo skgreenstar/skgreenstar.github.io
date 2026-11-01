@@ -1,0 +1,4 @@
+model,validation_rmse
+Mean baseline,4.251555
+Ridge,3.297208
+RandomForest,0.983442

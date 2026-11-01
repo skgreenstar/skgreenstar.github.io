@@ -68,6 +68,14 @@ KFP의 중간 Dataset과 최종 결과 파일은 **kind 안의 MinIO**에 저장
 | 현재 MLflow DB·모델 아티팩트 | 기존 mlflow-data PVC |
 | 현재 학습 CSV·선택 결과 | 기존 mlflow-results PVC |
 
+### 데이터와 선택 근거를 함께 보기
+
+제조 품질 예제의 온도는 품질과의 선형 상관계수가 약 0.013인데도 중앙 구간이 높은 곡선 관계를 보였다. 상관계수만으로 피처의 유용성을 판단하기 어렵다는 점을 [데이터 탐색 그림](/ml-platform/mlflow-model-lifecycle)에서 확인했다.
+
+![동일 시간 분할에서 세 후보의 검증 RMSE를 비교한 그래프](/images/week02-model-comparison.svg)
+
+평균 모델·Ridge·RandomForest를 같은 입력과 분할에서 비교했고, 검증 RMSE가 가장 낮은 RandomForest를 선택했다. 평균 기준 모델 대비 RMSE는 약 76.9% 감소했다. [MLflow 글](/ml-platform/mlflow-model-lifecycle)에는 원본 피처의 관계와 선택 이유를, [Feast 글](/ml-platform/model-pipeline)에는 시점 조회·키 결합 코드를, [KFP 글](/ml-platform/kfp-batch-inference)에는 컴포넌트 파일 경계와 의존성 코드를 연결했다.
+
 ## 4. 직접 실행한 MLflow 기록
 
 MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job에서 세 후보 학습·비교·등록 모델 재로딩을 실행했다. 초기 서버 OOM을 복구한 뒤 Job은 **Complete 1/1, 9초**로 종료했다. 당시 서버는 **1/1 Running, 재시작 0**이었다.
@@ -123,6 +131,9 @@ MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job
 
 ## 7. 이번 주의 핵심 정리
 
-좋은 점수의 모델 파일만 남기는 것으로 학습이 끝나지 않는다. 데이터·피처·설정·평가 기준이 연결되어야 선택 이유를 설명할 수 있다. 같은 버전의 모델과 피처로 반복 실행하고 결과 파일에서 입력·모델·실행 근거까지 추적할 수 있을 때 다음 운영 단계로 이어진다.
+이번 연결에서는 세 가지를 배웠다. 첫째, 상관계수가 작더라도 비선형 관계가 있을 수 있으므로 원본 데이터의 모양과 기준 모델을 먼저 확인해야 한다. 둘째, MLflow의 모델 버전과 Feast의 피처 시점을 함께 고정해야 같은 예측을 재현할 수 있다. 셋째, KFP의 단계 성공뿐 아니라 결과의 Entity·시각·행 수·예측값까지 확인해야 작업 완료를 판단할 수 있다.
+
+모델 파일 하나보다 중요한 것은 그 모델을 선택한 이유와 다시 사용할 수 있는 입력 계약이다. 이 근거가 연결되어야 이후 배포·복구·자원 관리도 특정 모델과 데이터의 운영 문제로 설명할 수 있다.
 
 참고: [MLflow](https://mlflow.org/docs/latest/ml/), [Feast](https://docs.feast.dev/), [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/)
+

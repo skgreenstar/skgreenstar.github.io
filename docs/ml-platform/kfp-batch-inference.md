@@ -41,6 +41,46 @@ next:
 
 모델 선택은 앞선 MLflow 학습에서 끝났다. 배치 추론마다 모델을 다시 학습하거나 임의의 최신 버전을 고르지 않는다. `selection.json`의 구체적 버전 URI를 사용해 실행 간 모델 변경을 통제한다.
 
+### 핵심 코드 · 파일 경계와 작업 의존성
+
+기존 컴파일 코드에서 모델 추론 컴포넌트는 입력 계약 Dataset과 피처 Dataset을 각각 받는다. 파이썬 객체를 공유하는 대신 컨테이너의 실행 인수로 각 아티팩트 경로를 전달한다.
+
+```python
+@dsl.container_component
+def inference(
+    data: dsl.Input[dsl.Dataset],
+    feature_data: dsl.Input[dsl.Dataset],
+    result: dsl.Output[dsl.Dataset],
+):
+    return dsl.ContainerSpec(
+        image=IMAGE,
+        command=["python", "/app/pipeline_tasks.py"],
+        args=[
+            "predict", "--source", data.path,
+            "--features", feature_data.path,
+            "--output", result.path,
+        ],
+    )
+```
+
+`data.path`에서 선택 모델 URI와 원본 계약을 읽고, `feature_data.path`에서 조회한 피처를 읽는다. `result.path`에는 다음 단계가 읽을 예측 파일과 검증 요약을 쓴다. 이미지 `IMAGE`에 필요한 패키지와 실행 코드를 포함하며, 모델 자체는 고정 URI로 MLflow에서 로드한다.
+
+```python
+first = prepare(run_id=training_run_id)
+second = features(data=first.outputs["data"])
+third = inference(
+    data=first.outputs["data"],
+    feature_data=second.outputs["result"],
+)
+last = publish(data=third.outputs["result"])
+```
+
+`first.outputs`와 `second.outputs`를 입력으로 연결하면 실행 의존성과 아티팩트 전달 관계가 함께 만들어진다. 추론은 두 입력이 준비된 뒤 시작한다. 위 블록은 `@dsl.pipeline` 함수 내부의 연결 코드이며, 컴포넌트를 정의하는 코드와 실행 순서를 조합하는 코드를 분리한 것이다.
+
+### MinIO가 맡는 부분
+
+컴포넌트 코드는 전달받은 로컬 아티팩트 경로를 읽고 쓴다. KFP의 아티팩트 저장소를 MinIO로 설정하면 단계 출력은 MinIO에 보관되고, 다음 작업에서 입력으로 사용할 수 있도록 전달된다. 즉 **코드의 파일 경로**와 **공유 저장소의 object 경로**는 같은 역할이 아니다. 모델의 선택·등록은 MLflow가, Dataset 보관은 MinIO가, 실행 관계는 KFP가 담당한다.
+
 ## 3. 컴파일·등록·실행·확인은 서로 다른 단계
 
 파이썬 SDK로 파이프라인을 정의하고 YAML로 컴파일한다. KFP에 업로드한 뒤 파라미터를 지정해 Run을 만든다. **컴파일 성공은 클러스터 실행 성공을 의미하지 않는다.** 이미지 접근·스토리지·서비스 주소·권한은 실행 환경에서 확인해야 한다.
@@ -96,3 +136,4 @@ KFP_COMPILE=PASS: pipeline.yaml
 모든 단계가 성공했어도 결과가 빈 파일이거나 Entity가 사라지면 업무에서 사용할 수 없다. [결과 검증](/ml-platform/week02-verification)에서 고정 입력·모델·피처를 기준으로 재현성과 추적성을 확인한다.
 
 참고: [KFP 공식 문서](https://www.kubeflow.org/docs/components/pipelines/)
+

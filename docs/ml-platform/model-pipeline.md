@@ -63,6 +63,50 @@ apply 성공만으로 Redis 등에 값이 들어간 것은 아니다. materializ
 
 첫 MLflow 학습은 CSV를 직접 사용했다. Feast를 도입했다는 사실만으로 기존 학습이 Feast 기반이었다고 바꾸어 쓰지 않는다. 다음 학습부터 Historical 조회 결과를 사용하고, FeatureService 이름·정의 버전 또는 해시·실제 피처 목록을 Run에 기록하면 학습 입력의 계보까지 이어진다.
 
+### 핵심 코드 · 예측 기준 시각을 조회 시각으로 넘기기
+
+아래는 조회 코드의 핵심 부분을 발췌한 것이다. `test`는 평가 대상 행이고 `service`는 온도·압력·속도를 묶은 FeatureService다.
+
+```python
+query = test[["equipment_id", "prediction_timestamp"]].rename(
+    columns={"prediction_timestamp": "event_timestamp"}
+)
+retrieved = store.get_historical_features(
+    entity_df=query,
+    features=service,
+).to_df()
+retrieved = retrieved.rename(
+    columns={"event_timestamp": "prediction_timestamp"}
+)
+```
+
+여기서 `event_timestamp`라는 컬럼명은 **조회 요청의 기준 시각**을 전달하는 인터페이스다. 원천 피처의 관측 시각을 미래로 옮기는 것이 아니다. 조회 후에는 원래 업무 의미인 `prediction_timestamp`로 되돌리고 Entity와 함께 보존한다.
+
+```python
+keys = ["equipment_id", "prediction_timestamp"]
+aligned = test[keys + FEATURES].merge(
+    retrieved[keys + FEATURES],
+    on=keys,
+    suffixes=("_expected", ""),
+    validate="one_to_one",
+    how="left",
+)
+```
+
+`one_to_one`은 중복 키로 행이 늘어나는 문제를 잡는다. 다만 결합 성공만으로 값이 같다는 뜻은 아니다. 행 수·결측을 확인하고 조회 피처를 원본 기준값과 수치 비교하는 검사를 이어서 수행했다. 이렇게 해야 피처를 조회했다는 사실을 넘어 모델에 들어가는 실제 값까지 확인할 수 있다.
+
+### 핵심 코드 · 최신 값은 적재 후 별도로 조회하기
+
+```python
+store.materialize(start_date=start_date, end_date=end_date)
+online = store.get_online_features(
+    features=service,
+    entity_rows=[{"equipment_id": "machine-00"}],
+).to_df()
+```
+
+`start_date`·`end_date`는 원천 이력의 적재 범위다. Online 요청에는 과거 예측 시각을 넣지 않고 Entity 키를 넘긴다. 과거 평가 입력을 Online 최신 값으로 대체하면 당시와 다른 피처를 사용할 수 있으므로, Historical 경로와 Online 경로의 목적을 분리한다.
+
 ### 구성도 읽는 법
 
 `apply`는 정의를 Registry에 등록하는 단계다. 왼쪽 경로는 예측 시점에 맞는 과거 피처를 조회해 학습·배치 입력을 만들고, 오른쪽 경로는 `materialize`로 Redis에 최신 값을 적재한 뒤 Online 조회에 사용한다. 두 경로가 같은 피처 정의를 사용하더라도 조회하는 시점과 목적은 다르다.
@@ -99,3 +143,4 @@ Online 조회에서 확인한 값의 일부는 다음과 같다.
 피처 Dataset은 Entity·예측 시각을 보존하고 입력 피처만 모델에 전달한다. 컬럼 누락·중복·허용하지 않은 결측이 있으면 추론을 시작하기 전에 실패시킨다. 고정 모델 URI와 피처 정의 식별자를 KFP 실행 파라미터에 함께 기록한다.
 
 참고: [Feast 공식 문서](https://docs.feast.dev/)
+
