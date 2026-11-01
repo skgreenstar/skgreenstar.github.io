@@ -82,13 +82,13 @@ RandomForest의 검증 RMSE는 **0.983442**로 평균 기준 모델 **4.251555**
 
 다만 세 후보 중 최저 점수라는 사실만으로 모든 모델보다 우수하다고 결론 내리지는 않는다. 후속 비교에서는 같은 분할을 유지한 채 제곱항을 추가한 Ridge와 비교해, 차이가 비선형 표현력에서 비롯됐는지 더 좁혀볼 수 있다. 선택 후 확인한 RandomForest의 최종 평가 RMSE는 **0.923904**였다. 단일 합성 데이터 분할의 결과이므로 실제 공정·다른 기간에 대한 일반화는 별도 평가 대상이다.
 
-## Kubernetes 실행 결과 · 실습 화면 ①
+## 모델 학습과 등록 결과
 
 개인 PC의 kind 클러스터에서 MLflow 서버를 Deployment·Service·PVC로 배포하고, 학습·실험 비교·모델 등록·재로딩을 Kubernetes Job으로 실행했다. 서버 OOM을 복구한 뒤 학습 Job이 **9초 만에 Complete(1/1)**로 종료됐고, UI에서 세 Run과 모델 연결을 확인했다.
 
 ![kind 위 MLflow 3.17.2 UI: random_forest, ridge, baseline_mean 세 Run](/images/week02-mlflow-kind-runs.png)
 
-**화면 확인:** MLflow 3.17.2의 week02-manufacturing-quality 실험에 random_forest·ridge·baseline_mean이 기록됐다. random_forest 행에서 ManufacturingQualityDemo 모델 연결도 확인된다.
+MLflow 3.17.2의 week02-manufacturing-quality 실험에 random_forest·ridge·baseline_mean이 기록됐다. random_forest 행에서 ManufacturingQualityDemo 모델 연결도 확인된다.
 
 | 확인 항목 | 실행 결과 |
 |---|---|
@@ -123,7 +123,7 @@ mlflow-548b585c74-pjblp       1/1     Running   0          3m15s
 | 설정 보완 | 서버 request 512Mi / limit 2Gi, 내장 Job 실행기 비활성화 |
 | 서버 확인 | health 200 세 번, 메모리 약 355MiB, 재시작 0 |
 | 학습 재실행 | 실패 Job 정리 후 재생성, Complete(1/1) 확인 |
-| 화면 확인 | MLflow 실험 세 Run과 모델 연결, UI 접속 정상 |
+| 실험 기록 | 세 Run과 등록 모델 연결, UI 접속 정상 |
 
 서버 저장 PVC를 유지한 채 복구했다. 메모리 조정과 내장 실행기 비활성화를 함께 적용했으므로 각각의 효과를 분리해서 단정하지 않는다.
 

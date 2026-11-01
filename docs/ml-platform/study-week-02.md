@@ -80,7 +80,7 @@ KFP의 중간 Dataset과 최종 결과 파일은 **kind 안의 MinIO**에 저장
 
 MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job에서 세 후보 학습·비교·등록 모델 재로딩을 실행했다. 초기 서버 OOM을 복구한 뒤 Job은 **Complete 1/1, 9초**로 종료했다. 당시 서버는 **1/1 Running, 재시작 0**이었다.
 
-세 Run과 모델 연결 화면, kubectl 출력, 서버 복구 기록은 [05. MLflow 실습 화면 ①](/ml-platform/mlflow-model-lifecycle)에 모았다. 같은 화면을 여러 페이지에 반복하지 않고 상세 글에서 확인한다. CI의 수치 결과는 그 글의 별도 접힘 영역에 구분했다.
+세 후보의 실험 기록, 등록 모델 연결, 서버 배포와 복구 과정은 [05. MLflow · 학습에서 모델 등록과 재로딩까지](/ml-platform/mlflow-model-lifecycle)에서 자세히 정리했다.
 
 ### Feast·KFP 연결 검증
 
