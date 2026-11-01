@@ -109,10 +109,127 @@ kubectl -n week02 rollout undo deployment/probe-demo
 | 테스트 | 예상 현상 | 실제 관찰 |
 |---|---|---|
 | Startup 실패 | Liveness/Readiness 동작 보류, 반복 실패 시 재시작 | 실행 후 기록 |
-| Readiness 실패 | Service Endpoint 제외 | 실행 후 기록 |
+| Readiness 실패 | EndpointSlice 준비 조건 변경 | 실제 확인: Pod 0/1 Running, RESTARTS=0, ready=false → 복구 후 1/1·ready=true |
 | Liveness 실패 | 임계값 이후 컨테이너 재시작 | 실행 후 기록 |
 | RollingUpdate | Ready 신규 Pod 기준 교체 | 실행 후 기록 |
 | Recreate | 기존 Pod 종료 후 새 버전 시작 | 실행 후 기록 |
+
+## 실제 kind 실행 기록 {#kind-readiness-result}
+
+개인 PC에서 실행한 터미널 출력을 기록했다. Docker는 `linux / aarch64`, 클러스터는 `mlops-lab`, 컨텍스트는 `kind-mlops-lab`이다. 노드 `mlops-lab-control-plane`은 Kubernetes v1.37.0, containerd 2.3.4에서 Ready 상태였다.
+
+### 실행 명령
+
+기존 클러스터에 전용 네임스페이스를 만들고 저장소의 실습 앱을 배포했다.
+
+```bash
+kubectl --context kind-mlops-lab create namespace week02 \
+  --dry-run=client -o yaml |
+kubectl --context kind-mlops-lab apply -f -
+
+k() {
+  kubectl --context kind-mlops-lab -n week02 "$@"
+}
+
+k apply -f https://raw.githubusercontent.com/skgreenstar/skgreenstar.github.io/main/docs/ml-platform/week-02-lab/01-app.yaml
+k rollout status deployment/probe-demo --timeout=180s
+k get pods -o wide
+k get endpointslices -l kubernetes.io/service-name=probe-demo \
+  -o 'jsonpath={range .items[*].endpoints[*]}{.addresses}{" ready="}{.conditions.ready}{"\n"}{end}'
+```
+
+앱 내부 주소를 호출해 Readiness만 실패하도록 변경한 뒤 Pod와 EndpointSlice를 확인했다. Python은 HTTP 503도 출력하도록 예외를 처리했다.
+
+```bash
+k exec deployment/probe-demo -- python -c '
+import urllib.request
+import urllib.error
+base = "http://127.0.0.1:8080"
+for path in ["/traffic-off", "/healthz", "/readyz"]:
+    try:
+        with urllib.request.urlopen(base + path, timeout=3) as response:
+            print(path, response.status, response.read().decode())
+    except urllib.error.HTTPError as error:
+        print(path, error.code, error.read().decode())
+'
+k wait --for=condition=Ready=false pod -l app=probe-demo --timeout=45s
+k get pods
+k get endpointslices -l kubernetes.io/service-name=probe-demo \
+  -o 'jsonpath={range .items[*].endpoints[*]}{.addresses}{" ready="}{.conditions.ready}{"\n"}{end}'
+```
+
+```bash
+k exec deployment/probe-demo -- python -c '
+import urllib.request
+with urllib.request.urlopen(
+    "http://127.0.0.1:8080/traffic-on", timeout=3
+) as response:
+    print(response.status, response.read().decode())
+'
+k wait --for=condition=Ready=true pod -l app=probe-demo --timeout=45s
+k get pods
+k get endpointslices -l kubernetes.io/service-name=probe-demo \
+  -o 'jsonpath={range .items[*].endpoints[*]}{.addresses}{" ready="}{.conditions.ready}{"\n"}{end}'
+```
+
+### 1. 정상 배포 · 실제 출력
+
+```text
+namespace/week02 created
+configmap/probe-script created
+deployment.apps/probe-demo created
+service/probe-demo created
+Waiting for deployment "probe-demo" rollout to finish: 0 of 1 updated replicas are available...
+deployment "probe-demo" successfully rolled out
+
+NAME                          READY   STATUS    RESTARTS   AGE   IP
+probe-demo-68c54c584d-62p2t     1/1     Running   0          6s    10.244.0.5
+
+["10.244.0.5"] ready=true
+```
+
+Pod 출력에서는 이름·상태·재시작 횟수·AGE·IP 열을 발췌했다.
+
+### 2. Readiness 장애 · 실제 출력
+
+```text
+/traffic-off 200 traffic disabled
+/healthz 200 healthy
+/readyz 503 unready
+pod/probe-demo-68c54c584d-62p2t condition met
+
+NAME                          READY   STATUS    RESTARTS   AGE
+probe-demo-68c54c584d-62p2t     0/1     Running   0          30s
+
+["10.244.0.5"] ready=false
+```
+
+### 3. 복구 · 실제 출력
+
+```text
+200 traffic enabled
+pod/probe-demo-68c54c584d-62p2t condition met
+
+NAME                          READY   STATUS    RESTARTS   AGE
+probe-demo-68c54c584d-62p2t     1/1     Running   0          48s
+
+["10.244.0.5"] ready=true
+```
+
+### 관찰 결과와 해석
+
+| 관찰 대상 | 정상 → 장애 → 복구 | 해석 |
+|---|---|---|
+| Pod 이름 | 세 단계 모두 동일 | Pod 교체 없이 상태 전환 |
+| READY | 1/1 → 0/1 → 1/1 | 트래픽 수신 준비 상태 변경 |
+| STATUS | Running 유지 | 컨테이너 실행 상태와 준비 상태는 다름 |
+| RESTARTS | 0 → 0 → 0 | Readiness 실패로 재시작되지 않음 |
+| EndpointSlice | ready=true → false → true | 주소는 유지되며 준비 조건 변경 |
+
+**직접 확인한 범위:** Readiness 실패 중 `/healthz=200`과 `/readyz=503`이 동시에 관찰됐고, 컨테이너 재시작 없이 Pod와 EndpointSlice의 준비 상태가 바뀌었다.
+
+**추가 검증 범위:** 이번 요청은 Pod 내부 주소로 실행했다. Service 경유 요청 차단 여부나 실패율은 직접 측정하지 않았다. 표의 AGE는 각 출력 시점의 Pod 나이이며, 장애 감지·복구 소요시간을 정밀 측정한 값은 아니다. Liveness 재시작·RollingUpdate·롤백 결과는 후속 실습에서 별도로 수집한다.
+
 
 ---
 
