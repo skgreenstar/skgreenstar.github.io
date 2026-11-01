@@ -26,7 +26,7 @@ next:
 - AI 모델 서빙에 적용할 때의 설계 선택을 설명한다.
 :::
 
-## 실제 kind 실습 결과 · Readiness 장애와 복구
+## 실제 kind 실습 결과 · Readiness와 Liveness
 
 기존 로컬 FastAPI 기준선에 이어, 개인 PC의 **kind 클러스터에서 Probe 앱을 배포하고 Readiness 장애·복구를 실행**했다. 아래 기록은 PC 터미널에서 실행한 출력을 바탕으로 정리했다.
 
@@ -48,7 +48,7 @@ next:
 
 이번 기록은 **Pod와 EndpointSlice의 상태 전환**을 확인한 결과다. Service 경유 실제 요청의 성공·실패, 배포·롤백, CPU 제한·OOM은 아직 결과를 수집하지 않았다.
 
-**Liveness 후속 관찰:** `/server-error` 호출 후 Events에서 `Liveness probe failed: HTTP probe failed with statuscode: 503`과 `Container app failed liveness probe, will be restarted`를 확인했다. 같은 시점의 `RESTARTS`는 0이고 종료 이력도 비어 있어, 장애 감지·종료 요청까지 확인했으며 재시작 완료는 후속 관찰이 필요하다.
+**Liveness 재시작·복구 확인:** `/server-error` 호출 후 HTTP 503 실패 감지 → `Killing` 이벤트를 확인했고, 후속 조회에서 동일 Pod의 `RESTARTS=1`, `1/1 Running`을 확인했다. 이전 컨테이너 종료 기록은 `lastReason=Error exitCode=137`이었다. 앞선 Liveness 이벤트와 함께 재시작 경위를 해석하며, 종료 코드 137만으로 OOM을 판정하지 않는다.
 
 [실행 명령과 터미널 출력 보기](/ml-platform/week-04#kind-readiness-result)
 

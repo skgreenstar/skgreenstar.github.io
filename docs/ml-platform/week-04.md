@@ -110,7 +110,7 @@ kubectl -n week02 rollout undo deployment/probe-demo
 |---|---|---|
 | Startup 실패 | Liveness/Readiness 동작 보류, 반복 실패 시 재시작 | 실행 후 기록 |
 | Readiness 실패 | EndpointSlice 준비 조건 변경 | 실제 확인: Pod 0/1 Running, RESTARTS=0, ready=false → 복구 후 1/1·ready=true |
-| Liveness 실패 | 임계값 이후 컨테이너 재시작 | 실제 확인: HTTP 503 감지 및 Killing 이벤트. 재시작 횟수 증가 확인 대기 |
+| Liveness 실패 | 임계값 이후 컨테이너 재시작 | 실제 확인: HTTP 503 → Killing → 동일 Pod RESTARTS=1, 1/1 Running 복구 |
 | RollingUpdate | Ready 신규 Pod 기준 교체 | 실행 후 기록 |
 | Recreate | 기존 Pod 종료 후 새 버전 시작 | 실행 후 기록 |
 
@@ -238,7 +238,28 @@ Normal   Killing    Container app failed liveness probe, will be restarted
 
 **판정:** Liveness 실패 감지와 컨테이너 종료 요청은 확인됐다. 그러나 이 출력 시점에는 `RESTARTS=0`이고 `lastState.terminated`가 비어 있어 재시작 완료를 단정하지 않는다. 종료 유예와 다음 기동·상태 갱신을 거친 후 재시작 횟수와 Ready 복구를 추가 확인한다. Readiness와 healthy 상태를 별도로 관리하는 실습 앱이므로, Liveness 실패 시점에도 READY가 1/1로 표시될 수 있다.
 
-### 관찰 결과와 해석
+### 5. Liveness 재시작 완료 · 실제 출력
+
+종료 요청 직후의 관찰에 이어 상태를 다시 조회했다.
+
+```bash
+k get pods -l app=probe-demo
+k get pods -l app=probe-demo \
+  -o 'jsonpath={range .items[*].status.containerStatuses[*]}{"restarts="}{.restartCount}{" lastReason="}{.lastState.terminated.reason}{" exitCode="}{.lastState.terminated.exitCode}{"\n"}{end}'
+```
+
+```text
+NAME                          READY   STATUS    RESTARTS        AGE
+probe-demo-68c54c584d-62p2t     1/1     Running   1 (4m32s ago)   6m57s
+
+restarts=1 lastReason=Error exitCode=137
+```
+
+**최종 판정:** 동일 Pod 안에서 컨테이너가 한 번 재시작됐고, 다시 Ready 상태가 됐다. 앞서 수집한 Liveness HTTP 503 및 Killing 이벤트와 연결해 **장애 주입 → 실패 감지 → 종료 요청 → 컨테이너 재시작 → Ready 복구**를 확인했다. 재시작 직후 HTTP 엔드포인트를 별도로 호출한 결과나 Service 경유 가용성은 이번 출력에 포함되지 않는다.
+
+이전 컨테이너의 종료 사유는 `Error`, 종료 코드는 `137`로 기록됐다. **종료 코드만으로 OOM이라고 판단하지 않는다.** 이번 기록에는 Liveness 실패에 따른 Killing 이벤트가 있으며 `OOMKilled` 사유는 관찰되지 않았다. 출력의 `4m32s ago`와 AGE는 조회 시점의 상대 시간이며 장애 복구에 4분 32초가 걸렸다는 뜻이 아니다.
+
+### Readiness 관찰 결과와 해석
 
 | 관찰 대상 | 정상 → 장애 → 복구 | 해석 |
 |---|---|---|
@@ -250,7 +271,7 @@ Normal   Killing    Container app failed liveness probe, will be restarted
 
 **직접 확인한 범위:** Readiness 실패 중 `/healthz=200`과 `/readyz=503`이 동시에 관찰됐고, 컨테이너 재시작 없이 Pod와 EndpointSlice의 준비 상태가 바뀌었다.
 
-**추가 검증 범위:** 이번 요청은 Pod 내부 주소로 실행했다. Service 경유 요청 차단 여부나 실패율은 직접 측정하지 않았다. 표의 AGE는 각 출력 시점의 Pod 나이이며, 장애 감지·복구 소요시간을 정밀 측정한 값은 아니다. Liveness는 위 출력처럼 장애 감지·종료 요청을 확인했으며, 재시작 완료·RollingUpdate·롤백 결과는 후속 실습에서 별도로 수집한다.
+**추가 검증 범위:** 이번 요청은 Pod 내부 주소로 실행했다. Service 경유 요청 차단 여부나 실패율은 직접 측정하지 않았다. 표의 AGE는 각 출력 시점의 Pod 나이이며, 장애 감지·복구 소요시간을 정밀 측정한 값은 아니다. Liveness는 후속 출력에서 재시작과 Ready 복구까지 확인했다. RollingUpdate·롤백 결과는 후속 실습에서 별도로 수집한다.
 
 
 ---
