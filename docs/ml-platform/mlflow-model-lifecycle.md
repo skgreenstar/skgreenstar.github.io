@@ -144,7 +144,21 @@ k rollout status deployment/mlflow --timeout=300s
 k get pods -l app=mlflow
 ```
 
-서버 안정화 후 실패한 mlflow-train Job을 정리하고 같은 train-job.yaml로 다시 실행한다. Pod 메모리·restartCount와 학습 로그를 함께 확인한다. 이 기록은 장애 원인과 적용할 복구 설정을 담으며, 복구 성공은 후속 실행 출력으로 확인한다.
+서버 안정화 후 실패한 mlflow-train Job을 정리하고 같은 train-job.yaml로 다시 실행한다. Pod 메모리·restartCount와 학습 로그를 함께 확인한다. 아래 서버 복구 확인에서 적용 후 health와 메모리·재시작 상태를 기록했다.
+### 서버 복구 확인
+
+수정된 YAML을 적용한 뒤 새 서버 Pod가 1/1 Running, RESTARTS=0으로 기동했다. 서버 컨테이너 내부에서 10초 간격으로 health 응답과 cgroup 메모리 사용량을 세 차례 확인했다.
+
+| 표본 | HTTP health | memory.current |
+|---|---|---:|
+| 1 | 200 | 354.9 MiB |
+| 2 | 200 | 355.2 MiB |
+| 3 | 200 | 354.7 MiB |
+
+검사 후 Pod AGE 38s 시점에도 1/1 Running, RESTARTS=0이었다. **관찰 구간에서 서버 응답과 재시작 상태가 안정화됐음을 확인**했다. 메모리 limit 상향과 내장 실행기 비활성화를 함께 적용했으므로 각각의 효과를 분리해 단정하지 않는다. 이 값은 서버 기동 후 관찰이며 학습 중 최대 메모리나 장기 안정성 측정으로 해석하지 않는다.
+
+기존 실패한 학습 Job은 별도로 재생성해 같은 서버 Service에 다시 연결한다.
+
 ## 6. 다음 단계
 
 [Feast·KFP 연결 설계](/ml-platform/model-pipeline)에서 같은 데이터 계약과 등록 모델 URI를 사용한다. 등록한 모델을 Kubernetes에 올리면 기존 CPU·메모리·배포 실습을 모델 운영 검증으로 확장할 수 있다.
