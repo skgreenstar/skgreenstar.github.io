@@ -76,11 +76,84 @@ CPU overcommit은 request를 실제 피크보다 낮게 설정해 더 많은 Pod
 
 관찰한 워크로드 특성에 따라 CPU request를 조정하고, Memory는 정상 부하의 장기 최대값과 누수·스파이크를 고려한다. 특정 블로그의 **Memory request=limit, CPU request만 설정** 패턴을 모든 워크로드에 적용하는 것은 피한다.
 
+## 실제 kind 실행 기록 · CPU Limit과 Throttling {#kind-cpu-result}
+
+개인 PC의 `kind-mlops-lab` 클러스터, `week02` 네임스페이스에서 저장소의 `cpu-stress` Pod를 실행했다. 이미지 `python:3.12-alpine`은 반복 CPU 연산을 수행한다. Pod는 `1/1 Running`, 재시작 횟수 0으로 확인됐다.
+
+| 설정 | 값 |
+|---|---|
+| CPU request / limit | 50m / 100m |
+| Memory request / limit | 32Mi / 128Mi |
+| 관찰 대상 | 컨테이너 cgroup v2의 cpu.max, cpu.stat |
+| 측정 방식 | 10초 대기 전후 누적 카운터 차이 |
+
+### 실행 명령
+
+```bash
+k apply -f https://raw.githubusercontent.com/skgreenstar/skgreenstar.github.io/main/docs/ml-platform/week-02-lab/02-cpu-stress.yaml
+k wait --for=condition=Ready pod/cpu-stress --timeout=180s
+k get pod cpu-stress
+
+k exec cpu-stress -- python -c '
+from pathlib import Path
+import time
+root = Path("/sys/fs/cgroup")
+def read_stat():
+    return {
+        key: int(value)
+        for key, value in (
+            line.split() for line in (root / "cpu.stat").read_text().splitlines()
+        )
+    }
+print("cpu.max:", (root / "cpu.max").read_text().strip())
+before = read_stat()
+start = time.monotonic()
+time.sleep(10)
+after = read_stat()
+elapsed = time.monotonic() - start
+print("elapsed_seconds:", round(elapsed, 3))
+for key in ["usage_usec", "nr_periods", "nr_throttled", "throttled_usec"]:
+    print(key, "delta=", after.get(key, 0) - before.get(key, 0))
+'
+```
+
+### 실제 출력
+
+```text
+pod/cpu-stress created
+pod/cpu-stress condition met
+
+NAME         READY   STATUS    RESTARTS   AGE
+cpu-stress   1/1     Running   0          0s
+
+cpu.max: 10000 100000
+elapsed_seconds: 10.006
+usage_usec delta= 1001782
+nr_periods delta= 100
+nr_throttled delta= 100
+throttled_usec delta= 1262760
+```
+
+### 측정값 해석
+
+| 관찰값 | 계산 / 의미 |
+|---|---|
+| cpu.max = 10000 100000 | 100,000μs 주기당 CPU 실행 예산 10,000μs, 비율 0.1 CPU = 100m |
+| usage_usec 증가 1,001,782 | 10.006초 동안 CPU 사용 시간 약 1.002초 |
+| 평균 CPU 사용 | 1.001782 / 10.006 ≈ 0.100 CPU, 약 100m |
+| nr_periods 증가 100 | 측정 구간의 대역폭 제어 주기 100개 |
+| nr_throttled 증가 100 | 100개 주기 모두에서 throttling이 기록됨 |
+| throttled_usec 증가 1,262,760 | 누적 throttling 시간 약 1.263초 증가 |
+
+**확인한 점:** 선언한 CPU limit 100m가 cgroup quota에 반영됐고, 해당 측정 구간의 평균 CPU 사용량이 약 100m였으며 throttling 카운터가 실제로 증가했다.
+
+**해석의 경계:** 주기 기준 throttling 비율 100%는 **매 주기 한 번 이상 제한이 기록됐다**는 뜻이다. CPU가 전체 벽시계 시간의 100% 동안 정지했다는 뜻이 아니다. 이 수치는 동일 컨테이너에서 실행한 측정용 Python 프로세스의 자원 사용도 포함한다. 단일 구간 관찰이며, CPU limit별 비교나 HTTP p95/p99 지연 영향은 아직 측정하지 않았다.
+
 ## 직접 실행한 기록 — FastAPI 로컬 기준선
 
 ::: tip 실험 상태
 **실제로 실행한 범위:** FastAPI/Uvicorn HTTP Health Check와 동시 요청 부하 테스트  
-**아직 실행하지 않은 범위:** Docker/kind의 Pod, CPU Throttling, OOMKilled, RollingUpdate, Kubernetes Endpoint 변화
+**이 로컬 기준선 실험에 포함되지 않은 범위:** Kubernetes Pod·CPU 제한·OOM·배포 변경. 이후 kind에서 실행한 CPU 제한 실습은 위 기록에, Probe·배포 실습은 [운영 자동화 글](/ml-platform/week-04)에 별도로 정리했다.
 :::
 
 ### 실험 환경 및 목적
@@ -106,7 +179,7 @@ CPU overcommit은 request를 실제 피크보다 낮게 설정해 더 많은 Pod
 | 초기화 지연 중 | `/readyz` | **503** | 트래픽 수신 준비 미완료 |
 | 초기화 지연 이후 | `/readyz` | **200 OK** | 트래픽 수신 가능한 상태 |
 
-이 실험은 **애플리케이션 레벨의 응답 상태**를 검증한 것이다. Kubernetes Service가 실제 Endpoint를 제거하는 과정은 아직 측정하지 않았다.
+이 실험은 **애플리케이션 레벨의 응답 상태**를 검증한 것이다. 이 로컬 실험에서는 Kubernetes Endpoint 변화를 측정하지 않았다. 이후 kind의 Readiness 실습에서 EndpointSlice의 ready 조건 변경을 별도로 확인했다.
 
 ### 실험 B. 요청당 계산량과 Tail Latency
 
@@ -200,7 +273,7 @@ results/
 | CPU throttling | 실제 CPU quota 제어가 발생했는가? | cgroup/Prometheus 별도 수집 |
 | 회복시간 | 장애 이후 정상 처리량으로 복귀했는가? | 장애 주입 시각을 기록 |
 
-**현재 상태:** 재현용 코드와 측정 자동화는 저장소에 반영했지만, 실습을 실제 kind 클러스터에서 수행한 측정값은 아직 없다. 따라서 숫자를 임의로 기입하거나 가상의 그래프를 실측으로 표시하지 않는다.
+**심화 실험 상태:** 위 kind CPU-stress 실습에서 100m quota와 throttling 카운터는 실제 측정했다. 이 절의 k6 기반 CPU limit별 지연시간 비교·연속 요청 중 배포 오류율·Replica별 성능 비교 결과는 아직 수집하지 않았다.
 
 ## 실험 결과에서 확인한 점
 
