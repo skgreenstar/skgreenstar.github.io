@@ -18,23 +18,34 @@ MLOps, CI/CD/CT, 데이터 계약과 릴리스 게이트.
 
 ## 2주차 · 실험 추적에서 모델 운영까지
 
-**[2주차 학습 정리 · MLflow·Feast·KFP와 운영 검증](/ml-platform/study-week-02)**  
-CH4~5의 실험 추적·피처 관리·파이프라인과 kind 운영 실습을 연결합니다.
+**[2주차 학습 정리 · MLflow·Feast·KFP와 결과 검증](/ml-platform/study-week-02)**  
+CH4~5를 환경 → 모델 → 피처 → 파이프라인 → 결과 검증 순서로 연결합니다.
 
-### [04. MLflow · 학습에서 모델 등록과 재로딩까지](/ml-platform/mlflow-model-lifecycle)
-동일 데이터로 세 모델 비교, 검증 기준 선택, 등록 모델 예측 일치 검증.
+### [04. 실행 환경 · Kubernetes에서 도구를 연결하기](/ml-platform/week02-environment)
+PC·Pod·Service의 실행 위치, 메타데이터·아티팩트·저장 경로.
 
-### [05. Feast·KFP · 같은 피처와 같은 모델로 추론하기](/ml-platform/model-pipeline)
-MLflow의 데이터·입력 계약·고정 모델 버전을 이어받는 연결 설계.
+### [05. MLflow · 학습에서 모델 등록과 재로딩까지](/ml-platform/mlflow-model-lifecycle)
+실험 추적·EDA·후보 비교·고정 버전 등록과 실제 kind 실행 기록.
 
-### [06. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
-Startup·Readiness·Liveness Probe, 배포 전략과 롤백.
+### [06. Feast · 같은 정의로 과거와 최신 피처 조회하기](/ml-platform/model-pipeline)
+피처 계약, Point-in-time join, apply와 materialize의 차이.
 
-### [07. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
-Requests/Limits·QoS, 로컬 측정 기록과 성능·가용성 실험.
+### [07. KFP · 피처 조회부터 배치 추론까지 연결하기](/ml-platform/kfp-batch-inference)
+컴포넌트·DAG·파라미터·Dataset과 단계별 검증.
 
-### [08. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
-모델 서빙의 개념, KServe·vLLM 역할과 실무 운영 지표.
+### [08. 결과 검증 · 성공한 실행을 재현 가능한 결과로 만들기](/ml-platform/week02-verification)
+결과 스키마·입력 해시·모델 버전·예측 비교와 추적성.
+
+## 2주차 확장 · Kubernetes 운영
+
+### [09. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
+Probe·배포 전략·롤백의 개념과 실제 관찰.
+
+### [10. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
+Requests/Limits·CPU throttling·메모리 OOM·QoS.
+
+### [11. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
+모델 서빙과 GPU·토큰 생성의 개념 확장.
 
 ## 심화 · Evaluation
 
@@ -43,3 +54,4 @@ Requests/Limits·QoS, 로컬 측정 기록과 성능·가용성 실험.
 
 ### [RAG와 Agent의 품질은 어떻게 평가할까?](/ml-platform/evaluation-and-operations)
 Retrieval·Generation·Agent 평가, LLM-as-a-Judge, 배포 승인 기준.
+

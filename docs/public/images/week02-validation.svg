@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" role="img" aria-labelledby="title desc">
+<title id="title">결과 파일에서 실행 근거까지 역으로 추적한다</title><desc id="desc">실행 ID는 추적용이다. 중복 처리 기준은 업무 키와 모델·파이프라인 버전으로 별도 정한다.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="none" stroke="#557190" stroke-width="1.5"/></marker></defs>
+<rect width="1000" height="600" rx="20" fill="#f4f7fc"/>
+<text x="40" y="48" font-family="sans-serif" font-size="26" font-weight="700" fill="#172b48">결과 파일에서 실행 근거까지 역으로 추적한다</text>
+<path d="M240.0 210 L240.0 330" stroke="#557190" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<path d="M760.0 210 L760.0 330" stroke="#557190" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<path d="M440 385.0 L560 385.0" stroke="#557190" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<text x="508.0" y="377.0" font-family="sans-serif" font-size="16" fill="#405673">검증</text>
+<rect x="40" y="100" width="400" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="240.0" y="134" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">예측 결과의 식별자</text>
+<text x="240.0" y="162" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">equipment_id · prediction_timestamp</text>
+<rect x="560" y="100" width="400" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="760.0" y="134" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">실행 근거</text>
+<text x="760.0" y="162" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">model_version · run_id · pipeline_version</text>
+<rect x="40" y="330" width="400" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="240.0" y="364" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">입력 일치</text>
+<text x="240.0" y="392" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">dataset SHA-256 · 피처 이름/순서/형식</text>
+<rect x="560" y="330" width="400" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="760.0" y="364" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">결과 일치</text>
+<text x="760.0" y="392" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">행 수 · 누락 · 중복 · 예측 허용 오차</text>
+<text x="40" y="568" font-family="sans-serif" font-size="17" fill="#405673">실행 ID는 추적용이다. 중복 처리 기준은 업무 키와 모델·파이프라인 버전으로 별도 정한다.</text></svg>

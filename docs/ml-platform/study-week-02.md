@@ -1,13 +1,12 @@
 ---
 title: "Week 02 · 실험 추적에서 모델 운영까지"
-description: "MLflow·Feast·KFP와 kind 운영 실습을 연결하는 2주차 학습 정리"
 outline: deep
 prev:
-  text: '1주차 · ML 시스템의 기반'
+  text: '1주차 · 학습 정리'
   link: '/ml-platform/study-week-01'
 next:
-  text: '04 · MLflow 학습·등록·재로딩'
-  link: '/ml-platform/mlflow-model-lifecycle'
+  text: '04 · 실행 환경'
+  link: '/ml-platform/week02-environment'
 ---
 
 # Week 02 · 실험 추적에서 모델 운영까지
@@ -15,64 +14,76 @@ next:
 **교재 범위:** CH4 · MLflow와 Feast / CH5 · Kubeflow Pipelines  
 **확장 실습:** kind의 Probe·배포 전략·CPU·메모리·QoS, KServe·vLLM 개념
 
-모델을 선택할 근거를 MLflow에 남기고, 동일한 피처와 등록 모델을 Feast·KFP로 연결한다. 여기에 직접 실행한 Kubernetes 운영 실습을 더해 **어떤 모델을 어떤 자원으로 실행하고, 장애가 나면 어떻게 복구하는가**까지 학습 범위를 확장한다.
+이번 주의 핵심은 **선택한 모델과 피처를 근거와 함께 관리하고, 같은 입력으로 추론을 반복하는 흐름**이다. MLflow에서 모델의 선택 근거와 버전을 남기고, Feast로 피처 정의·시점을 맞춘 뒤, KFP로 조회·추론·결과 저장을 연결한다. Kubernetes 운영 실습은 이 흐름이 자원 제한과 장애 속에서 어떻게 실행되는지를 다룬다.
 
-## 1. 교재 학습과 모델 파이프라인
+![MLflow·Feast·KFP와 Kubernetes 실행 관계](/images/week02-system.svg)
+
+도식은 전체 학습의 목표 구조다. 현재 직접 실행을 확인한 범위는 MLflow와 Kubernetes 운영 실습이며, Feast·KFP는 이어서 구성할 조회·파이프라인 설계로 구분한다.
+
+## 1. 전체 학습 순서
 
 | 단계 | 핵심 질문 | 연결 글 |
 |---|---|---|
-| MLflow · CH4 | 어떤 데이터·설정으로 선택한 모델을 다시 사용할 수 있는가? | [학습·실험 비교·모델 등록·재로딩](/ml-platform/mlflow-model-lifecycle) |
-| Feast · CH4 | 예측 시각에 사용할 수 있던 피처를 같은 정의로 조회하는가? | [피처 계약과 Offline·Online 조회](/ml-platform/model-pipeline) |
-| KFP · CH5 | 고정 모델과 피처로 배치 추론을 반복 실행하는가? | [컴포넌트와 결과 검증 설계](/ml-platform/model-pipeline) |
+| A · 실행 환경 | 어디서 실행하고 무엇을 저장하는가? | [04. Kubernetes 환경과 저장 경로](/ml-platform/week02-environment) |
+| B · MLflow · CH4 | 어떤 근거로 선택한 모델을 다시 쓰는가? | [05. 학습·실험 비교·등록·재로딩](/ml-platform/mlflow-model-lifecycle) |
+| C · Feast · CH4 | 같은 정의로 그 시점에 맞는 피처를 읽는가? | [06. 과거 시점·최신 피처 조회](/ml-platform/model-pipeline) |
+| D · KFP · CH5 | 피처 조회와 모델 추론을 반복 실행하는가? | [07. 배치 추론 파이프라인](/ml-platform/kfp-batch-inference) |
+| E · 결과 검증 | 실행 성공과 예측 내용의 정확성을 확인했는가? | [08. 결과·재현성·추적성 검증](/ml-platform/week02-verification) |
 
-MLflow 서버는 kind의 Deployment·Service·PVC로 배포하고, 학습·비교·등록·재로딩은 Kubernetes Job에서 실행한다. PC에서는 Docker 이미지 준비와 kubectl 명령을 사용한다. 학습 코드는 합성 제조 품질 데이터와 세 모델을 사용한다. 검증 RMSE로 모델을 선택하고, 등록한 고정 버전을 재로딩해 예측값 일치를 검사한다. 데이터 CSV·피처 계약·선택 모델 URI를 후속 Feast·KFP의 입력으로 재사용한다.
+## 2. 각 도구가 책임지는 범위
 
-### MLflow · Kubernetes 실행 결과
+MLflow의 Run은 학습 설정·점수·아티팩트를 묶는다. Registry는 선택한 모델 버전을 찾는 경로를 제공한다. Feast는 Entity·시각·피처 정의를 기준으로 과거 이력과 최신 값을 조회한다. KFP는 각 작업을 독립된 컴포넌트로 실행하고 의존 관계와 파일 전달을 관리한다.
 
-개인 PC의 kind 클러스터에서 MLflow 서버를 Deployment·Service·PVC로 배포하고, 학습·실험 비교·모델 등록·재로딩을 Kubernetes Job으로 실행했다. 서버 OOM을 복구한 뒤 학습 Job이 **9초 만에 Complete(1/1)**로 종료됐고, UI에서 세 Run과 모델 연결을 확인했다.
+| 도구 | 관리하는 대상 | 성공 뒤에도 확인할 것 |
+|---|---|---|
+| MLflow | 실험·지표·모델 버전 | 선택 기준과 재로딩 예측 일치 |
+| Feast | 피처 정의·시점 조회·최신 값 적재 | 미래 값 제외·값 존재·신선도 |
+| KFP | 단계·파라미터·아티팩트·실행 | 최종 파일 내용과 입력 계보 |
+| Kubernetes | Pod·Service·자원·실행 상태 | 준비 상태·복구·자원 제약 |
 
-![kind 위 MLflow 3.17.2 UI: random_forest, ridge, baseline_mean 세 Run](/images/week02-mlflow-kind-runs.png)
+모든 도구가 같은 데이터를 자동 공유하는 것은 아니다. 원본 해시, Entity·예측 시각, 피처 이름·순서·자료형, 고정 모델 URI를 명시적으로 연결해야 한다.
 
-**화면 확인:** MLflow 3.17.2의 week02-manufacturing-quality 실험에 random_forest·ridge·baseline_mean이 기록됐다. random_forest 행에서 ManufacturingQualityDemo 모델 연결도 확인된다.
+## 3. 우리 실습에서 이어받는 데이터 계약
 
-| 확인 항목 | 실행 결과 |
+| 항목 | 구성 |
 |---|---|
-| 학습 실행 위치 | kind-mlops-lab / week02 / Kubernetes Job |
-| 학습 Job | mlflow-train · Complete · 1/1 · DURATION 9s |
-| 서버 Pod | 1/1 Running · RESTARTS 0 · 조회 시 AGE 3m15s |
-| 서버·산출물 저장 | mlflow-data 2Gi / mlflow-results 1Gi · 두 PVC Bound |
-| 복구 후 health | HTTP 200 세 번 |
-| 복구 후 서버 메모리 | 354.9 → 355.2 → 354.7 MiB |
-| 모델 학습·비교 | baseline_mean / ridge / random_forest 세 Run |
-| 등록·재로딩 흐름 | 등록 모델 로드·예측 일치 assert를 포함한 학습 Job 완료 |
-| UI 접근 | Service port-forward 후 브라우저 접속 확인 |
+| 문제 | 합성 제조 품질 회귀 예측 |
+| 원본 | seed 42로 생성한 1,000행 CSV |
+| Entity·시각 | equipment_id / event_timestamp / prediction_timestamp |
+| 입력·목표 | temperature·pressure·speed / quality |
+| 학습·검증·최종 평가 | 시간 순서 700 / 150 / 150행 |
+| 후보·선택 | 평균 기준 모델·Ridge·RandomForest / 검증 RMSE |
+| 다음 단계 입력 | CSV·dataset_contract.json·selection.json·test_predictions.csv |
 
-Job의 9초는 전체 작업 수행 시간이며, UI에 표시된 개별 Run 시간과 구분한다. 서버 메모리 세 표본은 복구 후 건강 검사 구간의 관측값이다.
+교재의 분류 데이터와 다른 예제지만 실험 추적→피처 관리→배치 추론의 연결 원리는 같다. 합성 데이터 성능을 실제 제조 성능으로 표현하지 않고, 교재의 accuracy·분류 확률과 우리 회귀 지표를 섞지 않는다.
 
-#### 최종 kubectl 출력
+## 4. 직접 실행한 MLflow 기록
 
-```text
-job.batch/mlflow-train condition met
-NAME           STATUS     COMPLETIONS   DURATION   AGE
-mlflow-train   Complete   1/1           9s         9s
+MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job에서 세 후보 학습·비교·등록 모델 재로딩을 실행했다. 초기 서버 OOM을 복구한 뒤 Job은 **Complete 1/1, 9초**로 종료했다. 당시 서버는 **1/1 Running, 재시작 0**이었다.
 
-NAME                         READY   STATUS    RESTARTS   AGE
-mlflow-548b585c74-pjblp       1/1     Running   0          3m15s
-```
+세 Run과 모델 연결 화면, kubectl 출력, 서버 복구 기록은 [05. MLflow 실습 화면 ①](/ml-platform/mlflow-model-lifecycle)에 모았다. 같은 화면을 여러 페이지에 반복하지 않고 상세 글에서 확인한다. CI의 수치 결과는 그 글의 별도 접힘 영역에 구분했다.
 
-#### 장애에서 복구까지
+## 5. 실습 화면은 세 곳에만 남긴다
 
-| 단계 | 관찰·조치 |
+| 위치 | 담을 화면 | 현재 구성 |
+|---|---|---|
+| ① MLflow | 세 Run과 모델 연결 | 제공한 실제 화면 반영 |
+| ② Feast | 같은 Entity의 Historical·Online 조회 비교 | [Feast 장의 캡처 안내](/ml-platform/model-pipeline) |
+| ③ KFP | 실행 DAG와 최종 파일 검사 요약 | [KFP 장의 캡처 안내](/ml-platform/kfp-batch-inference) |
+
+개념 설명·계약·검증 기준은 본문과 도식으로 완성하고, Feast·KFP 실행 뒤에는 위 두 곳의 안내만 실제 화면과 해석으로 교체한다. 공개 화면에는 인증값을 포함하지 않으며 내부 IP는 설명에 필요하지 않으면 마스킹한다.
+
+## 6. 확장 실습 · 실행을 운영으로 연결하기
+
+| 연결 글 | 확인한 내용 |
 |---|---|
-| 초기 장애 | 서버 OOMKilled / CrashLoopBackOff, 학습 Job API 연결 거부 |
-| 설정 보완 | 서버 request 512Mi / limit 2Gi, 내장 Job 실행기 비활성화 |
-| 서버 확인 | health 200 세 번, 메모리 약 355MiB, 재시작 0 |
-| 학습 재실행 | 실패 Job 정리 후 재생성, Complete(1/1) 확인 |
-| 화면 확인 | MLflow 실험 세 Run과 모델 연결, UI 접속 정상 |
+| [09. 운영 자동화](/ml-platform/week-04) | Readiness 트래픽 제외·복귀, Liveness 재시작, RollingUpdate·Rollback·Recreate |
+| [10. 리소스 관리](/ml-platform/week-05) | CPU throttling, 메모리 OOM, Guaranteed·Burstable·BestEffort |
+| [11. KServe·vLLM](/ml-platform/week-06) | 모델 서빙·GPU·토큰 생성의 개념 확장 |
 
-서버 저장 PVC를 유지한 채 복구했다. 메모리 조정과 내장 실행기 비활성화를 함께 적용했으므로 각각의 효과를 분리해서 단정하지 않는다.
-## 2. kind에서 완료한 운영 실습
+이미 수행한 운영 실습의 실제 관찰은 상세 글에 유지했다. KServe·vLLM은 개념 학습 범위다. 모델 파이프라인을 연결한 다음에는 모델 로딩 후 Ready, 고정 모델 버전 복원, 추론 부하에 따른 CPU·메모리 동작으로 확장할 수 있다.
 
+::: details 완료한 Kubernetes 관찰 기록
 | 실습 | 실행 결과 |
 |---|---|
 | Readiness 장애·복구 | healthz=200, readyz=503 / Ready 1→0→1 / EndpointSlice ready true→false→true / 재시작 0 |
@@ -84,48 +95,11 @@ mlflow-548b585c74-pjblp       1/1     Running   0          3m15s
 | Memory limit 64Mi | 160Mi 할당 시도 → OOMKilled / exitCode=137 / 재시작 0 |
 | QoS 등급 | Guaranteed·Burstable·BestEffort 세 구성의 실제 등급 확인 |
 
-이 기록은 개인 PC에서 실행한 터미널 출력에 근거한다. 배포 전략은 Pod 교체 순서, 자원 실습은 quota·OOM 종료·QoS 등급을 검증했다. 요청 가용성 비교와 노드 압박 시 eviction 실험은 별도의 검증 범위다.
+실제 요청의 연속 가용성은 Pod 교체 순서만으로 입증하지 않는다. exit code 137도 종료 사유·이벤트와 함께 해석한다. 기존 기록에서 Liveness 재시작과 OOMKilled를 구분했다.
+:::
 
-## 3. 상세 글
+## 7. 이번 주의 핵심 정리
 
-### [04. MLflow · 학습에서 모델 등록과 재로딩까지](/ml-platform/mlflow-model-lifecycle)
-모델 학습·실험 비교·등록·재로딩 검증.
+좋은 점수의 모델 파일만 남기는 것으로 학습이 끝나지 않는다. 데이터·피처·설정·평가 기준이 연결되어야 선택 이유를 설명할 수 있다. 같은 버전의 모델과 피처로 반복 실행하고 결과 파일에서 입력·모델·실행 근거까지 추적할 수 있을 때 다음 운영 단계로 이어진다.
 
-### [05. Feast·KFP · 같은 피처와 같은 모델로 추론하기](/ml-platform/model-pipeline)
-피처 계약·고정 모델 버전·배치 추론 연결 설계.
-
-### [06. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
-Probe·RollingUpdate·Recreate·롤백의 명령, 로그, 결과 해석.
-
-### [07. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
-CPU cgroup 통계, OOMKilled, QoS 세 등급과 로컬 API 기준선.
-
-### [08. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
-모델 서빙의 개념과 책임 경계, GPU 메모리·초기화·스트리밍 운영 지표.
-
-## 4. 실행 환경과 재현 코드
-
-| 항목 | 구성 |
-|---|---|
-| Docker | Linux / aarch64 |
-| kind 클러스터 / 컨텍스트 | mlops-lab / kind-mlops-lab |
-| 노드 | mlops-lab-control-plane, Kubernetes v1.37.0 |
-| 런타임 / 네임스페이스 | containerd 2.3.4 / week02 |
-
-- [MLflow 학습·등록 코드](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/labs/week02-mlflow)
-- [Kubernetes 기초 실습 YAML](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-lab)
-- [후속 부하 실험 코드](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-advanced)
-
-## 5. 이번 주에 정리한 기준
-
-모델 품질은 고정된 데이터·피처·모델 버전과 연결해 비교한다. 운영 상태는 별도로 검증한다. 프로세스가 살아 있는 상태와 트래픽을 받을 준비가 된 상태는 달랐고, CPU 제한은 throttling으로, 메모리 제한은 OOM 종료로 나타났다. 배포·롤백에서는 선택한 설정과 Pod 교체 순서가 연결됐다.
-
-앞으로는 동일 모델 버전을 이 운영 실습의 실행 대상으로 사용한다. MLflow의 선택 근거, Feast의 피처 계약, KFP의 단계별 산출물이 맞물려야 모델 품질과 운영 결과를 하나의 계보로 추적할 수 있다.
-
-### 참고 자료
-
-- [교재 CH4](https://livebook.manning.com/learn/machine-learning-platform-engineering/chapter-4)
-- [교재 CH5](https://livebook.manning.com/learn/machine-learning-platform-engineering/chapter-5)
-- [Kubernetes Probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
-- [Kubernetes Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
-- [Kubernetes 자원 관리](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+참고: [MLflow](https://mlflow.org/docs/latest/ml/), [Feast](https://docs.feast.dev/), [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/)

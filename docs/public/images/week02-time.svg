@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" role="img" aria-labelledby="title desc">
+<title id="title">Point-in-time join: 미래의 피처를 과거에 넣지 않는다</title><desc id="desc">설명용 예시다. 88은 미래 값이므로 제외한다. 지연 도착 데이터는 별도 가용 시각도 확인한다.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="none" stroke="#557190" stroke-width="1.5"/></marker></defs>
+<rect width="1000" height="600" rx="20" fill="#f4f7fc"/>
+<text x="40" y="48" font-family="sans-serif" font-size="26" font-weight="700" fill="#172b48">Point-in-time join: 미래의 피처를 과거에 넣지 않는다</text>
+<path d="M300 155.0 L370 155.0" stroke="#557190" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<text x="343.0" y="147.0" font-family="sans-serif" font-size="16" fill="#405673">과거 값</text>
+<path d="M630 155.0 L700 155.0" stroke="#557190" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<text x="673.0" y="147.0" font-family="sans-serif" font-size="16" fill="#405673">시간 흐름</text>
+<path d="M500.0 210 L500.0 335" stroke="#557190" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<text x="508.0" y="264.5" font-family="sans-serif" font-size="16" fill="#405673">선택</text>
+<rect x="40" y="100" width="260" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="170.0" y="134" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">00:00 관측</text>
+<text x="170.0" y="162" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">temperature = 72</text>
+<rect x="370" y="100" width="260" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="500.0" y="134" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">00:05 예측 시점</text>
+<text x="500.0" y="162" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">equipment_id = M01</text>
+<rect x="700" y="100" width="260" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="830.0" y="134" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">00:10 관측</text>
+<text x="830.0" y="162" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">temperature = 88</text>
+<rect x="180" y="335" width="640" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="500.0" y="369" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">00:05의 학습·추론 입력 = 72</text>
+<text x="500.0" y="397" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">같은 Entity / 기준 시각 이하 / TTL 범위 내 최신 값</text>
+<text x="40" y="568" font-family="sans-serif" font-size="17" fill="#405673">설명용 예시다. 88은 미래 값이므로 제외한다. 지연 도착 데이터는 별도 가용 시각도 확인한다.</text></svg>

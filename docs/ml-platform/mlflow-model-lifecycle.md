@@ -1,19 +1,44 @@
 ---
-title: "04. MLflow · 학습에서 모델 등록과 재로딩까지"
+title: "05. MLflow · 학습에서 모델 등록과 재로딩까지"
 outline: deep
 prev:
-  text: '2주차 · 학습 정리'
-  link: '/ml-platform/study-week-02'
+  text: '04 · 실행 환경'
+  link: '/ml-platform/week02-environment'
 next:
-  text: '05 · Feast·KFP 연결 설계'
+  text: '06 · Feast 피처 관리'
   link: '/ml-platform/model-pipeline'
 ---
 
-# 04. MLflow · 학습에서 모델 등록과 재로딩까지
+# 05. MLflow · 학습에서 모델 등록과 재로딩까지
 
 **CH4 · 실험 추적과 모델 관리**
 
 이번 실습의 질문은 **어떤 데이터와 설정으로 선택한 모델을, 나중에 같은 입력으로 다시 사용할 수 있는가?**다. 기존 Kubernetes 실습의 운영 기록에 모델 버전과 데이터 계보를 연결한다.
+
+## MLflow의 역할과 데이터 흐름
+
+MLflow는 학습 알고리즘이 아니라 실험 추적과 모델 관리를 돕는 도구다. 실제 학습은 scikit-learn 코드가 수행하고, MLflow는 실행 근거를 기록한다.
+
+![데이터와 Run에서 등록 모델·재로딩 검증으로 이어지는 흐름](/images/week02-mlflow.svg)
+
+| 개념 | 남기는 정보 | 판단에 쓰는 이유 |
+|---|---|---|
+| Experiment | 관련 Run의 묶음 | 동일 문제의 실험 탐색 |
+| Run | 파라미터·지표·태그·실행 이력 | 후보 간 차이 비교 |
+| Parameter | 모델 종류·하이퍼파라미터·seed | 어떤 설정으로 학습했는지 재현 |
+| Metric | RMSE·MAE·R² 등 수치 | 검증 기준에 따라 모델 선택 |
+| Artifact | 모델·CSV·그래프·계약 파일 | 실행 근거와 산출물 보관 |
+| Model Registry | 이름 아래의 모델 버전 | 선택 모델의 고정 버전 재사용 |
+
+등록 모델 URI는 예를 들어 `models:/ManufacturingQualityDemo/1`처럼 구체적인 버전을 가리킨다. 버전 번호는 예시이며 후속 작업에서는 실제 `selection.json` 값을 사용한다. Registry 등록만으로 추론 서비스가 배포되지는 않는다. 배포와 트래픽 전환은 별도 운영 작업이다.
+
+## 학습 전에 확인할 데이터와 EDA
+
+EDA에서는 시간 범위·설비별 행 수·결측·분포·목표값 관계를 확인한다. 시각화는 원본의 이상이나 분할 편향을 찾기 위한 근거다. 합성 데이터의 생성식 때문에 높은 점수가 나오는 상황을 실제 설비에 대한 일반화 성능으로 해석하지 않는다.
+
+원본 데이터·전처리·피처 순서·분할 기준이 다르면 모델 점수만 직접 비교하기 어렵다. 같은 시간 분할을 유지한 채 검증 점수로 후보를 선택하고, 최종 평가 데이터는 선택 이후 확인한다. 평균 예측 모델을 기준으로 두어 복잡한 모델이 실제로 개선했는지 비교한다.
+
+MLflow의 데이터 입력 메타데이터 기록이 원본 CSV 전체 복사를 자동 보장하지는 않는다. 이 실습은 CSV와 SHA-256·입력 계약을 별도 산출물로 저장한다. EDA 그림을 추가할 때도 Run의 아티팩트로 저장해 데이터 버전과 함께 추적한다.
 
 ## 1. 데이터와 비교 기준
 
@@ -31,7 +56,7 @@ seed 42로 생성한 **합성 제조 품질 데이터 1,000행**을 사용한다
 
 MLflow Run에 파라미터·검증 RMSE/MAE/R²·학습 시간을 기록한다. 모델에는 signature와 입력 예시를 포함하고, CSV·SHA-256·입력 계약·실제 설치 패키지 버전도 저장한다. test 점수로 후보를 고르지 않도록 선택과 최종 평가를 분리했다.
 
-## Kubernetes 실행 결과
+## Kubernetes 실행 결과 · 실습 화면 ①
 
 개인 PC의 kind 클러스터에서 MLflow 서버를 Deployment·Service·PVC로 배포하고, 학습·실험 비교·모델 등록·재로딩을 Kubernetes Job으로 실행했다. 서버 OOM을 복구한 뒤 학습 Job이 **9초 만에 Complete(1/1)**로 종료됐고, UI에서 세 Run과 모델 연결을 확인했다.
 
@@ -135,7 +160,7 @@ k get pvc
 k get pods -l app=mlflow
 ```
 
-PVC는 기본 StorageClass를 사용한다. Pending이면 StorageClass·PVC 이벤트를 확인한 뒤 Job 실행으로 넘어간다.
+PVC는 기본 StorageClass를 사용한다. `WaitForFirstConsumer`에서는 Job이 사용하는 mlflow-results가 소비 Pod 생성 전까지 Pending일 수 있다. 서버 데이터 PVC와 서버 Ready를 먼저 확인하고 Job 생성 후 결과 PVC의 Bound 상태·이벤트를 확인한다.
 
 ## 4. Kubernetes Job으로 학습·비교·등록·재로딩
 
@@ -211,8 +236,9 @@ k get pods -l app=mlflow
 
 ## 6. 다음 단계
 
-[Feast·KFP 연결 설계](/ml-platform/model-pipeline)에서 같은 데이터 계약과 등록 모델 URI를 사용한다. 등록한 모델을 Kubernetes에 올리면 기존 CPU·메모리·배포 실습을 모델 운영 검증으로 확장할 수 있다.
+[Feast 피처 관리](/ml-platform/model-pipeline)에서 같은 데이터 계약을 사용하고, [KFP 배치 추론](/ml-platform/kfp-batch-inference)으로 등록 모델 URI를 넘긴다. 등록한 모델을 Kubernetes에 올리면 기존 CPU·메모리·배포 실습을 모델 운영 검증으로 확장할 수 있다.
 
 - [실행 코드](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/labs/week02-mlflow)
 - [MLflow Tracking](https://mlflow.org/docs/latest/ml/tracking/)
 - [Model Registry](https://mlflow.org/docs/latest/ml/model-registry/workflow/)
+

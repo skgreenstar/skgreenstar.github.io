@@ -31,11 +31,16 @@ export default defineConfig({
         ]},
         { text: '2주차 · 실험 추적에서 모델 운영까지', items: [
           { text: '학습 정리 · CH4~5', link: '/ml-platform/study-week-02' },
-          { text: '04 · MLflow 학습·등록·재로딩', link: '/ml-platform/mlflow-model-lifecycle' },
-          { text: '05 · Feast·KFP 연결 설계', link: '/ml-platform/model-pipeline' },
-          { text: '06 · 운영 자동화', link: '/ml-platform/week-04' },
-          { text: '07 · 리소스 관리와 성능 실험', link: '/ml-platform/week-05' },
-          { text: '08 · KServe와 vLLM', link: '/ml-platform/week-06' }
+          { text: '04 · 실행 환경', link: '/ml-platform/week02-environment' },
+          { text: '05 · MLflow 실험·모델 관리', link: '/ml-platform/mlflow-model-lifecycle' },
+          { text: '06 · Feast 피처 관리', link: '/ml-platform/model-pipeline' },
+          { text: '07 · KFP 배치 추론', link: '/ml-platform/kfp-batch-inference' },
+          { text: '08 · 결과 검증', link: '/ml-platform/week02-verification' }
+        ]},
+        { text: '2주차 확장 · Kubernetes 운영', collapsed: true, items: [
+          { text: '09 · 운영 자동화', link: '/ml-platform/week-04' },
+          { text: '10 · 리소스 관리', link: '/ml-platform/week-05' },
+          { text: '11 · KServe와 vLLM', link: '/ml-platform/week-06' }
         ]},
         { text: '심화 · Evaluation', items: [
           { text: '산업 AI 회귀 평가', link: '/ml-platform/industrial-evaluation' },
@@ -60,3 +65,4 @@ export default defineConfig({
     editLink: { pattern: 'https://github.com/skgreenstar/skgreenstar.github.io/edit/main/docs/:path', text: '이 페이지 개선하기' }
   }
 })
+

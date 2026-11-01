@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" role="img" aria-labelledby="title desc">
+<title id="title">MLflow: 선택 근거와 재사용할 모델을 함께 남긴다</title><desc id="desc">학습/검증/최종 평가를 분리한다. 모델 등록은 서비스 배포와 별개의 단계다.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="none" stroke="#557190" stroke-width="1.5"/></marker></defs>
+<rect width="1000" height="600" rx="20" fill="#f4f7fc"/>
+<text x="40" y="48" font-family="sans-serif" font-size="26" font-weight="700" fill="#172b48">MLflow: 선택 근거와 재사용할 모델을 함께 남긴다</text>
+<path d="M440 150.0 L560 150.0" stroke="#557190" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<path d="M760.0 200 L170.0 310" stroke="#557190" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<path d="M300 365.0 L370 365.0" stroke="#557190" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<path d="M630 365.0 L700 365.0" stroke="#557190" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+<rect x="40" y="100" width="400" height="100" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="240.0" y="134" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">동일 데이터 · 동일 분할</text>
+<text x="240.0" y="162" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">CSV 해시 · 피처 계약 · seed</text>
+<rect x="560" y="100" width="400" height="100" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="760.0" y="134" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">후보별 Run</text>
+<text x="760.0" y="162" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">파라미터 · 검증 점수 · 모델</text>
+<rect x="40" y="310" width="260" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="170.0" y="344" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">모델 선택</text>
+<text x="170.0" y="372" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">검증 RMSE로 결정</text>
+<rect x="370" y="310" width="260" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="500.0" y="344" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">Model Registry</text>
+<text x="500.0" y="372" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">고정 버전 URI</text>
+<rect x="700" y="310" width="260" height="110" rx="12" fill="white" stroke="#9bb8e2" stroke-width="2"/>
+<text x="830.0" y="344" text-anchor="middle" font-family="sans-serif" font-size="21" font-weight="700" fill="#203858">재로딩 검증</text>
+<text x="830.0" y="372" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="400" fill="#203858">동일 입력 → 예측 비교</text>
+<text x="40" y="568" font-family="sans-serif" font-size="17" fill="#405673">학습/검증/최종 평가를 분리한다. 모델 등록은 서비스 배포와 별개의 단계다.</text></svg>
