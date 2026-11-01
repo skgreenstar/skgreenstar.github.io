@@ -91,8 +91,6 @@ prediction_max_abs_diff: 1.4210854715202004e-14
 KFP_COMPILE=PASS: pipeline.yaml
 ```
 
-*실행 환경: GitHub Actions Ubuntu / Python 3.12. 위 기록은 컴포넌트 순차 실행과 컴파일 검증이며, 클러스터의 KFP Run·MinIO 입출력 확인은 별도 범위다. [실행 로그](https://github.com/skgreenstar/skgreenstar.github.io/actions/runs/41359745149)*
-
 ## 6. 결과 파일 검증으로 이어가기
 
 모든 단계가 성공했어도 결과가 빈 파일이거나 Entity가 사라지면 업무에서 사용할 수 없다. [결과 검증](/ml-platform/week02-verification)에서 고정 입력·모델·피처를 기준으로 재현성과 추적성을 확인한다.
