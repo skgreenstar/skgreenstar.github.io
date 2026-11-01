@@ -1,19 +1,19 @@
 ---
-title: "10. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?"
+title: "리소스 설정은 성능과 안정성을 어떻게 바꿀까?"
 description: "Requests/Limits, QoS와 FastAPI 성능 측정 및 운영 가설 실험"
 date: 2026-11-01
 outline: deep
 prev:
-  text: '09. 컨테이너가 실행 중이면 서비스도 정상일까?'
+  text: '컨테이너가 실행 중이면 서비스도 정상일까?'
   link: '/ml-platform/week-04'
 next:
-  text: '11. KServe와 vLLM으로 모델을 어떻게 운영할까?'
+  text: 'KServe와 vLLM으로 모델을 어떻게 운영할까?'
   link: '/ml-platform/week-06'
 ---
 
-# 10. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?
+# 리소스 설정은 성능과 안정성을 어떻게 바꿀까?
 
-**확장 실습:** Kubernetes 리소스 관리와 성능 검증  
+**심화 · 운영:** Kubernetes 리소스 관리와 성능 검증  
 **핵심 질문:** 자원 예약·사용 한도·복제본 수는 지연시간과 장애 영향에 어떻게 연결될까?
 
 ## Kubernetes 리소스 관리

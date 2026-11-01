@@ -36,18 +36,18 @@ PC·Pod·Service의 실행 위치, 메타데이터·아티팩트·저장 경로.
 ### [08. 결과 검증 · 성공한 실행을 재현 가능한 결과로 만들기](/ml-platform/week02-verification)
 결과 스키마·입력 해시·모델 버전·예측 비교와 추적성.
 
-## 2주차 확장 · Kubernetes 운영
+## 심화 · 운영과 평가
 
-### [09. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
+선택한 모델과 파이프라인을 서비스로 이어가려면 준비 상태·자원 제약·서빙 방식·평가 기준을 함께 살펴봐야 합니다. 아래 글은 이 운영 과정을 주제별로 확장합니다.
+
+### [컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
 Probe·배포 전략·롤백의 개념과 실제 관찰.
 
-### [10. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
+### [리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
 Requests/Limits·CPU throttling·메모리 OOM·QoS.
 
-### [11. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
+### [KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
 모델 서빙과 GPU·토큰 생성의 개념 확장.
-
-## 심화 · Evaluation
 
 ### [MAPE는 낮은데 R²는 왜 낮을까?](/ml-platform/industrial-evaluation)
 산업 AI 회귀 지표, 기준 모델, 시계열·운전 구간별 평가.

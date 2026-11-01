@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1080" viewBox="0 0 1200 1080" role="img" aria-labelledby="title desc">
+<title id="title">MLflow · 선택 근거에서 재사용할 모델까지</title><desc id="desc">합성 제조 품질 데이터 · 시간 순서 분할 · 검증 RMSE로 모델 선택. 학습 내용을 설명하는 구성도.</desc>
+<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="0.9" fill="#c5cbd1"/></pattern><filter id="shadow" x="-20%" y="-30%" width="140%" height="180%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#14263d" flood-opacity="0.12"/></filter><marker id="arrow" markerWidth="9" markerHeight="9" refX="7.8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#a7adb5"/></marker></defs>
+<rect width="1200" height="1080" rx="20" fill="#f2f3f5"/><rect width="1200" height="1080" rx="20" fill="url(#dots)"/>
+<g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans KR, sans-serif">
+<text x="52" y="57" font-size="26" font-weight="700" fill="#243448">MLflow · 선택 근거에서 재사용할 모델까지</text>
+<text x="52" y="88" font-size="17" fill="#647183">합성 제조 품질 데이터 · 시간 순서 분할 · 검증 RMSE로 모델 선택</text>
+<rect x="1000" y="33" width="148" height="34" rx="17" fill="#e6edf7"/><text x="1074" y="56" font-size="16" text-anchor="middle" fill="#48658d">학습 구성도</text>
+<path d="M600 228 C600 279.0, 600 279.0, 600 327" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M600 418 C600 469.0, 270 469.0, 270 517" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M600 418 C600 469.0, 930 469.0, 930 517" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M930 608 C930 659.0, 600 659.0, 600 707" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M600 798 C600 849.0, 270 849.0, 270 897" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M600 798 C600 849.0, 930 849.0, 930 897" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g transform="translate(430,140)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<rect x="21" y="29" width="29" height="33" rx="1" fill="none" stroke="#4285e8" stroke-width="2.5"/><path d="M26 36 h5 M35 36 h10 M26 44 h5 M35 44 h10 M26 52 h5 M35 52 h10" stroke="#4285e8" stroke-width="2"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">1. 동일 데이터 · 분할</text><text x="70" y="64" fill="#7c8795" font-size="15">학습 700 / 검증 150 / 평가 150</text></g>
+<g transform="translate(430,330)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<rect x="21" y="29" width="29" height="33" rx="1" fill="none" stroke="#4285e8" stroke-width="2.5"/><path d="M26 36 h5 M35 36 h10 M26 44 h5 M35 44 h10 M26 52 h5 M35 52 h10" stroke="#4285e8" stroke-width="2"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">2. 후보 모델 학습</text><text x="70" y="64" fill="#7c8795" font-size="15">Mean · Ridge · RandomForest</text></g>
+<g transform="translate(100,520)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<path d="M20 31 h12 l5 5 h20 v25 h-37 z" fill="#a8adb3"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">Run · 비교 근거</text><text x="70" y="64" fill="#7c8795" font-size="15">설정 · 검증 지표 · 아티팩트</text></g>
+<g transform="translate(760,520)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<rect x="21" y="29" width="29" height="33" rx="1" fill="none" stroke="#4285e8" stroke-width="2.5"/><path d="M26 36 h5 M35 36 h10 M26 44 h5 M35 44 h10 M26 52 h5 M35 52 h10" stroke="#4285e8" stroke-width="2"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">3. 모델 선택 · 등록</text><text x="70" y="64" fill="#7c8795" font-size="15">검증 RMSE → Registry 버전</text></g>
+<g transform="translate(430,710)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<rect x="21" y="29" width="29" height="33" rx="1" fill="none" stroke="#4285e8" stroke-width="2.5"/><path d="M26 36 h5 M35 36 h10 M26 44 h5 M35 44 h10 M26 52 h5 M35 52 h10" stroke="#4285e8" stroke-width="2"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">4. 고정 버전 재로딩</text><text x="70" y="64" fill="#7c8795" font-size="15">동일 평가 입력의 예측값 비교</text></g>
+<g transform="translate(100,900)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<path d="M20 31 h12 l5 5 h20 v25 h-37 z" fill="#a8adb3"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">모델 · 입력 계약</text><text x="70" y="64" fill="#7c8795" font-size="15">고정 URI · 피처 목록 · 해시</text></g>
+<g transform="translate(760,900)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<path d="M20 31 h12 l5 5 h20 v25 h-37 z" fill="#a8adb3"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">재현성 검증 기록</text><text x="70" y="64" fill="#7c8795" font-size="15">예측 차이 · 결과 CSV</text></g>
+<text x="600" y="1050" text-anchor="middle" font-size="16" fill="#707e8f">연결선은 데이터·의존 관계를 나타냅니다.</text></g></svg>

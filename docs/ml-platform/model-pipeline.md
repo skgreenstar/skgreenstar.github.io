@@ -17,7 +17,7 @@ next:
 
 학습에서는 CSV의 온도·압력·속도를 사용하고 추론에서는 별도 코드로 컬럼을 재구성하면 이름·자료형·시점이 어긋날 수 있다. 공통 정의를 사용하면 어떤 설비의 어느 시점 값을 읽는지 명시할 수 있다. Feast 자체가 원천 센서의 오류나 모든 데이터 누수를 자동 해결해 주지는 않는다.
 
-![Feast의 정의 등록과 Offline·Online 값 전달 경로](/images/week02-feast.svg)
+![Feast의 정의 등록과 Offline·Online 값 전달 경로](/images/week02-feast-dag.svg)
 
 | 개념 | 의미 | 우리 데이터의 대응 |
 |---|---|---|
@@ -52,7 +52,7 @@ next:
 
 apply 성공만으로 Redis 등에 값이 들어간 것은 아니다. materialization 후 알려진 Entity를 조회해 `None` 여부와 실제 값을 확인한다. Online 조회는 과거 시점을 재현하는 Historical 조회를 대체하지 않는다. 과거 배치 검증에는 Historical 경로를 사용한다.
 
-## 4. 기존 MLflow 실습과 연결하는 실행 순서
+## 4. 기존 MLflow 실습과 연결하는 절차
 
 1. MLflow 산출물의 원본 CSV·`dataset_contract.json`을 읽고 SHA-256과 필수 컬럼을 확인한다.
 2. UTC 시각·Entity 키·수치 자료형을 정리하고 Offline 소스와 피처 정의를 준비한다.
@@ -63,9 +63,11 @@ apply 성공만으로 Redis 등에 값이 들어간 것은 아니다. materializ
 
 첫 MLflow 학습은 CSV를 직접 사용했다. Feast를 도입했다는 사실만으로 기존 학습이 Feast 기반이었다고 바꾸어 쓰지 않는다. 다음 학습부터 Historical 조회 결과를 사용하고, FeatureService 이름·정의 버전 또는 해시·실제 피처 목록을 Run에 기록하면 학습 입력의 계보까지 이어진다.
 
-::: tip 실습 화면 ② · Feast 조회 결과
-Feast Job을 실행한 뒤 한 화면에 **Entity·예측 기준 시각·Historical 피처 값**, 그리고 **동일 Entity의 Online 최신 값과 관측 시각**을 표시해 캡처한다. 미래 값이 제외된 예시 한 행과 결측 검사 결과를 함께 보이면 조회 의미가 드러난다. 캡처 후 이 안내를 실제 화면과 짧은 해석으로 교체한다.
-:::
+### 구성도 읽는 법
+
+`apply`는 정의를 Registry에 등록하는 단계다. 왼쪽 경로는 예측 시점에 맞는 과거 피처를 조회해 학습·배치 입력을 만들고, 오른쪽 경로는 `materialize`로 Redis에 최신 값을 적재한 뒤 Online 조회에 사용한다. 두 경로가 같은 피처 정의를 사용하더라도 조회하는 시점과 목적은 다르다.
+
+그림은 **Feast 피처 흐름 구성도**이며, 이 절의 개념과 데이터 계약을 설명한다.
 
 ## 5. 다음 장으로 넘기는 계약
 

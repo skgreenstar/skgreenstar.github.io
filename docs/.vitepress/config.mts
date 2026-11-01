@@ -37,12 +37,10 @@ export default defineConfig({
           { text: '07 · KFP 배치 추론', link: '/ml-platform/kfp-batch-inference' },
           { text: '08 · 결과 검증', link: '/ml-platform/week02-verification' }
         ]},
-        { text: '2주차 확장 · Kubernetes 운영', collapsed: true, items: [
-          { text: '09 · 운영 자동화', link: '/ml-platform/week-04' },
-          { text: '10 · 리소스 관리', link: '/ml-platform/week-05' },
-          { text: '11 · KServe와 vLLM', link: '/ml-platform/week-06' }
-        ]},
-        { text: '심화 · Evaluation', items: [
+        { text: '심화 · 운영과 평가', items: [
+          { text: '운영 자동화', link: '/ml-platform/week-04' },
+          { text: '리소스 관리', link: '/ml-platform/week-05' },
+          { text: 'KServe와 vLLM', link: '/ml-platform/week-06' },
           { text: '산업 AI 회귀 평가', link: '/ml-platform/industrial-evaluation' },
           { text: 'RAG / Agent 평가', link: '/ml-platform/evaluation-and-operations' }
         ]}

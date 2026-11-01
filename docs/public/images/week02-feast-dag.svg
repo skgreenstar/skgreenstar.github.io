@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1040" viewBox="0 0 1200 1040" role="img" aria-labelledby="title desc">
+<title id="title">Feast · 같은 정의, 두 가지 조회 경로</title><desc id="desc">설비별 온도·압력·속도를 예측 시점과 최신 값으로 나누어 조회한다.. 학습 내용을 설명하는 구성도.</desc>
+<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="0.9" fill="#c5cbd1"/></pattern><filter id="shadow" x="-20%" y="-30%" width="140%" height="180%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#14263d" flood-opacity="0.12"/></filter><marker id="arrow" markerWidth="9" markerHeight="9" refX="7.8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#a7adb5"/></marker></defs>
+<rect width="1200" height="1040" rx="20" fill="#f2f3f5"/><rect width="1200" height="1040" rx="20" fill="url(#dots)"/>
+<g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans KR, sans-serif">
+<text x="52" y="57" font-size="26" font-weight="700" fill="#243448">Feast · 같은 정의, 두 가지 조회 경로</text>
+<text x="52" y="88" font-size="17" fill="#647183">설비별 온도·압력·속도를 예측 시점과 최신 값으로 나누어 조회한다.</text>
+<rect x="1000" y="33" width="148" height="34" rx="17" fill="#e6edf7"/><text x="1074" y="56" font-size="16" text-anchor="middle" fill="#48658d">학습 구성도</text>
+<path d="M600 228 C600 274.0, 600 274.0, 600 317" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M600 408 C600 454.0, 270 454.0, 270 497" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M600 408 C600 454.0, 930 454.0, 930 497" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M270 588 C270 634.0, 270 634.0, 270 677" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M930 588 C930 634.0, 930 634.0, 930 677" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M270 768 C270 814.0, 270 814.0, 270 857" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M930 768 C930 814.0, 930 814.0, 930 857" fill="none" stroke="#a7adb5" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g transform="translate(430,140)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<path d="M20 31 h12 l5 5 h20 v25 h-37 z" fill="#a8adb3"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">피처 정의 · 원본 이력</text><text x="70" y="64" fill="#7c8795" font-size="15">equipment_id · event_timestamp</text></g>
+<g transform="translate(430,320)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<rect x="21" y="29" width="29" height="33" rx="1" fill="none" stroke="#4285e8" stroke-width="2.5"/><path d="M26 36 h5 M35 36 h10 M26 44 h5 M35 44 h10 M26 52 h5 M35 52 h10" stroke="#4285e8" stroke-width="2"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">1. apply · 정의 등록</text><text x="70" y="64" fill="#7c8795" font-size="15">Entity · FeatureView · Registry</text></g>
+<g transform="translate(100,500)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<rect x="21" y="29" width="29" height="33" rx="1" fill="none" stroke="#4285e8" stroke-width="2.5"/><path d="M26 36 h5 M35 36 h10 M26 44 h5 M35 44 h10 M26 52 h5 M35 52 h10" stroke="#4285e8" stroke-width="2"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">2. Historical 조회</text><text x="70" y="64" fill="#7c8795" font-size="15">예측 시점 이전의 피처 선택</text></g>
+<g transform="translate(760,500)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<rect x="21" y="29" width="29" height="33" rx="1" fill="none" stroke="#4285e8" stroke-width="2.5"/><path d="M26 36 h5 M35 36 h10 M26 44 h5 M35 44 h10 M26 52 h5 M35 52 h10" stroke="#4285e8" stroke-width="2"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">3. materialize</text><text x="70" y="64" fill="#7c8795" font-size="15">Offline 이력 → 최신 값 적재</text></g>
+<g transform="translate(100,680)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<path d="M20 31 h12 l5 5 h20 v25 h-37 z" fill="#a8adb3"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">피처 Dataset</text><text x="70" y="64" fill="#7c8795" font-size="15">temperature · pressure · speed</text></g>
+<g transform="translate(760,680)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<path d="M20 31 h12 l5 5 h20 v25 h-37 z" fill="#a8adb3"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">Redis · 최신 피처</text><text x="70" y="64" fill="#7c8795" font-size="15">설비별 최신 관측값</text></g>
+<g transform="translate(100,860)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<rect x="21" y="29" width="29" height="33" rx="1" fill="none" stroke="#4285e8" stroke-width="2.5"/><path d="M26 36 h5 M35 36 h10 M26 44 h5 M35 44 h10 M26 52 h5 M35 52 h10" stroke="#4285e8" stroke-width="2"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">학습 · 배치 추론</text><text x="70" y="64" fill="#7c8795" font-size="15">동일 Entity와 기준 시각 사용</text></g>
+<g transform="translate(760,860)"><rect width="340" height="88" rx="12" fill="white" filter="url(#shadow)"/>
+<rect x="21" y="29" width="29" height="33" rx="1" fill="none" stroke="#4285e8" stroke-width="2.5"/><path d="M26 36 h5 M35 36 h10 M26 44 h5 M35 44 h10 M26 52 h5 M35 52 h10" stroke="#4285e8" stroke-width="2"/>
+<text x="70" y="38" fill="#344253" font-size="21" font-weight="600">Online 조회 · 추론</text><text x="70" y="64" fill="#7c8795" font-size="15">최신 값과 신선도 확인</text></g>
+<text x="600" y="1010" text-anchor="middle" font-size="16" fill="#707e8f">연결선은 데이터·의존 관계를 나타냅니다.</text></g></svg>

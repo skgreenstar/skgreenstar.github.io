@@ -19,7 +19,7 @@ next:
 
 MLflow는 학습 알고리즘이 아니라 실험 추적과 모델 관리를 돕는 도구다. 실제 학습은 scikit-learn 코드가 수행하고, MLflow는 실행 근거를 기록한다.
 
-![데이터와 Run에서 등록 모델·재로딩 검증으로 이어지는 흐름](/images/week02-mlflow.svg)
+![데이터와 Run에서 등록 모델·재로딩 검증으로 이어지는 흐름](/images/week02-mlflow-dag.svg)
 
 | 개념 | 남기는 정보 | 판단에 쓰는 이유 |
 |---|---|---|

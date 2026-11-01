@@ -5,7 +5,7 @@ prev:
   text: '07 · KFP'
   link: '/ml-platform/kfp-batch-inference'
 next:
-  text: '09 · 운영 자동화'
+  text: '운영 자동화'
   link: '/ml-platform/week-04'
 ---
 

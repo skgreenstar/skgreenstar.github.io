@@ -12,13 +12,13 @@ next:
 # Week 02 · 실험 추적에서 모델 운영까지
 
 **교재 범위:** CH4 · MLflow와 Feast / CH5 · Kubeflow Pipelines  
-**확장 실습:** kind의 Probe·배포 전략·CPU·메모리·QoS, KServe·vLLM 개념
+**심화 학습:** kind의 Probe·배포 전략·CPU·메모리·QoS, KServe·vLLM 개념
 
 이번 주의 핵심은 **선택한 모델과 피처를 근거와 함께 관리하고, 같은 입력으로 추론을 반복하는 흐름**이다. MLflow에서 모델의 선택 근거와 버전을 남기고, Feast로 피처 정의·시점을 맞춘 뒤, KFP로 조회·추론·결과 저장을 연결한다. Kubernetes 운영 실습은 이 흐름이 자원 제한과 장애 속에서 어떻게 실행되는지를 다룬다.
 
 ![MLflow·Feast·KFP와 Kubernetes 실행 관계](/images/week02-system.svg)
 
-도식은 전체 학습의 목표 구조다. 현재 직접 실행을 확인한 범위는 MLflow와 Kubernetes 운영 실습이며, Feast·KFP는 이어서 구성할 조회·파이프라인 설계로 구분한다.
+도식은 전체 학습의 목표 구조다. 현재 직접 실행을 확인한 범위는 MLflow와 Kubernetes 운영 실습이며, Feast·KFP는 조회 경로와 파이프라인의 학습 구성도로 설명한다.
 
 ## 1. 전체 학습 순서
 
@@ -59,7 +59,7 @@ MLflow의 Run은 학습 설정·점수·아티팩트를 묶는다. Registry는 �
 
 ### 저장소 구성 · MinIO
 
-KFP의 중간 Dataset과 최종 결과 파일은 **kind 안의 MinIO**에 저장하는 구성으로 연결한다. MinIO는 파일을 bucket과 object 단위로 보관하는 오브젝트 스토리지다. Feast의 최신 피처 값은 **Redis**, 현재 완료한 MLflow 서버 데이터·모델 파일은 기존 **PVC**를 사용한다. MinIO 설치와 KFP 연결은 다음 실행 단계이며, 기존 MLflow 저장소를 이미 MinIO로 옮겼다는 의미는 아니다.
+KFP의 중간 Dataset과 최종 결과 파일은 **kind 안의 MinIO**에 저장하는 구성으로 연결한다. MinIO는 파일을 bucket과 object 단위로 보관하는 오브젝트 스토리지다. Feast의 최신 피처 값은 **Redis**, 현재 완료한 MLflow 서버 데이터·모델 파일은 기존 **PVC**를 사용한다. 이 MinIO 연결은 구성도에서 설명하는 설계이며, 기존 MLflow 실행 기록은 PVC 기반으로 유지한다.
 
 | 저장 대상 | 사용할 구성 |
 |---|---|
@@ -74,25 +74,31 @@ MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job
 
 세 Run과 모델 연결 화면, kubectl 출력, 서버 복구 기록은 [05. MLflow 실습 화면 ①](/ml-platform/mlflow-model-lifecycle)에 모았다. 같은 화면을 여러 페이지에 반복하지 않고 상세 글에서 확인한다. CI의 수치 결과는 그 글의 별도 접힘 영역에 구분했다.
 
-## 5. 실습 화면은 세 곳에만 남긴다
+## 5. 구성도로 이해하는 모델·피처·파이프라인
 
-| 위치 | 담을 화면 | 현재 구성 |
-|---|---|---|
-| ① MLflow | 세 Run과 모델 연결 | 제공한 실제 화면 반영 |
-| ② Feast | 같은 Entity의 Historical·Online 조회 비교 | [Feast 장의 캡처 안내](/ml-platform/model-pipeline) |
-| ③ KFP | 실행 DAG와 최종 파일 검사 요약 | [KFP 장의 캡처 안내](/ml-platform/kfp-batch-inference) |
+실제 실행을 확인한 MLflow 화면과 운영 로그는 유지하고, Feast·KFP의 개념은 직접 제작한 구성도로 정리했다. 점 배경의 카드와 연결선은 작업·산출물·의존 관계를 나타낸다.
 
-개념 설명·계약·검증 기준은 본문과 도식으로 완성하고, Feast·KFP 실행 뒤에는 위 두 곳의 안내만 실제 화면과 해석으로 교체한다. 공개 화면에는 인증값을 포함하지 않으며 내부 IP는 설명에 필요하지 않으면 마스킹한다.
+| 연결 글 | 그림에서 볼 내용 |
+|---|---|
+| [MLflow 모델 흐름](/ml-platform/mlflow-model-lifecycle) | 동일 데이터 → 후보 비교 → 모델 등록 → 재로딩 검증 |
+| [Feast 피처 흐름](/ml-platform/model-pipeline) | 정의 등록 → Historical 조회 / Redis 최신 값 적재 |
+| [KFP 배치 추론 흐름](/ml-platform/kfp-batch-inference) | 피처·고정 모델 → 예측 → 검증 → MinIO 저장 |
 
-## 6. 확장 실습 · 실행을 운영으로 연결하기
+![Feast·MLflow·MinIO를 연결하는 KFP 배치 추론 학습 구성도](/images/week02-kfp-dag.svg)
+
+추가 실행 캡처를 채워 넣지 않아도 각 도구의 역할과 연결 원리를 읽을 수 있도록 구성했다. 실제 실행 결과는 기존 MLflow·Kubernetes 기록과 구분한다.
+
+## 6. 심화 · 운영과 평가로 이어가기
 
 | 연결 글 | 확인한 내용 |
 |---|---|
-| [09. 운영 자동화](/ml-platform/week-04) | Readiness 트래픽 제외·복귀, Liveness 재시작, RollingUpdate·Rollback·Recreate |
-| [10. 리소스 관리](/ml-platform/week-05) | CPU throttling, 메모리 OOM, Guaranteed·Burstable·BestEffort |
-| [11. KServe·vLLM](/ml-platform/week-06) | 모델 서빙·GPU·토큰 생성의 개념 확장 |
+| [운영 자동화](/ml-platform/week-04) | Readiness 트래픽 제외·복귀, Liveness 재시작, RollingUpdate·Rollback·Recreate |
+| [리소스 관리](/ml-platform/week-05) | CPU throttling, 메모리 OOM, Guaranteed·Burstable·BestEffort |
+| [KServe·vLLM](/ml-platform/week-06) | 모델 서빙·GPU·토큰 생성의 개념 확장 |
+| [산업 AI 회귀 평가](/ml-platform/industrial-evaluation) | 기준 모델·회귀 지표·운전 구간별 평가 |
+| [RAG / Agent 평가](/ml-platform/evaluation-and-operations) | 검색·생성·Agent의 품질과 배포 기준 |
 
-이미 수행한 운영 실습의 실제 관찰은 상세 글에 유지했다. KServe·vLLM은 개념 학습 범위다. 모델 파이프라인을 연결한 다음에는 모델 로딩 후 Ready, 고정 모델 버전 복원, 추론 부하에 따른 CPU·메모리 동작으로 확장할 수 있다.
+앞에서 선택하고 검증한 모델을 실제 서비스로 이어갈 때는 준비 상태·자원 제약·서빙 방식·평가 기준을 함께 확인한다. 이미 수행한 운영 실습의 실제 관찰은 상세 글에 유지했다. KServe·vLLM은 개념 학습 범위다. 모델 파이프라인을 연결한 다음에는 모델 로딩 후 Ready, 고정 모델 버전 복원, 추론 부하에 따른 CPU·메모리 동작으로 확장할 수 있다.
 
 ::: details 완료한 Kubernetes 관찰 기록
 | 실습 | 실행 결과 |
