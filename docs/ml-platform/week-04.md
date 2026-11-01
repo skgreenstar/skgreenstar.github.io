@@ -112,6 +112,7 @@ kubectl -n week02 rollout undo deployment/probe-demo
 | Readiness 실패 | EndpointSlice 준비 조건 변경 | 실제 확인: Pod 0/1 Running, RESTARTS=0, ready=false → 복구 후 1/1·ready=true |
 | Liveness 실패 | 임계값 이후 컨테이너 재시작 | 실제 확인: HTTP 503 → Killing → 동일 Pod RESTARTS=1, 1/1 Running 복구 |
 | RollingUpdate | Ready 신규 Pod 기준 교체 | 실제 확인: 새 Pod 1/1 Ready 후 기존 Pod Terminating, LAB_VERSION=v2, revision 2 |
+| Rollback | 지정한 revision의 Pod 템플릿 복원 | 실제 확인: revision 1로 undo, LAB_VERSION=(unset), 새 Pod Ready, revision 3 |
 | Recreate | 기존 Pod 종료 후 새 버전 시작 | 실행 후 기록 |
 
 ## 실제 kind 실행 기록 {#kind-readiness-result}
@@ -271,7 +272,7 @@ restarts=1 lastReason=Error exitCode=137
 
 **직접 확인한 범위:** Readiness 실패 중 `/healthz=200`과 `/readyz=503`이 동시에 관찰됐고, 컨테이너 재시작 없이 Pod와 EndpointSlice의 준비 상태가 바뀌었다.
 
-**추가 검증 범위:** 이번 요청은 Pod 내부 주소로 실행했다. Service 경유 요청 차단 여부나 실패율은 직접 측정하지 않았다. 표의 AGE는 각 출력 시점의 Pod 나이이며, 장애 감지·복구 소요시간을 정밀 측정한 값은 아니다. Liveness는 후속 출력에서 재시작과 Ready 복구까지 확인했다. RollingUpdate는 뒤의 실제 실행 기록에서 교체 순서를 확인했다. 롤백 결과는 후속 실습에서 별도로 수집한다.
+**추가 검증 범위:** 이번 요청은 Pod 내부 주소로 실행했다. Service 경유 요청 차단 여부나 실패율은 직접 측정하지 않았다. 표의 AGE는 각 출력 시점의 Pod 나이이며, 장애 감지·복구 소요시간을 정밀 측정한 값은 아니다. Liveness는 후속 출력에서 재시작과 Ready 복구까지 확인했다. RollingUpdate는 뒤의 실제 실행 기록에서 교체 순서를 확인했다. 롤백도 뒤의 실제 실행 기록에서 환경변수 제거와 Ready 복구까지 확인했다.
 
 
 ## RollingUpdate · 실제 kind 실행 기록
@@ -334,7 +335,54 @@ REVISION  CHANGE-CAUSE
 - Deployment revision이 1에서 2로 증가했다.
 - rollout 성공 직후에도 기존 Pod가 Terminating으로 보였다. 이 조회만으로 기존 Pod의 완전 삭제까지 확인한 것은 아니다.
 - 사용자 요청을 계속 보내며 오류율을 측정하지 않았으므로 **요청 무중단을 실측했다고 해석하지 않는다.**
-- 다음 단계는 revision 1로 롤백한 뒤 환경변수와 Pod 상태의 복원을 확인하는 것이다.
+- 이어지는 롤백 실습에서 revision 1 템플릿 복원을 확인했다.
+
+
+## Rollback · 실제 kind 실행 기록
+
+### 실행 명령
+
+```bash
+k rollout undo deployment/probe-demo --to-revision=1
+k rollout status deployment/probe-demo --timeout=180s
+k get pods -l app=probe-demo
+k exec deployment/probe-demo -- python -c 'import os; print("LAB_VERSION=" + os.getenv("LAB_VERSION", "(unset)"))'
+k rollout history deployment/probe-demo
+```
+
+### 실제 출력
+
+```text
+Warning: resource deployments/probe-demo was previously managed with 'kubectl apply'. Rolling back will not update the kubectl.kubernetes.io/last-applied-configuration annotation, which may cause unexpected behavior on future 'kubectl apply' operations. Consider using 'kubectl apply' with your previous configuration file instead.
+
+deployment.apps/probe-demo rolled back
+Waiting for deployment "probe-demo" rollout to finish: 1 old replicas are pending termination...
+deployment "probe-demo" successfully rolled out
+
+NAME                          READY   STATUS        RESTARTS   AGE
+probe-demo-68c54c584d-bxjnl    1/1     Running       0          3s
+probe-demo-c6767f7f4-z6xtq     1/1     Terminating   0          3m30s
+
+LAB_VERSION=(unset)
+
+REVISION  CHANGE-CAUSE
+2         <none>
+3         <none>
+```
+
+동일한 대기 메시지가 반복된 행은 생략했다.
+
+### 결과 해석
+
+- `LAB_VERSION=(unset)`으로 v2에서 추가했던 환경변수가 제거됐음을 확인했다.
+- 이전 템플릿으로 생성된 새 Pod가 `1/1 Running`이며 재시작 횟수는 0이었다.
+- 최초 Pod와 ReplicaSet 해시 부분은 같지만 Pod 이름의 마지막 부분은 다르다. 이전 Pod 자체를 되살린 것이 아니라 **이전 Pod 템플릿으로 새 Pod를 생성**했다.
+- 이력은 2·3으로 표시됐다. revision 1을 복원해도 현재 revision 번호가 1로 되돌아가는 것이 아니라, 복원된 템플릿에 새 revision 3이 부여됐다.
+- 롤백 직후 v2 Pod는 아직 Terminating이었다. 완전 삭제 완료나 Service 요청 오류율까지 관찰한 결과는 아니다.
+
+### kubectl apply 경고의 의미
+
+실제 경고는 롤백 시 `kubectl.kubernetes.io/last-applied-configuration` annotation을 갱신하지 않는다는 내용이었다. **롤백은 성공했지만, apply용 설정 기록이 실제 복원된 설정과 함께 갱신되는 것은 아니라는 점**을 구분한다. 향후 선언형 배포로 관리할 때는 원하는 설정을 원본 YAML에 반영하고, 적용 전 차이를 확인한다. 이번 실습은 명령형 변경과 undo의 동작을 확인한 것이다.
 
 
 ---
