@@ -94,8 +94,6 @@ Online 조회에서 확인한 값의 일부는 다음과 같다.
 
 고정된 과거 데이터를 사용하는 예제에서는 TTL 0으로 만료를 비활성화했다. 위 시각은 원본의 관측 시각이며 현재 시각의 신선도를 뜻하지 않는다.
 
-*실행 환경: GitHub Actions Ubuntu / Python 3.12, MLflow 3.17.2, Feast 0.67.0, Redis. [실행 로그](https://github.com/skgreenstar/skgreenstar.github.io/actions/runs/41359745149)*
-
 ## 6. 다음 장으로 넘기는 계약
 
 피처 Dataset은 Entity·예측 시각을 보존하고 입력 피처만 모델에 전달한다. 컬럼 누락·중복·허용하지 않은 결측이 있으면 추론을 시작하기 전에 실패시킨다. 고정 모델 URI와 피처 정의 식별자를 KFP 실행 파라미터에 함께 기록한다.
