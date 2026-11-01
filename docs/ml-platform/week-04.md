@@ -110,7 +110,7 @@ kubectl -n week02 rollout undo deployment/probe-demo
 |---|---|---|
 | Startup 실패 | Liveness/Readiness 동작 보류, 반복 실패 시 재시작 | 실행 후 기록 |
 | Readiness 실패 | EndpointSlice 준비 조건 변경 | 실제 확인: Pod 0/1 Running, RESTARTS=0, ready=false → 복구 후 1/1·ready=true |
-| Liveness 실패 | 임계값 이후 컨테이너 재시작 | 실행 후 기록 |
+| Liveness 실패 | 임계값 이후 컨테이너 재시작 | 실제 확인: HTTP 503 감지 및 Killing 이벤트. 재시작 횟수 증가 확인 대기 |
 | RollingUpdate | Ready 신규 Pod 기준 교체 | 실행 후 기록 |
 | Recreate | 기존 Pod 종료 후 새 버전 시작 | 실행 후 기록 |
 
@@ -216,6 +216,28 @@ probe-demo-68c54c584d-62p2t     1/1     Running   0          48s
 ["10.244.0.5"] ready=true
 ```
 
+### 4. Liveness 장애 감지 · 실제 출력
+
+`/server-error` 호출로 앱의 healthy 상태를 false로 변경했다.
+
+```text
+200 liveness failure enabled
+
+NAME                          READY   STATUS    RESTARTS   AGE
+probe-demo-68c54c584d-62p2t     1/1     Running   0          2m2s
+
+restarts=0 lastReason= exitCode=
+```
+
+Events에서 다음 메시지를 확인했다. 아래는 TYPE·REASON·MESSAGE를 발췌한 것이다.
+
+```text
+Warning  Unhealthy  Liveness probe failed: HTTP probe failed with statuscode: 503
+Normal   Killing    Container app failed liveness probe, will be restarted
+```
+
+**판정:** Liveness 실패 감지와 컨테이너 종료 요청은 확인됐다. 그러나 이 출력 시점에는 `RESTARTS=0`이고 `lastState.terminated`가 비어 있어 재시작 완료를 단정하지 않는다. 종료 유예와 다음 기동·상태 갱신을 거친 후 재시작 횟수와 Ready 복구를 추가 확인한다. Readiness와 healthy 상태를 별도로 관리하는 실습 앱이므로, Liveness 실패 시점에도 READY가 1/1로 표시될 수 있다.
+
 ### 관찰 결과와 해석
 
 | 관찰 대상 | 정상 → 장애 → 복구 | 해석 |
@@ -228,7 +250,7 @@ probe-demo-68c54c584d-62p2t     1/1     Running   0          48s
 
 **직접 확인한 범위:** Readiness 실패 중 `/healthz=200`과 `/readyz=503`이 동시에 관찰됐고, 컨테이너 재시작 없이 Pod와 EndpointSlice의 준비 상태가 바뀌었다.
 
-**추가 검증 범위:** 이번 요청은 Pod 내부 주소로 실행했다. Service 경유 요청 차단 여부나 실패율은 직접 측정하지 않았다. 표의 AGE는 각 출력 시점의 Pod 나이이며, 장애 감지·복구 소요시간을 정밀 측정한 값은 아니다. Liveness 재시작·RollingUpdate·롤백 결과는 후속 실습에서 별도로 수집한다.
+**추가 검증 범위:** 이번 요청은 Pod 내부 주소로 실행했다. Service 경유 요청 차단 여부나 실패율은 직접 측정하지 않았다. 표의 AGE는 각 출력 시점의 Pod 나이이며, 장애 감지·복구 소요시간을 정밀 측정한 값은 아니다. Liveness는 위 출력처럼 장애 감지·종료 요청을 확인했으며, 재시작 완료·RollingUpdate·롤백 결과는 후속 실습에서 별도로 수집한다.
 
 
 ---
