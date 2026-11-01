@@ -18,7 +18,7 @@ next:
 
 ![MLflow·Feast·KFP와 Kubernetes 실행 관계](/images/week02-system.svg)
 
-도식은 전체 학습의 목표 구조다. 현재 직접 실행을 확인한 범위는 MLflow와 Kubernetes 운영 실습이며, Feast·KFP는 조회 경로와 파이프라인의 학습 구성도로 설명한다.
+도식은 전체 학습의 연결 구조다. kind에서 수행한 MLflow·Kubernetes 실습에 이어, Feast 조회·등록 모델 예측 비교와 KFP 컴포넌트·컴파일 검증 결과를 연결해 정리했다. MinIO와 KFP 클러스터 실행 구조는 구성도로 설명한다.
 
 ## 1. 전체 학습 순서
 
@@ -74,6 +74,12 @@ MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job
 
 세 Run과 모델 연결 화면, kubectl 출력, 서버 복구 기록은 [05. MLflow 실습 화면 ①](/ml-platform/mlflow-model-lifecycle)에 모았다. 같은 화면을 여러 페이지에 반복하지 않고 상세 글에서 확인한다. CI의 수치 결과는 그 글의 별도 접힘 영역에 구분했다.
 
+### Feast·KFP 연결 검증
+
+동일한 합성 제조 데이터의 평가 대상 **150행**을 Feast로 조회하고 등록 모델의 예측과 비교했다. 예측 최대 절대 차이는 **약 1.42e-14**로 허용 오차를 통과했다. Redis의 최신 피처 값도 확인했으며, KFP의 네 작업은 파일 경계를 나누어 순차 실행하고 YAML 컴파일까지 검증했다.
+
+이 연결 검증은 GitHub Actions 환경에서 수행했다. 상세 결과는 [Feast 조회 기록](/ml-platform/model-pipeline)과 [KFP 컴포넌트 검증](/ml-platform/kfp-batch-inference)에 정리했다.
+
 ## 5. 구성도로 이해하는 모델·피처·파이프라인
 
 실제 실행을 확인한 MLflow 화면과 운영 로그는 유지하고, Feast·KFP의 개념은 직접 제작한 구성도로 정리했다. 점 배경의 카드와 연결선은 작업·산출물·의존 관계를 나타낸다.
@@ -86,7 +92,7 @@ MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job
 
 ![Feast·MLflow·MinIO를 연결하는 KFP 배치 추론 학습 구성도](/images/week02-kfp-dag.svg)
 
-추가 실행 캡처를 채워 넣지 않아도 각 도구의 역할과 연결 원리를 읽을 수 있도록 구성했다. 실제 실행 결과는 기존 MLflow·Kubernetes 기록과 구분한다.
+추가 실행 캡처를 채워 넣지 않아도 각 도구의 역할과 연결 원리를 읽을 수 있도록 구성했다. kind 실행 기록과 자동 검증 결과는 각 실행 환경을 함께 적어 확인할 수 있도록 했다.
 
 ## 6. 심화 · 운영과 평가로 이어가기
 
