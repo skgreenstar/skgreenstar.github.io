@@ -21,6 +21,15 @@ MLOps, CI/CD/CT, 데이터 계약과 릴리스 게이트.
 **[2주차 학습 정리 · 운영 자동화와 리소스 최적화](/ml-platform/study-week-02)**  
 Health Probe 장애 재현, RollingUpdate·Rollback, CPU/Memory Requests·Limits 및 QoS 실습.
 
+### [04. 컨테이너가 실행 중이면 서비스도 정상일까?](/ml-platform/week-04)
+Startup·Readiness·Liveness Probe, 배포 전략과 롤백.
+
+### [05. 리소스 설정은 성능과 안정성을 어떻게 바꿀까?](/ml-platform/week-05)
+Requests/Limits·QoS, 로컬 측정 기록과 성능·가용성 실험.
+
+### [06. KServe와 vLLM으로 모델을 어떻게 운영할까?](/ml-platform/week-06)
+모델 서빙의 개념, KServe·vLLM 역할과 실무 운영 지표.
+
 ## 심화 · Evaluation
 
 ### [MAPE는 낮은데 R²는 왜 낮을까?](/ml-platform/industrial-evaluation)

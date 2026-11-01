@@ -21,14 +21,23 @@ export default defineConfig({
     sidebar: {
       '/ml-platform/': [
         { text: 'ML Platform Engineering', items: [
-          { text: 'Overview', link: '/ml-platform/' },
-          { text: '1주차 · 학습 정리 (CH1~3)', link: '/ml-platform/study-week-01' },
-          { text: '2주차 · CH4~5 운영 자동화·리소스 관리', link: '/ml-platform/study-week-02' },
+          { text: 'Overview', link: '/ml-platform/' }
+        ]},
+        { text: '1주차 · ML 시스템의 기반', items: [
+          { text: '학습 정리 · CH1~3', link: '/ml-platform/study-week-01' },
           { text: '01 · ML Lifecycle', link: '/ml-platform/week-01' },
           { text: '02 · MLOps', link: '/ml-platform/week-02' },
-          { text: '03 · Platform Architecture', link: '/ml-platform/week-03' },
-          { text: '심화 · 산업 AI 회귀 평가', link: '/ml-platform/industrial-evaluation' },
-          { text: '심화 · RAG / Agent 평가', link: '/ml-platform/evaluation-and-operations' }
+          { text: '03 · Platform Architecture', link: '/ml-platform/week-03' }
+        ]},
+        { text: '2주차 · 운영 자동화와 리소스 관리', items: [
+          { text: '학습 정리 · CH4~5', link: '/ml-platform/study-week-02' },
+          { text: '04 · 운영 자동화', link: '/ml-platform/week-04' },
+          { text: '05 · 리소스 관리와 성능 실험', link: '/ml-platform/week-05' },
+          { text: '06 · KServe와 vLLM', link: '/ml-platform/week-06' }
+        ]},
+        { text: '심화 · Evaluation', items: [
+          { text: '산업 AI 회귀 평가', link: '/ml-platform/industrial-evaluation' },
+          { text: 'RAG / Agent 평가', link: '/ml-platform/evaluation-and-operations' }
         ]}
       ],
       '/writing/': [
