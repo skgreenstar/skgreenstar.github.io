@@ -1,0 +1,61 @@
+name: Validate Feast and KFP lab
+on:
+  push:
+    paths:
+      - 'labs/week02-pipeline/**'
+      - '.github/workflows/validate-week02-pipeline.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install matching model runtime and Feast
+        run: |
+          pip install -r labs/week02-mlflow/requirements.txt
+          pip freeze > /tmp/base-constraints.txt
+          pip install -c /tmp/base-constraints.txt 'feast[redis]==0.67.0'
+      - name: Validate MLflow HTTP, Feast Redis, and batch task boundaries
+        env:
+          MLFLOW_TRACKING_URI: http://127.0.0.1:5050
+          FEAST_REDIS_ENDPOINT: localhost:6379
+        shell: bash
+        run: |
+          set -euo pipefail
+          MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false mlflow server --backend-store-uri sqlite:///server.db --serve-artifacts --artifacts-destination "$RUNNER_TEMP/mlflow-artifacts" --default-artifact-root mlflow-artifacts:/ --host 127.0.0.1 --port 5050 --workers 1 > server.log 2>&1 &
+          LAB_SERVER_PID=$!
+          trap 'kill "$LAB_SERVER_PID" || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5050/health; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:5050/health
+          python labs/week02-mlflow/train_compare_register.py --output-dir outputs
+          python labs/week02-pipeline/feature_tasks.py --source outputs --output outputs/feast
+          LAB_RUN_ID=$(python -c 'import json; print(json.load(open("outputs/selection.json"))["run_id"])')
+          python labs/week02-pipeline/pipeline_tasks.py prepare --run-id "$LAB_RUN_ID" --output task-input
+          python labs/week02-pipeline/pipeline_tasks.py features --source task-input --output task-features
+          python labs/week02-pipeline/pipeline_tasks.py predict --source task-input --features task-features --output task-predictions
+          python labs/week02-pipeline/pipeline_tasks.py publish --source task-predictions --output task-results
+      - name: Compile KFP in isolated SDK environment
+        run: |
+          python -m venv /tmp/kfp-sdk
+          /tmp/kfp-sdk/bin/pip install kfp==2.9.0
+          /tmp/kfp-sdk/bin/python labs/week02-pipeline/compile_pipeline.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: week02-feast-kfp-ci
+          path: |
+            outputs/feast/*.json
+            outputs/feast/*.csv
+            task-results/*
+            pipeline.yaml

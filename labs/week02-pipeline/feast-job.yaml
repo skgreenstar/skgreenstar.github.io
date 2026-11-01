@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: week02
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: week02-redis}
+  template:
+    metadata:
+      labels: {app: week02-redis}
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          args: ["--save", "", "--appendonly", "no"]
+          ports: [{containerPort: 6379}]
+          readinessProbe:
+            exec: {command: ["redis-cli", "ping"]}
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 250m, memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: week02
+spec:
+  selector: {app: week02-redis}
+  ports: [{port: 6379, targetPort: 6379}]
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: feast-verify
+  namespace: week02
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-redis
+          image: redis:7.4-alpine
+          command: ["sh", "-c", "until redis-cli -h redis ping; do sleep 2; done"]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+      containers:
+        - name: feast
+          image: mlops-week02-pipeline:0.1
+          imagePullPolicy: Never
+          command: ["python", "/app/feature_tasks.py"]
+          env:
+            - {name: MLFLOW_TRACKING_URI, value: "http://mlflow:5000"}
+            - {name: FEAST_REDIS_ENDPOINT, value: "redis:6379"}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "1", memory: 2Gi}
+          volumeMounts:
+            - {name: results, mountPath: /outputs}
+      volumes:
+        - name: results
+          persistentVolumeClaim: {claimName: mlflow-results}

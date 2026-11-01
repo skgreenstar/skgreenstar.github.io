@@ -1,0 +1,6 @@
+*
+!Dockerfile
+!feature_tasks.py
+!pipeline_tasks.py
+!compile_pipeline.py
+!submit_pipeline.py
