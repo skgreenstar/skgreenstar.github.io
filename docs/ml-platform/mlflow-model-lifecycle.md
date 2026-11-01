@@ -124,6 +124,27 @@ Job Complete, 후보별 비교표, 고정 모델 URI, reload_equal=true 및 relo
 | test_predictions.csv | 후속 배치 추론 결과와 대조 |
 | requirements-resolved.txt | 실제 설치 버전 기록 |
 
+## Kubernetes 서버 OOM 복구 기록
+
+kind 배포 후 서버 Pod에서 CrashLoopBackOff, restarts=5, lastReason=OOMKilled, exitCode=137을 관찰했다. 서버가 종료된 동안 학습 Job은 experiments/get-by-name API의 Connection refused로 실패했다. 서버 로그의 Starlette 경고와 OOM 종료 사유를 구분했다.
+
+| 관찰 | 대응 |
+|---|---|
+| 서버 memory limit 1Gi에서 OOMKilled | request 512Mi / limit 2Gi로 조정 |
+| 서버 내장 job executor 초기화 로그 | 학습은 Kubernetes Job이 담당하므로 내장 실행 기능 비활성화 |
+| 클라이언트 API 연결 실패 | 서버 Ready와 메모리 상태 확인 후 실패한 학습 Job 재생성 |
+| 서버 데이터와 결과 저장 | 기존 PVC 유지 |
+
+OOM의 정확한 프로세스별 메모리 원인은 별도 계측이 필요하다. 내장 executor가 원인이라고 단정하지 않으며, 불필요한 기능을 제외하고 메모리 여유를 확보하는 복구 구성이다. 환경변수 MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false는 MLflow 내부 실행기를 끄는 설정이며 Kubernetes Job 실행과는 별개다.
+
+```bash
+curl -fL https://raw.githubusercontent.com/skgreenstar/skgreenstar.github.io/main/labs/week02-mlflow/mlflow-server.yaml -o mlflow-server.yaml
+k apply -f mlflow-server.yaml
+k rollout status deployment/mlflow --timeout=300s
+k get pods -l app=mlflow
+```
+
+서버 안정화 후 실패한 mlflow-train Job을 정리하고 같은 train-job.yaml로 다시 실행한다. Pod 메모리·restartCount와 학습 로그를 함께 확인한다. 이 기록은 장애 원인과 적용할 복구 설정을 담으며, 복구 성공은 후속 실행 출력으로 확인한다.
 ## 6. 다음 단계
 
 [Feast·KFP 연결 설계](/ml-platform/model-pipeline)에서 같은 데이터 계약과 등록 모델 URI를 사용한다. 등록한 모델을 Kubernetes에 올리면 기존 CPU·메모리·배포 실습을 모델 운영 검증으로 확장할 수 있다.

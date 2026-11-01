@@ -24,7 +24,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mlflow server --backend-store-uri sqlite:///server.db --serve-artifacts --artifacts-destination "$RUNNER_TEMP/mlflow-artifacts" --default-artifact-root mlflow-artifacts:/ --host 127.0.0.1 --port 5050 --workers 1 > server.log 2>&1 &
+          MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false mlflow server --backend-store-uri sqlite:///server.db --serve-artifacts --artifacts-destination "$RUNNER_TEMP/mlflow-artifacts" --default-artifact-root mlflow-artifacts:/ --host 127.0.0.1 --port 5050 --workers 1 > server.log 2>&1 &
           LAB_SERVER_PID=$!
           trap 'kill "$LAB_SERVER_PID" || true' EXIT
           for attempt in $(seq 1 60); do
