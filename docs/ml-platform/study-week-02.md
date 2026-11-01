@@ -27,6 +27,50 @@ next:
 
 MLflow 서버는 kind의 Deployment·Service·PVC로 배포하고, 학습·비교·등록·재로딩은 Kubernetes Job에서 실행한다. PC에서는 Docker 이미지 준비와 kubectl 명령을 사용한다. 학습 코드는 합성 제조 품질 데이터와 세 모델을 사용한다. 검증 RMSE로 모델을 선택하고, 등록한 고정 버전을 재로딩해 예측값 일치를 검사한다. 데이터 CSV·피처 계약·선택 모델 URI를 후속 Feast·KFP의 입력으로 재사용한다.
 
+### MLflow · Kubernetes 실행 결과
+
+개인 PC의 kind 클러스터에서 MLflow 서버를 Deployment·Service·PVC로 배포하고, 학습·실험 비교·모델 등록·재로딩을 Kubernetes Job으로 실행했다. 서버 OOM을 복구한 뒤 학습 Job이 **9초 만에 Complete(1/1)**로 종료됐고, UI에서 세 Run과 모델 연결을 확인했다.
+
+![kind 위 MLflow 3.17.2 UI: random_forest, ridge, baseline_mean 세 Run](/images/week02-mlflow-kind-runs.png)
+
+**화면 확인:** MLflow 3.17.2의 week02-manufacturing-quality 실험에 random_forest·ridge·baseline_mean이 기록됐다. random_forest 행에서 ManufacturingQualityDemo 모델 연결도 확인된다.
+
+| 확인 항목 | 실행 결과 |
+|---|---|
+| 학습 실행 위치 | kind-mlops-lab / week02 / Kubernetes Job |
+| 학습 Job | mlflow-train · Complete · 1/1 · DURATION 9s |
+| 서버 Pod | 1/1 Running · RESTARTS 0 · 조회 시 AGE 3m15s |
+| 서버·산출물 저장 | mlflow-data 2Gi / mlflow-results 1Gi · 두 PVC Bound |
+| 복구 후 health | HTTP 200 세 번 |
+| 복구 후 서버 메모리 | 354.9 → 355.2 → 354.7 MiB |
+| 모델 학습·비교 | baseline_mean / ridge / random_forest 세 Run |
+| 등록·재로딩 흐름 | 등록 모델 로드·예측 일치 assert를 포함한 학습 Job 완료 |
+| UI 접근 | Service port-forward 후 브라우저 접속 확인 |
+
+Job의 9초는 전체 작업 수행 시간이며, UI에 표시된 개별 Run 시간과 구분한다. 서버 메모리 세 표본은 복구 후 건강 검사 구간의 관측값이다.
+
+#### 최종 kubectl 출력
+
+```text
+job.batch/mlflow-train condition met
+NAME           STATUS     COMPLETIONS   DURATION   AGE
+mlflow-train   Complete   1/1           9s         9s
+
+NAME                         READY   STATUS    RESTARTS   AGE
+mlflow-548b585c74-pjblp       1/1     Running   0          3m15s
+```
+
+#### 장애에서 복구까지
+
+| 단계 | 관찰·조치 |
+|---|---|
+| 초기 장애 | 서버 OOMKilled / CrashLoopBackOff, 학습 Job API 연결 거부 |
+| 설정 보완 | 서버 request 512Mi / limit 2Gi, 내장 Job 실행기 비활성화 |
+| 서버 확인 | health 200 세 번, 메모리 약 355MiB, 재시작 0 |
+| 학습 재실행 | 실패 Job 정리 후 재생성, Complete(1/1) 확인 |
+| 화면 확인 | MLflow 실험 세 Run과 모델 연결, UI 접속 정상 |
+
+서버 저장 PVC를 유지한 채 복구했다. 메모리 조정과 내장 실행기 비활성화를 함께 적용했으므로 각각의 효과를 분리해서 단정하지 않는다.
 ## 2. kind에서 완료한 운영 실습
 
 | 실습 | 실행 결과 |

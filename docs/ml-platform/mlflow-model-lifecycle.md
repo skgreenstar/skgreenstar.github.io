@@ -31,7 +31,54 @@ seed 42로 생성한 **합성 제조 품질 데이터 1,000행**을 사용한다
 
 MLflow Run에 파라미터·검증 RMSE/MAE/R²·학습 시간을 기록한다. 모델에는 signature와 입력 예시를 포함하고, CSV·SHA-256·입력 계약·실제 설치 패키지 버전도 저장한다. test 점수로 후보를 고르지 않도록 선택과 최종 평가를 분리했다.
 
-## 자동 실행 검증 결과
+## Kubernetes 실행 결과
+
+개인 PC의 kind 클러스터에서 MLflow 서버를 Deployment·Service·PVC로 배포하고, 학습·실험 비교·모델 등록·재로딩을 Kubernetes Job으로 실행했다. 서버 OOM을 복구한 뒤 학습 Job이 **9초 만에 Complete(1/1)**로 종료됐고, UI에서 세 Run과 모델 연결을 확인했다.
+
+![kind 위 MLflow 3.17.2 UI: random_forest, ridge, baseline_mean 세 Run](/images/week02-mlflow-kind-runs.png)
+
+**화면 확인:** MLflow 3.17.2의 week02-manufacturing-quality 실험에 random_forest·ridge·baseline_mean이 기록됐다. random_forest 행에서 ManufacturingQualityDemo 모델 연결도 확인된다.
+
+| 확인 항목 | 실행 결과 |
+|---|---|
+| 학습 실행 위치 | kind-mlops-lab / week02 / Kubernetes Job |
+| 학습 Job | mlflow-train · Complete · 1/1 · DURATION 9s |
+| 서버 Pod | 1/1 Running · RESTARTS 0 · 조회 시 AGE 3m15s |
+| 서버·산출물 저장 | mlflow-data 2Gi / mlflow-results 1Gi · 두 PVC Bound |
+| 복구 후 health | HTTP 200 세 번 |
+| 복구 후 서버 메모리 | 354.9 → 355.2 → 354.7 MiB |
+| 모델 학습·비교 | baseline_mean / ridge / random_forest 세 Run |
+| 등록·재로딩 흐름 | 등록 모델 로드·예측 일치 assert를 포함한 학습 Job 완료 |
+| UI 접근 | Service port-forward 후 브라우저 접속 확인 |
+
+Job의 9초는 전체 작업 수행 시간이며, UI에 표시된 개별 Run 시간과 구분한다. 서버 메모리 세 표본은 복구 후 건강 검사 구간의 관측값이다.
+
+#### 최종 kubectl 출력
+
+```text
+job.batch/mlflow-train condition met
+NAME           STATUS     COMPLETIONS   DURATION   AGE
+mlflow-train   Complete   1/1           9s         9s
+
+NAME                         READY   STATUS    RESTARTS   AGE
+mlflow-548b585c74-pjblp       1/1     Running   0          3m15s
+```
+
+#### 장애에서 복구까지
+
+| 단계 | 관찰·조치 |
+|---|---|
+| 초기 장애 | 서버 OOMKilled / CrashLoopBackOff, 학습 Job API 연결 거부 |
+| 설정 보완 | 서버 request 512Mi / limit 2Gi, 내장 Job 실행기 비활성화 |
+| 서버 확인 | health 200 세 번, 메모리 약 355MiB, 재시작 0 |
+| 학습 재실행 | 실패 Job 정리 후 재생성, Complete(1/1) 확인 |
+| 화면 확인 | MLflow 실험 세 Run과 모델 연결, UI 접속 정상 |
+
+서버 저장 PVC를 유지한 채 복구했다. 메모리 조정과 내장 실행기 비활성화를 함께 적용했으므로 각각의 효과를 분리해서 단정하지 않는다.
+
+::: details CI 코드 검증 결과 · 참고
+
+### 자동 실행 검증 결과
 
 GitHub Actions의 Ubuntu / Python 3.12 환경에서 전체 스크립트를 실행했다. 패키지는 MLflow 3.17.2, scikit-learn 1.9.1, pandas 2.3.3, NumPy 2.5.4였다. 아래는 **CI 실행 결과**이며 개인 PC의 실행 결과와 구분한다.
 
@@ -46,6 +93,9 @@ GitHub Actions의 Ubuntu / Python 3.12 환경에서 전체 스크립트를 실�
 모델 저장 과정에서 직접 학습한 RandomForest의 sklearn.tree._tree.Tree 타입만 skops 신뢰 목록에 지정했다. 외부에서 받은 임의 모델 타입을 일괄 허용하는 코드는 사용하지 않는다.
 
 [자동 실행 로그와 산출물](https://github.com/skgreenstar/skgreenstar.github.io/actions/runs/41328495691)
+
+
+:::
 
 ## 3. 로컬 kind에 MLflow 서버 배포
 
@@ -110,7 +160,7 @@ k port-forward svc/mlflow 5050:5000
 
 ### 다음 단계로 넘길 근거
 
-Job Complete, 후보별 비교표, 고정 모델 URI, reload_equal=true 및 reload_max_abs_diff를 함께 확인한다. 앞의 자동 검증 표는 CI 코드 검사 결과이며, PC kind에서 실행한 Job 결과는 해당 로그를 근거로 기록한다.
+kind에서 Job Complete와 UI의 세 Run·모델 연결을 확인했다. 실행별 비교표·선택 모델 URI·재로딩 검증은 Job 로그와 MLflow 아티팩트로 추적한다. 접어둔 CI 표는 별도의 코드 검사 결과다.
 ## 5. 등록 모델 재로딩 검증
 
 검증 점수로 선택한 모델을 등록한 뒤 고정 버전 URI로 다시 로드한다. 등록 전·후 모델에 같은 최종 평가 입력을 주고, 예측값이 허용 오차 안에서 일치하는지 assert로 검사한다. 재실행 시 새 모델 버전이 생길 수 있으므로 후속 단계는 selection.json의 model_uri를 사용한다.
@@ -157,7 +207,7 @@ k get pods -l app=mlflow
 
 검사 후 Pod AGE 38s 시점에도 1/1 Running, RESTARTS=0이었다. **관찰 구간에서 서버 응답과 재시작 상태가 안정화됐음을 확인**했다. 메모리 limit 상향과 내장 실행기 비활성화를 함께 적용했으므로 각각의 효과를 분리해 단정하지 않는다. 이 값은 서버 기동 후 관찰이며 학습 중 최대 메모리나 장기 안정성 측정으로 해석하지 않는다.
 
-기존 실패한 학습 Job은 별도로 재생성해 같은 서버 Service에 다시 연결한다.
+이후 학습 Job을 재생성해 같은 서버 Service에 연결했고, 위 Kubernetes 실행 결과처럼 Complete(1/1)와 UI 접속을 확인했다.
 
 ## 6. 다음 단계
 
