@@ -19,6 +19,10 @@ next:
 
 ![Feast의 정의 등록과 Offline·Online 값 전달 경로](/images/week02-feast-dag.svg)
 
+### 과거 조회와 최신 조회의 분기
+
+`apply`는 정의를 Registry에 등록한다. 구성도의 왼쪽은 예측 시점에 맞는 과거 피처로 학습·배치 입력을 만들고, 오른쪽은 `materialize`로 Redis에 최신 값을 적재해 Online 조회에 사용한다. 두 경로는 피처 정의를 공유하지만 조회 시점과 목적은 다르다.
+
 | 개념 | 의미 | 우리 데이터의 대응 |
 |---|---|---|
 | Entity | 피처를 찾는 업무 식별자 | equipment_id |
@@ -61,7 +65,7 @@ apply 성공만으로 Redis 등에 값이 들어간 것은 아니다. materializ
 5. 지정 구간을 materialize한 후 같은 Entity의 Online 최신 값과 기준 시각을 확인한다.
 6. 피처 조회 산출물을 MLflow의 고정 모델 URI와 함께 다음 KFP 단계의 입력으로 넘긴다.
 
-첫 MLflow 학습은 CSV를 직접 사용했다. Feast를 도입했다는 사실만으로 기존 학습이 Feast 기반이었다고 바꾸어 쓰지 않는다. 다음 학습부터 Historical 조회 결과를 사용하고, FeatureService 이름·정의 버전 또는 해시·실제 피처 목록을 Run에 기록하면 학습 입력의 계보까지 이어진다.
+최초 학습은 원본 CSV를 사용했고, 연결 검증에서는 Feast로 조회한 피처가 그 입력과 일치하는지 대조했다. 학습 입력도 Feast로 통일할 경우에는 FeatureService 이름·정의 버전 또는 해시·실제 피처 목록을 Run에 기록해 계보를 이어갈 수 있다.
 
 ### 핵심 코드 · 예측 기준 시각을 조회 시각으로 넘기기
 
@@ -107,12 +111,6 @@ online = store.get_online_features(
 
 `start_date`·`end_date`는 원천 이력의 적재 범위다. Online 요청에는 과거 예측 시각을 넣지 않고 Entity 키를 넘긴다. 과거 평가 입력을 Online 최신 값으로 대체하면 당시와 다른 피처를 사용할 수 있으므로, Historical 경로와 Online 경로의 목적을 분리한다.
 
-### 구성도 읽는 법
-
-`apply`는 정의를 Registry에 등록하는 단계다. 왼쪽 경로는 예측 시점에 맞는 과거 피처를 조회해 학습·배치 입력을 만들고, 오른쪽 경로는 `materialize`로 Redis에 최신 값을 적재한 뒤 Online 조회에 사용한다. 두 경로가 같은 피처 정의를 사용하더라도 조회하는 시점과 목적은 다르다.
-
-그림은 **Feast 피처 흐름 구성도**이며, 이 절의 개념과 데이터 계약을 설명한다.
-
 ## 5. 피처 조회와 모델 예측을 연결해 확인한 결과
 
 MLflow 학습 산출물의 데이터 해시와 입력 계약을 확인한 뒤, 최종 평가 대상 150행을 Feast Historical 조회로 구성했다. 조회한 온도·압력·속도를 원본의 동일 Entity·기준 시각 값과 대조했고, materialization 후 Redis의 설비별 최신 값도 원본의 마지막 관측과 비교했다.
@@ -143,4 +141,3 @@ Online 조회에서 확인한 값의 일부는 다음과 같다.
 피처 Dataset은 Entity·예측 시각을 보존하고 입력 피처만 모델에 전달한다. 컬럼 누락·중복·허용하지 않은 결측이 있으면 추론을 시작하기 전에 실패시킨다. 고정 모델 URI와 피처 정의 식별자를 KFP 실행 파라미터에 함께 기록한다.
 
 참고: [Feast 공식 문서](https://docs.feast.dev/)
-

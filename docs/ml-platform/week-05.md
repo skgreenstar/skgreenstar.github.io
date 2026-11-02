@@ -16,6 +16,14 @@ next:
 **심화 · 운영:** Kubernetes 리소스 관리와 성능 검증  
 **핵심 질문:** 자원 예약·사용 한도·복제본 수는 지연시간과 장애 영향에 어떻게 연결될까?
 
+## 실행 환경
+
+CPU·메모리·QoS 관찰은 `kind-mlops-lab`의 `week02`에서 수행했다. 아래 함수로 명령의 실행 대상을 고정한다.
+
+```bash
+k() { kubectl --context kind-mlops-lab -n week02 "$@"; }
+```
+
 ## Kubernetes 리소스 관리
 
 ### 1. Scheduler와 Requests/Limits
@@ -47,12 +55,12 @@ Node-pressure Eviction은 Priority, Requests 초과 사용 여부, 상대 사용
 ### 3. CPU Throttling 및 OOM 실습
 
 ```bash
-kubectl apply -f docs/ml-platform/week-02-lab/02-cpu-stress.yaml
-kubectl apply -f docs/ml-platform/week-02-lab/03-memory-oom.yaml
-kubectl -n week02 get pods -w
-kubectl -n week02 top pods
-kubectl -n week02 describe pod cpu-stress
-kubectl -n week02 describe pod memory-oom
+k apply -f https://raw.githubusercontent.com/skgreenstar/skgreenstar.github.io/main/docs/ml-platform/week-02-lab/02-cpu-stress.yaml
+k apply -f https://raw.githubusercontent.com/skgreenstar/skgreenstar.github.io/main/docs/ml-platform/week-02-lab/03-memory-oom.yaml
+k get pods -w
+k top pods
+k describe pod cpu-stress
+k describe pod memory-oom
 ```
 
 `kubectl top`은 Metrics Server가 설치되어 있어야 한다. 최소 kind 클러스터에서 작동하지 않으면 `kubectl describe`·컨테이너 cgroup 통계·재시작 이벤트를 활용한다. **Memory OOM은 실제 할당 패턴과 노드 환경에 따라 재현 여부가 달라질 수 있다.**
@@ -271,16 +279,14 @@ memory-oom       Burstable    20m           200m        32Mi          64Mi
 
 세 등급이 실제로 부여되는 것을 확인했다. 앞서 OOMKilled로 종료된 Pod에도 Burstable 등급이 기록돼 있었다. **Guaranteed라는 이름이 무조건적인 생존이나 OOM 방지를 뜻하는 것은 아니다.** 이번 실습에서는 노드 메모리 압박이나 eviction을 유도하지 않았으므로 등급별 축출 순서·보호 효과를 실측했다고 쓰지 않는다.
 
-## 직접 실행한 기록 — FastAPI 로컬 기준선
+## 애플리케이션 부하 기준선
 
-::: tip 실험 상태
-**실제로 실행한 범위:** FastAPI/Uvicorn HTTP Health Check와 동시 요청 부하 테스트  
-**이 로컬 기준선 실험에 포함되지 않은 범위:** Kubernetes Pod·CPU 제한·OOM·배포 변경. 이후 kind에서 실행한 CPU 제한·메모리 OOM 실습은 위 기록에, Probe·배포 실습은 [운영 자동화 글](/ml-platform/week-04)에 별도로 정리했다.
-:::
+자원 한도 관찰과 HTTP 지연 측정은 질문이 다르다. 아래 별도 실험에서는 요청당 계산량만 바꾸어 처리량과 지연의 변화를 확인했다.
 
+::: details FastAPI 로컬 기준선 · 조건과 측정 결과
 ### 실험 환경 및 목적
 
-실습 환경은 로컬 Python 3.13/Uvicorn 서버다. Docker·kind·kubectl·k6가 없는 실행 환경에서 Kubernetes를 사용하지 않고, 먼저 **애플리케이션의 초기 상태와 CPU 연산량별 HTTP 응답 특성**을 측정했다.
+별도의 Python 3.13/Uvicorn 환경에서 애플리케이션의 초기 상태와 요청당 연산량에 따른 HTTP 응답을 측정했다. 이는 위 kind 자원 제한 실험과 실행 조건이 다른 애플리케이션 기준선이다.
 
 | 항목 | 실행 조건 |
 |---|---|
@@ -321,11 +327,13 @@ memory-oom       Burstable    20m           200m        32Mi          64Mi
 
 **한계:** 단일 실행·100요청 기준이므로 실행 환경 노이즈, 워밍업, 반복 측정, 신뢰구간은 검증하지 않았다. 이후 kind 환경에서 동일한 API·동일한 부하를 실행해 Kubernetes resource limit의 차이를 비교해야 한다.
 
+:::
+
 ::: details 후속 성능 실험 설계와 실행 코드
 
 ### 후속 성능 실험 설계
 
-기존 Probe·Deployment·Requests/Limits 실습은 기능 이해를 위한 **기초 검증**으로 두고, 실제 학습의 중심은 성능과 운영 안정성을 비교하는 세 가지 실험에 둔다.
+앞에서 확인한 자원 한도와 준비 상태를 바탕으로, 동일 HTTP 부하에서 지연·배포·Replica의 영향을 비교할 수 있도록 후속 프로토콜을 정리했다.
 
 **실행 코드:** [FastAPI + k6 + 분석 스크립트](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week-02-advanced) · [실습 가이드](https://github.com/skgreenstar/skgreenstar.github.io/blob/main/docs/ml-platform/week-02-advanced/README.md)
 
@@ -365,8 +373,8 @@ k6 run -e RATE=30 -e DURATION=180s \
   --summary-export results/rollout.json \
   docs/ml-platform/week-02-advanced/loadtest.js
 # 두 번째 터미널: rollout
-kubectl -n week02 set env deploy/performance-api READY_DELAY=8
-kubectl -n week02 rollout status deploy/performance-api
+k set env deploy/performance-api READY_DELAY=8
+k rollout status deploy/performance-api
 ```
 
 ### 3. Replicas 증가가 장애 내성을 얼마나 개선할까?
@@ -402,21 +410,13 @@ results/
 
 :::
 
-## 실험 결과에서 확인한 점
+## 자원별 동작을 구분해서 해석하기
 
-### Readiness와 Liveness의 상태 차이
+CPU limit 100m에서는 평균 CPU 사용이 약 100m였고 제어 주기마다 throttling이 기록됐다. 메모리 limit 64Mi에서는 160Mi 할당 시도 후 OOMKilled로 종료됐다. QoS 비교에서는 선언한 request·limit 관계에 따라 세 등급이 부여되는 것을 확인했다.
 
-로컬 FastAPI 서버에 초기화 지연 2초를 설정한 후 상태 엔드포인트를 호출했다. 초기화 중 `/healthz`는 **HTTP 200**, `/readyz`는 **HTTP 503**을 반환했고, 초기화 완료 후 `/readyz`가 **HTTP 200**으로 바뀌었다.
+CPU 제한은 실행 시간을 제어하고, 메모리 제한은 한도 초과 시 종료로 이어질 수 있다. QoS는 자원 압박 상황의 판단 요소이며 생존을 보장하지 않는다. 별도 FastAPI 실험의 p95·처리량은 애플리케이션 부하 기준선으로 읽고, Kubernetes의 quota 관찰과 직접 같은 원인으로 묶지 않는다.
 
-이 결과로 *프로세스가 실행 중인 상태(Alive)*와 *실제 요청을 처리할 준비가 된 상태(Ready)*를 구분할 필요성을 확인했다.
-
-### 요청당 계산량에 따른 응답 지연
-
-동시 요청 8개, 조건별 100개 요청을 보내고 연산량을 변경했다. 20K에서 300K로 증가할 때 **p95는 16.46ms → 208.59ms**, 처리량은 **608.37 → 56.39 RPS**로 변화했다.
-
-이는 로컬 API 성능 기준선의 관찰 결과이며, Kubernetes CPU 제한을 적용해 얻은 값은 아니다. CPU 제한과 배포 전략의 실제 영향은 별도 Kubernetes 실험에서 검증해야 한다.
 
 ---
 
 [2주차 학습 정리로 돌아가기](/ml-platform/study-week-02)
-

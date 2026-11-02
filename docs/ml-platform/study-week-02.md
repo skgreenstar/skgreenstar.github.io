@@ -18,7 +18,7 @@ next:
 
 ![MLflow·Feast·KFP와 Kubernetes 실행 관계](/images/week02-system.svg)
 
-도식은 전체 학습의 연결 구조다. kind에서 수행한 MLflow·Kubernetes 실습에 이어, Feast 조회·등록 모델 예측 비교와 KFP 컴포넌트·컴파일 검증 결과를 연결해 정리했다. MinIO와 KFP 클러스터 실행 구조는 구성도로 설명한다.
+핵심 연결은 데이터 계약·피처 시점·고정 모델 버전이다. 학습과 배치 추론이 이 세 기준을 공유하면 선택한 모델의 예측을 같은 근거로 재현할 수 있다.
 
 ## 1. 전체 학습 순서
 
@@ -59,7 +59,7 @@ MLflow의 Run은 학습 설정·점수·아티팩트를 묶는다. Registry는 �
 
 ### 저장소 구성 · MinIO
 
-KFP의 중간 Dataset과 최종 결과 파일은 **kind 안의 MinIO**에 저장하는 구성으로 연결한다. MinIO는 파일을 bucket과 object 단위로 보관하는 오브젝트 스토리지다. Feast의 최신 피처 값은 **Redis**, 현재 완료한 MLflow 서버 데이터·모델 파일은 기존 **PVC**를 사용한다. 이 MinIO 연결은 구성도에서 설명하는 설계이며, 기존 MLflow 실행 기록은 PVC 기반으로 유지한다.
+MinIO는 파일을 bucket과 object 단위로 보관한다. KFP의 중간 Dataset·최종 결과는 **MinIO**로 연결하도록 설계했고, Feast의 최신 피처는 **Redis**를 사용한다. kind에서 실행한 MLflow 서버와 학습 산출물은 기존 **PVC**에 유지했다.
 
 | 저장 대상 | 사용할 구성 |
 |---|---|
@@ -90,7 +90,7 @@ MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job
 
 ## 5. 구성도로 이해하는 모델·피처·파이프라인
 
-실제 실행을 확인한 MLflow 화면과 운영 로그는 유지하고, Feast·KFP의 개념은 직접 제작한 구성도로 정리했다. 점 배경의 카드와 연결선은 작업·산출물·의존 관계를 나타낸다.
+MLflow는 선택할 모델을, Feast는 입력 피처의 시점을, KFP는 작업의 의존 관계를 고정한다. 각 글에서 같은 제조 품질 데이터를 기준으로 이 연결을 살펴본다.
 
 | 연결 글 | 그림에서 볼 내용 |
 |---|---|
@@ -98,9 +98,13 @@ MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job
 | [Feast 피처 흐름](/ml-platform/model-pipeline) | 정의 등록 → Historical 조회 / Redis 최신 값 적재 |
 | [KFP 배치 추론 흐름](/ml-platform/kfp-batch-inference) | 피처·고정 모델 → 예측 → 검증 → MinIO 저장 |
 
-![Feast·MLflow·MinIO를 연결하는 KFP 배치 추론 학습 구성도](/images/week02-kfp-dag.svg)
+::: details 피처 조회와 배치 추론의 연결
 
-추가 실행 캡처를 채워 넣지 않아도 각 도구의 역할과 연결 원리를 읽을 수 있도록 구성했다. kind 실행 기록과 자동 검증 결과는 각 실행 환경을 함께 적어 확인할 수 있도록 했다.
+![Feast·MLflow·MinIO를 연결하는 KFP 배치 추론 구성도](/images/week02-kfp-dag.svg)
+
+:::
+
+모델·피처·파이프라인의 변경을 각각 식별하면 예측이 달라졌을 때 어느 입력과 설정을 먼저 비교할지 좁힐 수 있다.
 
 ## 6. 심화 · 운영과 평가로 이어가기
 
@@ -136,4 +140,3 @@ MLflow 서버를 kind의 Deployment·Service·PVC로 배포하고 Kubernetes Job
 모델 파일 하나보다 중요한 것은 그 모델을 선택한 이유와 다시 사용할 수 있는 입력 계약이다. 이 근거가 연결되어야 이후 배포·복구·자원 관리도 특정 모델과 데이터의 운영 문제로 설명할 수 있다.
 
 참고: [MLflow](https://mlflow.org/docs/latest/ml/), [Feast](https://docs.feast.dev/), [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/)
-

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+<title id="title">KServe · 관리 경로와 추론 요청 경로</title><desc id="desc">Controller는 배포 상태를 조정하고, 추론 요청은 Gateway·Service를 거쳐 모델 서버에 도달한다. Predictor의 런타임은 MLServer·Triton·vLLM 등 모델에 맞게 선택한다.</desc>
+<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r=".9" fill="#cbd2db"/></pattern><filter id="shadow" x="-15%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#1f3048" flood-opacity=".1"/></filter>
+<marker id="blue" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#557cc9"/></marker><marker id="green" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#188c78"/></marker><marker id="gray" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#99a4b4"/></marker></defs>
+<rect width="1200" height="800" rx="20" fill="#f5f7fa"/><rect width="1200" height="800" rx="20" fill="url(#dots)"/>
+<g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans KR, sans-serif">
+<text x="48" y="52" font-size="28" font-weight="700" fill="#20344f">KServe · 관리 경로와 추론 요청 경로</text>
+<text x="48" y="86" font-size="18" fill="#607086">Controller는 배포 상태를 조정하고, 추론 요청은 Gateway·Service를 거쳐 모델 서버에 도달한다.</text>
+<rect x="24" y="120" width="1152" height="240" rx="16" fill="#eaf0fa"/><text x="48" y="155" font-size="19" font-weight="600" fill="#425975">제어 경로 · 원하는 상태를 실행 리소스로 구성</text>
+<rect x="24" y="430" width="1152" height="240" rx="16" fill="#eaf5f0"/><text x="48" y="465" font-size="19" font-weight="600" fill="#425975">요청 경로 · 실제 추론을 수행하는 Data Plane</text>
+<path d="M350 250.0 L447 250.0" fill="none" stroke="#557cc9" stroke-width="2"  marker-end="url(#blue)"/>
+<text x="400.0" y="238.0" text-anchor="middle" font-size="16" fill="#607086">명세</text>
+<path d="M750 250.0 L847 250.0" fill="none" stroke="#557cc9" stroke-width="2"  marker-end="url(#blue)"/>
+<text x="800.0" y="238.0" text-anchor="middle" font-size="16" fill="#607086">생성·갱신</text>
+<path d="M1000.0 305 C1000.0 405.0 1000.0 405.0 1000.0 502" fill="none" stroke="#99a4b4" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#gray)"/>
+<text x="1000.0" y="393.0" text-anchor="middle" font-size="16" fill="#607086">배포·관리</text>
+<path d="M350 560.0 L447 560.0" fill="none" stroke="#188c78" stroke-width="2"  marker-end="url(#green)"/>
+<text x="400.0" y="548.0" text-anchor="middle" font-size="16" fill="#607086">요청</text>
+<path d="M750 560.0 L847 560.0" fill="none" stroke="#188c78" stroke-width="2"  marker-end="url(#green)"/>
+<text x="800.0" y="548.0" text-anchor="middle" font-size="16" fill="#607086">전달</text>
+<g transform="translate(50,195)"><rect width="300" height="110" rx="12" fill="white" filter="url(#shadow)"/>
+<text x="150.0" y="39" text-anchor="middle" fill="#243c59" font-size="22" font-weight="600">InferenceService</text>
+<text x="150.0" y="68" text-anchor="middle" fill="#6c7d92" font-size="17" font-weight="400">모델 URI · 런타임 · 자원</text>
+</g>
+<g transform="translate(450,195)"><rect width="300" height="110" rx="12" fill="white" filter="url(#shadow)"/>
+<text x="150.0" y="39" text-anchor="middle" fill="#243c59" font-size="22" font-weight="600">KServe Controller</text>
+<text x="150.0" y="68" text-anchor="middle" fill="#6c7d92" font-size="17" font-weight="400">리소스 상태 조정</text>
+</g>
+<g transform="translate(850,195)"><rect width="300" height="110" rx="12" fill="white" filter="url(#shadow)"/>
+<text x="150.0" y="39" text-anchor="middle" fill="#243c59" font-size="22" font-weight="600">Deployment · Service</text>
+<text x="150.0" y="68" text-anchor="middle" fill="#6c7d92" font-size="17" font-weight="400">Pod · 네트워크 리소스</text>
+</g>
+<g transform="translate(50,505)"><rect width="300" height="110" rx="12" fill="white" filter="url(#shadow)"/>
+<text x="150.0" y="39" text-anchor="middle" fill="#243c59" font-size="22" font-weight="600">클라이언트</text>
+<text x="150.0" y="68" text-anchor="middle" fill="#6c7d92" font-size="17" font-weight="400">HTTP 요청</text>
+</g>
+<g transform="translate(450,505)"><rect width="300" height="110" rx="12" fill="white" filter="url(#shadow)"/>
+<text x="150.0" y="39" text-anchor="middle" fill="#243c59" font-size="22" font-weight="600">Gateway · Service</text>
+<text x="150.0" y="68" text-anchor="middle" fill="#6c7d92" font-size="17" font-weight="400">추론 요청 라우팅</text>
+</g>
+<g transform="translate(850,505)"><rect width="300" height="110" rx="12" fill="white" filter="url(#shadow)"/>
+<text x="150.0" y="39" text-anchor="middle" fill="#243c59" font-size="22" font-weight="600">Predictor Pod</text>
+<text x="150.0" y="68" text-anchor="middle" fill="#6c7d92" font-size="17" font-weight="400">모델 로딩 · 추론 · 응답</text>
+</g>
+<text x="600" y="772" text-anchor="middle" font-size="18" fill="#5c6d83">Predictor의 런타임은 MLServer·Triton·vLLM 등 모델에 맞게 선택한다.</text></g></svg>

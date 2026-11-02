@@ -22,18 +22,7 @@ next: false
 
 모델 학습이 끝나면 가중치 파일이나 직렬화된 모델 아티팩트를 얻는다. **Serving은 이 모델을 메모리에 올리고, 요청을 받아 전처리 → 추론 → 후처리 → 응답하는 지속 실행 서비스로 만드는 과정**이다.
 
-```text
-Training / Registry
-      │ 검증된 모델 버전
-      ▼
-Model Artifact Storage ── 모델 로딩 ──► Inference Server
-                                             ▲
-Client → API Gateway → Service / Routing ───┘
-                                             │
-                                      Prediction / Tokens
-                                             │
-                                     Logs · Metrics · Traces
-```
+클라이언트 요청은 Gateway·Service를 거쳐 모델을 적재한 추론 서버에 도달한다. 서버는 전처리·추론·후처리 결과를 반환하고 로그·지표·추적 정보를 남긴다. 모델 아티팩트 저장소는 서버의 기동·모델 로딩에 사용된다.
 
 학습에서는 재현성과 모델 품질이 핵심이라면, 서빙에서는 요청 성공률, 지연시간, 처리량, 자원 사용량, 업데이트 중 가용성이 중요하다. 코드가 정상이더라도 **모델을 다운로드하지 못하면 준비되지 않은 서비스**라는 점이 일반적인 HTTP API와 다르다.
 
@@ -53,21 +42,7 @@ KServe를 이해하려면 두 영역을 구분해야 한다.
 
 **동작 흐름:** 사용자가 InferenceService를 생성하면 KServe Controller가 스펙을 감시하고, 실행 모드에 맞게 Deployment, Service 등의 Kubernetes 리소스를 구성한다. Pod가 모델을 적재한 뒤 준비 상태가 되면 트래픽을 받는다. 사용자는 일반적인 웹 서버 배포 YAML보다 **모델 자체와 서빙 요구사항**에 집중할 수 있다.
 
-```text
-사용자: InferenceService 생성
-        │
-        ▼
-Kubernetes API ─────► KServe Controller (Control Plane)
-                             │ 원하는 상태 Reconcile
-                             ▼
-                    Deployment / Service / Gateway
-                             │
-                             ▼
-                   Predictor Pod (Data Plane)
-                    모델 다운로드 → 초기화
-                             │
-                    Readiness → 요청 수신
-```
+![KServe Controller의 리소스 관리 경로와 클라이언트의 추론 요청 경로를 분리한 구성도](/images/week02-kserve-planes.svg)
 
 **KServe의 배포 방식:** Standard Mode는 일반적인 Deployment/Service 등 Kubernetes 리소스를 활용해 제어하기 쉽고, Knative Mode는 서버리스 특성 및 scale-to-zero를 활용할 수 있다. LLM은 모델 초기화가 무겁고 GPU 자원 할당이 복잡해 일반적으로 Standard/LLM 전용 구성을 먼저 검토한다. KServe 버전에 따라 CRD 구조와 지원 기능이 달라질 수 있다.
 
@@ -90,15 +65,7 @@ vLLM의 핵심 기술을 동작 원리까지 살펴보자.
 | **Tensor Parallelism** | 하나의 모델 연산을 여러 GPU에 분할 | 대규모 모델 실행 가능, GPU 간 통신비용 증가 |
 | **OpenAI-compatible API** | 채팅·완성형 요청 등 지원 엔드포인트 제공 | 기존 클라이언트 연결 쉬움, 모든 API 기능의 완전 호환을 의미하지 않음 |
 
-```text
-Request A: [Prefill] [Decode] [Decode] [Done]
-Request B:            [Prefill] [Decode] [Decode] ...
-Request C:                     [Prefill] [Decode] ...
-                              ▼
-                     Continuous Scheduler
-                              ▼
-                   GPU Compute + KV Cache Blocks
-```
+![길이가 다른 요청을 스케줄링하고 Prefill·Decode와 Paged KV Cache를 관리하는 vLLM 구성도](/images/week02-vllm-scheduler.svg)
 
 **왜 일반 API보다 메모리 관리가 중요할까?** LLM 서버의 GPU 메모리는 모델 가중치뿐 아니라 KV Cache와 추론 버퍼가 점유한다. 컨텍스트 길이와 동시 요청이 늘면 KV Cache 요구량도 증가한다. 따라서 단순히 'GPU 사용률이 80%'라는 정보만으로 충분하지 않고, 사용 가능한 KV Cache, 대기 요청, 토큰 처리 속도를 함께 봐야 한다.
 
@@ -114,25 +81,7 @@ Request C:                     [Prefill] [Decode] ...
 | 토큰 생성 | 모델 서버에 위임 | Prefill / Decode 수행 |
 | 관찰 지표 | Pod·서비스·라우팅 상태 | TTFT, TPOT, KV Cache, 토큰 처리량 |
 
-```text
-사용자 / RAG Agent
-       │
-       ▼
-API Gateway (Auth / Rate Limit)
-       │
-       ▼
-KServe (배포 정책 / 라우팅 / Scaling)
-       │
-       ▼
-vLLM GPU Pod
-       ├─ Model Weights + Tokenizer
-       ├─ Prefill / Decode Scheduler
-       ├─ KV Cache (PagedAttention)
-       └─ OpenAI-compatible Inference API
-       │
-       ▼
-Metrics / Logs / Traces → SLO 검증 및 알림
-```
+배포를 관리하는 Controller와 실제 요청을 처리하는 서버를 구분한다. 요청은 Gateway·Service 또는 추론 라우터를 거쳐 vLLM 런타임에 도달한다. KServe Controller가 요청마다 토큰 생성을 중계하는 구조는 아니다. 앞의 구성도에서 Predictor의 런타임을 vLLM으로 선택하면 두 도구의 역할이 연결된다.
 
 ### 5. 실무에서 가장 먼저 봐야 하는 성능 지표
 
@@ -153,7 +102,7 @@ Metrics / Logs / Traces → SLO 검증 및 알림
 대형 모델은 컨테이너가 실행되어도 가중치 다운로드, GPU 메모리 적재, 엔진 준비가 끝나지 않았을 수 있다. Startup Probe의 충분한 실패 허용시간과 Readiness 조건을 설정해야 초기화 중 불필요한 재시작을 방지한다.
 
 **② GPU RollingUpdate: 새 Pod가 Pending인 경우**  
-GPU 2개가 있는 클러스터에서 GPU Pod 2개가 이미 실행 중인데 `maxSurge: 1`, `maxUnavailable: 0`으로 업데이트하면 새 Pod가 요구하는 추가 GPU를 확보하지 못해 배포가 진행되지 않을 수 있다. 해결책은 배포용 GPU 여유 확보, Blue/Green 환경, 모델 사전 캐싱, 단계별 트래픽 절체 등이다.
+GPU 2개가 있는 클러스터에서 GPU Pod 2개가 이미 실행 중인데 `maxSurge: 1`, `maxUnavailable: 0`으로 업데이트하면 새 Pod가 요구하는 추가 GPU를 확보하지 못해 배포가 진행되지 않을 수 있다. 추가 GPU 여유를 확보하거나, 별도 자원이 있는 Blue/Green 환경을 사용하거나, 가용성 비용을 고려해 기존 Pod를 먼저 줄이는 배포 정책을 선택해야 한다. 모델 사전 캐싱은 기동 시간을 줄이지만 추가 GPU가 없는 스케줄링 문제 자체를 해결하지는 않는다.
 
 **③ 종료 중 스트리밍 응답이 끊기는 경우**  
 LLM 스트리밍 응답은 수 초~수십 초 연결을 유지할 수 있다. Pod가 종료되기 전에 새 요청 수신을 중단하고 기존 요청을 처리하는 draining 전략이 필요하다. `terminationGracePeriodSeconds`만 늘린다고 자동으로 해결되지는 않는다.
@@ -195,4 +144,3 @@ kubectl get deployments,pods,svc -A
 ---
 
 [2주차 학습 정리로 돌아가기](/ml-platform/study-week-02)
-

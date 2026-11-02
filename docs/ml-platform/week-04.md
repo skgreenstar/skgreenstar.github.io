@@ -16,16 +16,18 @@ next:
 **심화 · 운영:** Kubernetes 운영 자동화  
 **핵심 질문:** 실행 상태, 트래픽 수신 준비, 재시작 필요성을 어떻게 구분할까?
 
-## 실습 환경 준비
+## 실행 환경
 
-Docker, kind, kubectl이 필요하다. 실습 파일은 같은 저장소의 [week-02-lab](./week-02-lab/README.md)에 정리했다.
+기존 kind 클러스터 `mlops-lab`과 `week02` 네임스페이스를 사용한다. 이후 명령은 같은 context와 namespace를 명시하는 `k` 함수로 통일한다.
 
 ```bash
-kind create cluster --name ml-platform-week02
-kubectl cluster-info --context kind-ml-platform-week02
-kubectl create namespace week02
-kubectl get nodes -o wide
+kubectl --context kind-mlops-lab create namespace week02 \
+  --dry-run=client -o yaml | kubectl --context kind-mlops-lab apply -f -
+k() { kubectl --context kind-mlops-lab -n week02 "$@"; }
+kubectl --context kind-mlops-lab get nodes -o wide
 ```
+
+실습 앱과 매니페스트는 [week-02-lab](./week-02-lab/README.md)에 정리했다.
 
 ## Kubernetes 운영 자동화
 
@@ -37,38 +39,13 @@ kubectl get nodes -o wide
 
 ![Health Probe 동작](/diagrams/week02-probes.svg)
 
-### 2. Probe 실습: 정상 상태 → 트래픽 중단 → 장애
+### 2. 준비 상태와 실제 요청 경로
 
-실습 코드와 Deployment를 배포한다.
+실습에서는 Pod 내부에서 장애 상태를 바꾸고 Ready 조건·EndpointSlice·재시작 이벤트를 확인했다. Readiness 실패 중에도 컨테이너는 실행될 수 있으며, 해당 주소의 EndpointSlice 준비 조건은 false로 바뀐다.
 
-```bash
-kubectl apply -f docs/ml-platform/week-02-lab/01-app.yaml
-kubectl -n week02 rollout status deployment/probe-demo --timeout=120s
-kubectl -n week02 get pods,svc,endpoints -o wide
-kubectl -n week02 port-forward svc/probe-demo 8080:80
-```
+`kubectl port-forward svc/...`는 Service가 선택한 Pod에 포트 포워딩한다. 실제 ClusterIP 요청의 부하 분산·준비 상태 반영을 검사하는 경로와는 다르다. Service의 요청 성공률을 검증할 때는 별도 클라이언트 Pod에서 Service DNS로 요청하며 상태 변화를 함께 기록한다.
 
-별도 터미널에서:
-
-```bash
-curl -i http://localhost:8080/readyz
-curl -i http://localhost:8080/healthz
-curl -i http://localhost:8080/traffic-off
-kubectl -n week02 get endpoints probe-demo -w
-curl -i --max-time 3 http://localhost:8080/
-```
-
-**주의:** Service를 통한 요청에서 readiness 실패를 유도하면 Pod가 Endpoint에서 빠져 이후 `/traffic-on`에 접근하지 못할 수 있다. `kubectl -n week02 exec deploy/probe-demo -- ...` 로 내부 상태를 바꾸거나 Pod에 직접 port-forward한 후 복구한다.
-
-```bash
-kubectl -n week02 exec deploy/probe-demo -- wget -qO- http://127.0.0.1:8080/traffic-on
-kubectl -n week02 get endpoints probe-demo -w
-kubectl -n week02 exec deploy/probe-demo -- wget -qO- http://127.0.0.1:8080/server-error
-kubectl -n week02 get pods -w
-kubectl -n week02 describe pod -l app=probe-demo
-```
-
-**관찰할 항목:** Ready 전환 시점, Endpoint 주소 변화, Restart Count, Events의 `Unhealthy`, `Killing`. 단일 replica에서는 readiness 실패 중 요청이 불가능할 수 있다.
+이번 Readiness 관찰은 준비 조건 전환과 재시작 여부를 확인한 기록이다. 장애 복구는 Pod 내부 주소의 `/traffic-on`으로 수행했으므로 Service의 준비 상태와 별개로 제어할 수 있었다.
 
 ### 3. RollingUpdate vs Recreate
 
@@ -93,18 +70,9 @@ strategy:
     maxUnavailable: 0
 ```
 
-```bash
-kubectl -n week02 set image deployment/probe-demo app=nginx:1.27-alpine
-kubectl -n week02 rollout status deployment/probe-demo
-kubectl -n week02 rollout history deployment/probe-demo
-kubectl -n week02 rollout undo deployment/probe-demo
-```
+실제 업데이트에서는 이미지·Probe 인터페이스를 유지하고 `LAB_VERSION` 환경변수로 Pod 템플릿만 바꿨다. 뒤의 기록에서 새 Pod의 준비 상태와 기존 Pod의 종료 순서를 비교한다.
 
-::: warning 실습 주의
-위 이미지 변경은 *의도적으로 호환되지 않는 예*다. 기존 app의 포트·Probe 경로와 nginx가 일치하지 않아 rollout이 정상 완료되지 않을 수 있다. 실제 검증에서는 **동일 API를 제공하는 v2 이미지를 제작**하여 업데이트하고, 잘못된 이미지로 인한 실패는 별도 장애 실험으로 구분하자.
-:::
-
-### 4. 기록 표
+### 4. 상태 전환에서 확인한 점
 
 | 테스트 | 예상 현상 | 실행 결과 |
 |---|---|---|
@@ -120,17 +88,9 @@ kubectl -n week02 rollout undo deployment/probe-demo
 
 ### 실행 명령
 
-기존 클러스터에 전용 네임스페이스를 만들고 저장소의 실습 앱을 배포했다.
+같은 context와 namespace에 실습 앱을 배포했다.
 
 ```bash
-kubectl --context kind-mlops-lab create namespace week02 \
-  --dry-run=client -o yaml |
-kubectl --context kind-mlops-lab apply -f -
-
-k() {
-  kubectl --context kind-mlops-lab -n week02 "$@"
-}
-
 k apply -f https://raw.githubusercontent.com/skgreenstar/skgreenstar.github.io/main/docs/ml-platform/week-02-lab/01-app.yaml
 k rollout status deployment/probe-demo --timeout=180s
 k get pods -o wide
@@ -448,4 +408,3 @@ probe-demo-6d7dd5b4b7-54nsz    1/1     Running             0          4s
 ---
 
 [2주차 학습 정리로 돌아가기](/ml-platform/study-week-02)
-
