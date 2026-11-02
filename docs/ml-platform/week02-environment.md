@@ -60,8 +60,8 @@ PVC는 네임스페이스에 속한다. KFP 컴포넌트가 다른 네임스페�
 
 MLflow 서버는 초기 OOMKilled를 확인한 뒤 기동 설정을 보완해 학습 Job을 완료했다. 설정 변경과 복구 후 관측은 [MLflow의 OOM 복구 기록](/ml-platform/mlflow-model-lifecycle)에 정리했다.
 
-## 5. 교재의 환경 도구와 우리 환경의 대응
+## 5. KFP와 Kubeflow의 설치 범위
 
-참고 실습 가이드에서 제공하는 check/up/status/forward는 점검·설치·상태·접속 단계를 묶어주는 편의 기능이다. 우리 환경은 이미 실습 중인 kind 클러스터를 유지하면서 같은 역할을 kubectl과 명시적 YAML로 수행한다. 기존 클러스터를 새 교재 환경으로 초기화할 필요는 없다.
+Kubeflow Pipelines(KFP)는 작업의 순서·입출력·실행 이력을 관리하는 Kubeflow의 구성 요소다. 이 글에서 다루는 범위는 MLflow와 Feast를 연결하는 파이프라인이며, 노트북·인증 등 여러 기능을 함께 제공하는 전체 Kubeflow 플랫폼의 설치와는 구분한다.
 
-KFP 단독 설치와 전체 Kubeflow 설치는 범위가 다르다. GitOps 배포 동기화에 쓰는 Argo CD와 워크플로 실행에 쓰는 Argo Workflows도 역할이 다르다. 설치되는 구성 요소·버전과 실행 namespace를 확인한 후 연결한다.
+참조하는 KFP standalone 구성에서는 Argo Workflows가 워크플로 실행을 담당하고, 각 컴포넌트는 Kubernetes Pod로 실행된다. 파이프라인의 작업 상태는 KFP에서 확인하고, 개별 Pod의 스케줄링·컨테이너 상태·이벤트는 kubectl로 확인한다.
