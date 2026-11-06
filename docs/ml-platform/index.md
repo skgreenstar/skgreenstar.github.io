@@ -66,3 +66,6 @@ HPA·CPU requests·부하 특성·콜드 스타트의 관계와 재현 실험.
 
 ### [10. 요청은 어느 Pod까지 도달하는가?](/ml-platform/week03-traffic)
 Service·DNS·EndpointSlice·Ingress/Gateway API와 Readiness 장애 분석.
+
+### [11. 모델은 정상 응답하는데 왜 예측은 틀릴까?](/ml-platform/week03-model-serving-drift)
+BentoML 모델 서빙, 데이터·예측·컨셉 드리프트, Evidently, 재학습 승인 기준을 연결하는 독자적 확장 학습.
