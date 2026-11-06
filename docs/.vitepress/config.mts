@@ -37,6 +37,11 @@ export default defineConfig({
           { text: '07 · KFP 배치 추론', link: '/ml-platform/kfp-batch-inference' },
           { text: '08 · 결과 검증', link: '/ml-platform/week02-verification' }
         ]},
+        { text: '3주차 · AI 추론 서비스 확장과 트래픽', items: [
+          { text: '학습 정리 · CH6~7', link: '/ml-platform/study-week-03' },
+          { text: '09 · HPA와 추론 부하', link: '/ml-platform/week03-autoscaling' },
+          { text: '10 · Service와 요청 경로', link: '/ml-platform/week03-traffic' }
+        ]},
         { text: '심화 · 운영과 평가', items: [
           { text: '운영 자동화', link: '/ml-platform/week-04' },
           { text: '리소스 관리', link: '/ml-platform/week-05' },

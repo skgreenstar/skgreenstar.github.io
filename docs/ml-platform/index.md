@@ -55,3 +55,14 @@ Requests/Limits·CPU throttling·메모리 OOM·QoS.
 ### [RAG와 Agent의 품질은 어떻게 평가할까?](/ml-platform/evaluation-and-operations)
 Retrieval·Generation·Agent 평가, LLM-as-a-Judge, 배포 승인 기준.
 
+
+## 3주차 · AI 추론 서비스 확장과 트래픽 진단
+
+**[3주차 학습 정리 · CH6~7](/ml-platform/study-week-03)**  
+모델을 제공하는 것에서 한 걸음 더 나아가, CPU·대기 병목과 Ready 엔드포인트를 분리하여 확장과 트래픽 경로를 분석합니다.
+
+### [09. 추론이 느려질 때 Pod부터 늘려야 할까?](/ml-platform/week03-autoscaling)
+HPA·CPU requests·부하 특성·콜드 스타트의 관계와 재현 실험.
+
+### [10. 요청은 어느 Pod까지 도달하는가?](/ml-platform/week03-traffic)
+Service·DNS·EndpointSlice·Ingress/Gateway API와 Readiness 장애 분석.
