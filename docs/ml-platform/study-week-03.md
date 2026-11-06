@@ -137,7 +137,7 @@ kubectl -n week03 get deploy,pod,svc,hpa -o wide
 
 ## 8. 확장 학습 · BentoML과 데이터 드리프트
 
-CH6·7의 서비스 확장·라우팅은 **정상 응답하는 AI 서비스**의 기반이다. 그러나 HTTP 200만으로 예측 품질이 유지되는 것은 아니다. 별도 심화 글 [11. 모델은 정상 응답하는데 왜 예측은 틀릴까?](/ml-platform/week03-model-serving-drift)에서 BentoML 패키징, 입력·예측 드리프트, Concept Drift, Evidently 기반 감시와 재학습 승인 기준을 연결한다. 이는 교재 범위와 구별해 기록한 독자적 확장 학습이다.
+CH6·7의 서비스 확장·라우팅은 **정상 응답하는 AI 서비스**의 기반이다. 그러나 HTTP 200만으로 예측 품질이 유지되는 것은 아니다. 별도 심화 글 [11. 모델은 정상 응답하는데 왜 예측은 틀릴까?](/ml-platform/week03-model-serving-drift)에서 BentoML 패키징, Data Drift·Prediction Drift·Concept Drift와 Model Performance Degradation의 차이, Evidently 기반 감시와 재학습 승인 기준을 연결한다. 이는 교재 범위와 구별해 기록한 독자적 확장 학습이다.
 
 ## 9. 이번 주 결론
 
