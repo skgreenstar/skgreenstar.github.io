@@ -17,15 +17,9 @@ next:
 
 Kubernetes에서 Pod는 애플리케이션 실행 단위이고 Node는 그 실행 용량이다. 둘은 다른 스케일링 대상이다.
 
-```mermaid
-flowchart LR
-  HPA[HPA: replicas 증가] --> POD[더 많은 Pods]
-  POD --> S{스케줄 가능한 자원?}
-  S -->|예| READY[Ready Pod 증가]
-  S -->|아니오| PENDING[Pending]
-  CA[Cluster Autoscaler] --> NODE[새 노드 프로비저닝]
-  NODE --> S
-```
+![HPA · 복제본 수와 실제 서비스 용량의 차이](/images/week03-hpa-architecture.svg)
+
+*이 그림은 개념 관계를 보여주는 학습용 아키텍처이며, 실제 실행·측정 결과가 아닙니다.*
 
 다음 명령은 수동 확장과 스케줄러 판단을 확인한다.
 

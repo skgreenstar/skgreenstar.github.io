@@ -14,19 +14,9 @@ prev:
 
 ## 1. 가용성과 예측 품질은 서로 다른 축이다
 
-```mermaid
-flowchart LR
-  A[MLflow 등록 모델] --> B[BentoML Service]
-  B --> C[Kubernetes Deployment / Service]
-  C --> D[실시간 예측]
-  D --> E[입력 피처와 예측 로그]
-  E --> F[Evidently Drift Report]
-  F --> G{품질 변화의 근거?}
-  G --> H[알림 및 원인 조사]
-  H --> I[재학습 후보 실험]
-  I --> J[검증 및 승인]
-  J --> A
-```
+![BentoML 서빙에서 Data Drift 대응까지](/images/week03-drift-architecture.svg)
+
+*이 그림은 개념 관계를 보여주는 학습용 아키텍처이며, 실제 실행·측정 결과가 아닙니다.*
 
 | 측정 | 질문 | 대표 지표 | 도구 |
 |---|---|---|---|

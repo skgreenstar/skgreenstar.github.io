@@ -14,16 +14,9 @@ prev:
 
 ## 1. 요청 경로를 계층별로 분리한다
 
-```mermaid
-flowchart LR
-  C[Client] --> DNS[외부 DNS]
-  DNS --> ING[Ingress / Gateway Controller]
-  ING --> SVC[ClusterIP Service]
-  SVC --> EP[EndpointSlice]
-  EP --> P1[Ready Pod 1]
-  EP --> P2[Ready Pod 2]
-  EP -. 미준비 제외 .-> P3[NotReady Pod]
-```
+![요청 한 건이 추론 Pod에 도착하기까지](/images/week03-traffic-architecture.svg)
+
+*이 그림은 개념 관계를 보여주는 학습용 아키텍처이며, 실제 실행·측정 결과가 아닙니다.*
 
 | 단계 | 역할 | 검사 질문 |
 |---|---|---|
