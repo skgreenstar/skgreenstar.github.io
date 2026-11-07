@@ -67,5 +67,8 @@ HPA·CPU requests·부하 특성·콜드 스타트의 관계와 재현 실험.
 ### [10. 요청은 어느 Pod까지 도달하는가?](/ml-platform/week03-traffic)
 Service·DNS·EndpointSlice·Ingress/Gateway API와 Readiness 장애 분석.
 
-### [11. BentoML과 모델·데이터 드리프트 이해하기](/ml-platform/week03-model-serving-drift)
-BentoML 모델 서빙, 데이터·예측·컨셉 드리프트, Evidently, 재학습 승인 기준을 연결하는 독자적 확장 학습.
+### [11. BentoML 모델 서빙](/ml-platform/week03-bentoml-serving)
+추론 API 정의, 모델 패키징, MLflow 모델 아티팩트와 Kubernetes 연결 설계.
+
+### [12. 데이터와 모델 드리프트](/ml-platform/week03-model-serving-drift)
+Data Drift·Prediction Drift·Concept Drift·Model Drift를 구분하고 Evidently 기반 모니터링을 설계한다.
