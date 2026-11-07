@@ -12,14 +12,14 @@ next:
 # Week 03 · 느린 추론의 원인은 Pod 수일까, 요청 경로일까?
 
 **교재 범위:** *Machine Learning Platform Engineering* CH6 · Scaling Up / CH7 · Internal Services and Load Balancing  
-**우리의 문제 정의:** Kubernetes에서 제공하는 모델 API가 느려질 때, 확장해야 하는 것은 Pod·Node·모델 서버·네트워크 경로 중 무엇인가?  
-**검증 수준:** 실제로 실행한 기록과 **설계한 실험**을 구분한다. 아직 3주차 kind 부하 실험 수치를 확보하지 않았으므로 정량 결과를 만들어 넣지 않는다.
+**핵심 질문:** Kubernetes에서 제공하는 모델 API가 느려질 때, 확장해야 하는 것은 Pod·Node·모델 서버·네트워크 경로 중 무엇인가?  
+**실습 상태:** 실제로 실행한 기록과 **설계한 실험**을 구분한다. 아직 3주차 kind 부하 실험 수치를 확보하지 않았으므로 정량 결과를 만들어 넣지 않는다.
 
 2주차에서는 MLflow에서 고정된 모델을 선택하고 Feast·KFP에서 동일한 피처·모델 버전으로 예측을 반복하는 흐름을 만들었다. 3주차는 그 다음 질문으로 시작한다. **모델이 정확하고 재현 가능하더라도 추론 서비스가 빠르고 안정적이라는 뜻은 아니다.**
 
 같은 ‘응답 지연’도 CPU 포화, 외부 I/O 대기, 모델 초기 로딩, Pod Pending, DNS 오류, EndpointSlice의 미준비 엔드포인트 등 서로 다른 원인에서 발생한다. 이 원인을 구분하지 않고 HPA의 maxReplicas만 늘리는 것은 문제를 키울 수도 있다.
 
-## 1. 학습 목표: 성능 문제를 네 계층으로 분해한다
+## 1. 추론 지연을 네 계층으로 나눠 진단하기
 
 ![Week 03 · ML 플랫폼 운영 루프](/images/week03-platform-architecture.svg)
 
@@ -33,7 +33,7 @@ next:
 | Pod가 Pending | 자원 부족·taint·affinity·PVC | describe의 FailedScheduling | HPA 최대치만 증가 |
 | Pod는 정상인데 접근 실패 | Service selector·DNS·route | EndpointSlice, CoreDNS, Ingress | 모델 코드 재배포 |
 
-## 2. 이번 주의 원본 범위와 학습 산출물
+## 2. 교재 범위와 실습 구성
 
 | 순서 | 핵심 주제 | 상세 글 | 확인할 증거 |
 |---|---|---|---|
@@ -44,22 +44,11 @@ next:
 | 10-B | Ingress·TLS·Gateway API·트래픽 경로 | [10. Internal services](/ml-platform/week03-traffic) | 라우팅 규칙 및 Controller 상태 |
 | 통합 | CPU 부하 vs I/O 대기 vs 모델 로딩 지연 | [09](/ml-platform/week03-autoscaling) · [10](/ml-platform/week03-traffic) | RPS·p95·오류율·확장 이벤트 |
 
-## 3. 우리만의 실험: 같은 API, 서로 다른 병목
+## 3. 같은 API에서 CPU와 대기 병목 비교
 
 이번 실습은 **학습한 모델을 흉내 내는 합성 API**를 사용한다. 실제 모델의 정확도나 제조 품질 지표를 추론 부하 실험 결과와 혼동하지 않기 위해서다. 동일한 FastAPI 컨테이너에 CPU 계산 경로와 대기 경로를 두고, 같은 Service·Deployment·HPA를 공유하도록 설계했다.
 
-```mermaid
-flowchart LR
-  L[부하 생성기] --> S[ClusterIP Service]
-  S --> P1[FastAPI Pod 1]
-  S --> P2[FastAPI Pod 2]
-  P1 --> C[CPU loop / wait]
-  P2 --> C
-  P1 --> M[metrics-server]
-  P2 --> M
-  M --> H[CPU HPA]
-  H --> D[Deployment replicas]
-```
+![CPU 부하와 대기 부하가 HPA에 미치는 영향](/images/week03-cpu-wait-comparison.svg)
 
 세 가설을 구분한다.
 
@@ -91,7 +80,7 @@ kubectl -n week03 get deploy,pod,svc,hpa -o wide
 
 > `myk8s`는 예시 클러스터 이름이다. `kind get clusters` 결과와 다르면 실제 이름으로 교체한다. metrics-server 설치와 통신이 완료되지 않으면 CPU 기반 HPA 실험이 불가능하다. 또한 macOS에서 `kubectl`과 `kind`를 실행하는 것과 노드 내부 Linux 컨테이너에서 실행하는 것은 별개다.
 
-## 5. 관측값 정의: 성공과 실행 성공은 다르다
+## 5. 관측 지표와 기록 방식
 
 | 관측 항목 | 정의 | 실수하기 쉬운 점 |
 |---|---|---|
@@ -123,7 +112,7 @@ kubectl -n week03 get deploy,pod,svc,hpa -o wide
 | Endpoint 없음 | selector, Pod 상태, readiness 확인 | Service IP 정상이어도 백엔드 0개 가능 |
 | 외부 HTTP 오류 | host/path, controller, TLS, DNS 확인 | Ingress YAML만으로 라우팅 불가 |
 
-## 7. 스터디 토론: 외워서 답하기보다 운영 기준으로 답하기
+## 7. 운영 중 확인할 질문
 
 **Q1. HPA를 걸면 갑작스러운 요청 폭주도 해결될까?** 관측→판단→Pod 생성→스케줄→이미지·모델 로딩→Ready까지 지연이 있다. 최소 replica·예열·부하 차단·큐잉을 함께 고려한다.
 
@@ -135,9 +124,9 @@ kubectl -n week03 get deploy,pod,svc,hpa -o wide
 
 **Q5. Ingress에서 Gateway API로 옮기면 성능이 빨라지나?** API 모델은 라우팅·역할 분리를 개선하지만 성능은 실제 컨트롤러 구현·설정·트래픽 패턴에 따라 달라진다.
 
-## 8. 확장 학습 · BentoML과 Data/Model Drift
+## 8. BentoML 서빙과 모델 모니터링
 
-CH6·7의 서비스 확장·라우팅은 **정상 응답하는 AI 서비스**의 기반이다. 그러나 HTTP 200만으로 예측 품질이 유지되는 것은 아니다. 별도 심화 글 [11. BentoML과 Drift: 데이터와 모델은 무엇이 달라지는가?](/ml-platform/week03-model-serving-drift)에서 BentoML 패키징, Data Drift·Prediction Drift·Concept Drift와 Model Performance Degradation의 차이, Evidently 기반 감시와 재학습 승인 기준을 연결한다. 이는 교재 범위와 구별해 기록한 독자적 확장 학습이다.
+확장과 라우팅은 처리량과 가용성을 다룬다. [11. BentoML 서빙과 모델 모니터링](/ml-platform/week03-model-serving-drift)에서는 별도로 입력 분포, 예측값 분포, 실제 성능을 나누어 확인한다. 교재 CH6~7에서 확장한 응용 학습이다.
 
 ## 9. 이번 주 결론
 

@@ -10,19 +10,19 @@ prev:
 
 **CH7 Internal Services and Load Balancing · 서비스 발견 → 라우팅 → 장애 추적**
 
-많은 Pod를 운영해도 요청이 올바른 Pod로 전달되지 않으면 가용성은 올라가지 않는다. CH7을 **클라이언트가 요청을 보낸 순간부터 Ready 백엔드에 도착할 때까지의 경로**로 읽어 본다.
+Pod 수가 늘어나도 Service가 올바른 백엔드를 선택하지 못하면 요청은 실패한다. DNS부터 서비스 엔드포인트 선택, 외부 HTTP 라우팅까지 순서대로 확인한다.
 
 ## 1. 요청 경로를 계층별로 분리한다
 
 ![요청 한 건이 추론 Pod에 도착하기까지](/images/week03-traffic-architecture.svg)
 
-*이 그림은 개념 관계를 보여주는 학습용 아키텍처이며, 실제 실행·측정 결과가 아닙니다.*
+*트래픽 경로와 컨트롤 플레인의 상태 정보를 함께 표현했다. EndpointSlice는 요청이 직접 통과하는 프록시가 아니다.*
 
 | 단계 | 역할 | 검사 질문 |
 |---|---|---|
 | CoreDNS | 클러스터 내부 서비스 이름 해석 | FQDN이 ClusterIP로 해석되는가? |
 | Service | 안정적인 VIP와 백엔드 연결 | selector가 올바른 Pod를 선택하는가? |
-| EndpointSlice | 대상 endpoint와 condition 정보 | Ready address가 실제로 존재하는가? |
+| EndpointSlice | 백엔드 주소와 readiness 조건 보관 | Ready endpoint가 실제로 존재하는가? |
 | kube-proxy / 네트워크 구현 | 서비스 트래픽 전달 | 정책·프록시 규칙·CNI 영향이 있는가? |
 | Ingress/Gateway | 외부 트래픽 수신·라우팅 | 컨트롤러, host/path, TLS가 정상인가? |
 
@@ -71,23 +71,9 @@ Pod의 `/etc/resolv.conf` search domain, `ndots`로 인한 불필요한 질의, 
 
 ## 4. EndpointSlice와 Readiness의 관계
 
-```mermaid
-sequenceDiagram
-  participant K as Kubelet / Probe
-  participant P as Inference Pod
-  participant E as EndpointSlice
-  participant C as Client
-  K->>P: GET /readyz
-  P-->>K: 503 (warming up)
-  K->>E: condition Ready=false (상태 반영)
-  C->>E: Service 경유 새 연결
-  Note over E,C: 일반적으로 미준비 Endpoint 제외
-  K->>P: GET /readyz
-  P-->>K: 200 (ready)
-  K->>E: condition Ready=true (상태 반영)
-```
+![Readiness와 EndpointSlice 상태의 갱신 과정](/images/week03-readiness-sequence.svg)
 
-**주의:** 다이어그램은 논리 관계다. Kubelet과 EndpointSlice가 직접 HTTP를 주고받는다는 뜻이 아니며, 실제로 컨트롤 플레인과 서비스 프록시가 상태를 반영한다. 또한 기존에 맺어진 연결의 즉시 종료를 보장하지 않는다.
+Kubelet이 readinessProbe 결과를 Pod 상태에 반영하면 컨트롤 플레인이 EndpointSlice 상태를 갱신한다. 서비스 트래픽 전달 계층은 준비된 엔드포인트 정보를 활용하며, 기존 연결을 즉시 끊는다는 뜻은 아니다.
 
 우리 API의 `READY_DELAY_SECONDS` 설정으로 시작 단계의 모델 예열을 *모의*할 수 있다. 같은 Pod에서 readiness를 임의로 토글하는 별도 API는 아직 구현돼 있지 않다.
 
@@ -112,13 +98,7 @@ kubectl -n week03 rollout status deployment/infer-api
 
 2주차 모델 운영 서비스를 여러 컴포넌트로 나누었다고 가정하자.
 
-```mermaid
-flowchart LR
-  API[Inference API] --> FEAT[Feast online feature service]
-  API --> MODEL[Model serving worker]
-  FEAT --> REDIS[(Redis)]
-  MODEL --> OBS[Metrics endpoint]
-```
+![추론 API와 내부 피처 서비스의 호출 관계](/images/week03-internal-services.svg)
 
 서비스 분리에는 서로 다른 배포 주기, 독립 확장, 장애 격리라는 장점이 있다. 그 대가로 네트워크 왕복, 인증, timeout, 재시도, 버전 호환성 문제가 생긴다. 특히 Agent처럼 다단계 요청을 호출할 경우 타임아웃과 재시도의 곱셈 효과를 계산해야 한다.
 
@@ -174,15 +154,7 @@ kubectl -n week03 create secret tls infer-tls \
 | ReferenceGrant | 허용된 교차 namespace 참조 | 다른 namespace의 backend 참조 |
 | Service | 최종 backend | infer-api:80 |
 
-```mermaid
-flowchart LR
-  I[Infrastructure / Controller] --> GC[GatewayClass]
-  O[Cluster Operator] --> G[Gateway / listeners]
-  D[Application Developer] --> R[HTTPRoute]
-  GC --> G
-  G --> R
-  R --> S[Service]
-```
+![GatewayClass · Gateway · HTTPRoute의 관계](/images/week03-gateway-roles.svg)
 
 운영 전략상 여러 팀이 공용 Gateway를 쓰고 각 팀이 자신의 HTTPRoute를 관리하게 하는 구조를 생각할 수 있다. 다만 실제 분리와 권한 모델은 `allowedRoutes`, RBAC, Controller 정책에 달려 있다. Gateway API 리소스만 설치했다고 보안 격리가 완성되는 것은 아니다.
 
@@ -192,20 +164,9 @@ flowchart LR
 - 여러 팀의 역할 분리, 복잡한 라우팅 정책, 확장 가능한 공용 진입점이 필요하면 Gateway API를 검토한다.
 - **성능 비교는 실제 Controller, 동시성, 요청 크기, TLS 조건을 통제한 다음**에 가능하다. Gateway API 사용 자체가 지연 감소를 보장하지 않는다.
 
-## 8. 장애 진단 순서: 한 번에 하나씩 의심한다
+## 8. 요청 실패 시 진단 순서
 
-```mermaid
-flowchart TD
- A[요청 실패] --> B{Pod 자체 응답?}
- B -->|아니오| C[App / readiness / 모델]
- B -->|예| D{Service endpoint 존재?}
- D -->|아니오| E[selector / EndpointSlice / Ready]
- D -->|예| F{내부 DNS와 ClusterIP 접근?}
- F -->|아니오| G[CoreDNS / NetworkPolicy / CNI]
- F -->|예| H{외부 진입만 실패?}
- H -->|예| I[Ingress·Gateway / host / TLS]
- H -->|아니오| J[부하·커넥션·추적 로그]
-```
+![추론 요청 실패 시 진단 순서](/images/week03-traffic-diagnosis.svg)
 
 이 순서로 로그·이벤트·메트릭을 확보하면 '모델 서버가 느리다'와 '모델 서버까지 요청이 도착하지 않았다'를 구분할 수 있다.
 

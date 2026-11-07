@@ -13,7 +13,7 @@ next:
 
 **CH6 Scaling Up · 이론 → 실험 조건 → 운영 검증**
 
-## 1. 수평 확장의 첫 번째 함정
+## 1. Pod 확장과 노드 용량
 
 Kubernetes에서 Pod는 애플리케이션 실행 단위이고 Node는 그 실행 용량이다. 둘은 다른 스케일링 대상이다.
 
@@ -21,9 +21,10 @@ Kubernetes에서 Pod는 애플리케이션 실행 단위이고 Node는 그 실�
 
 *이 그림은 개념 관계를 보여주는 학습용 아키텍처이며, 실제 실행·측정 결과가 아닙니다.*
 
-다음 명령은 수동 확장과 스케줄러 판단을 확인한다.
+HPA가 관리하는 Deployment에서는 수동으로 replicas를 조정해도 HPA가 다시 바꿀 수 있다. 따라서 아래 수동 확장 실험은 HPA 리소스를 제거한 상태에서 진행한다. 이후 CPU 기반 자동 확장 실험에서는 HPA를 다시 적용한다.
 
 ```bash
+kubectl -n week03 delete hpa infer-api --ignore-not-found
 kubectl -n week03 scale deployment infer-api --replicas=4
 kubectl -n week03 get deploy,rs,pod -o wide
 kubectl -n week03 get events --sort-by=.metadata.creationTimestamp
@@ -36,9 +37,11 @@ kubectl -n week03 describe pod <PENDING_POD_NAME>
 
 HPA가 CPU utilization을 이용하는 경우 설명 가능한 기본 계산식은 다음과 같다.
 
-`desiredReplicas = ceil(currentReplicas × currentUtilization / targetUtilization)`
+$
+r_{\mathrm{desired}} = \left\lceil r_{\mathrm{current}}\frac{u_{\mathrm{observed}}}{u_{\mathrm{target}}}\right\rceil
+$
 
-- 2개 Pod, 사용률 80%, 목표 50%라면 단순 계산상 `ceil(2×80/50)=4`다.
+- 2개 Pod, 평균 CPU 사용률 80%, 목표 50%라면 단순 계산상의 목표는 4개다.
 - 사용률은 CPU **limit이 아니라 CPU request** 대비 값이다.
 - 이 계산은 실제 HPA의 모든 동작을 설명하지 않는다. tolerance, 메트릭 누락, 시작 초기화, min/max와 scale 정책이 결과를 바꾼다.
 - `kubectl get hpa`의 TARGETS와 `kubectl describe hpa`의 Conditions/Events를 함께 본다.
@@ -96,7 +99,7 @@ python3 labs/week03/load.py --url 'http://127.0.0.1:8080/infer?mode=wait&wait_ms
 
 **실험 설계의 중요한 한계:** `300`회 일회성 부하만으로 HPA 증설을 확인할 수 있다고 보장하지 않는다. 실제 비교에서는 일정 시간 지속 부하를 걸고 HPA 관측 주기와 Pod 준비 시간을 포함한다. port-forward와 부하 발생기 자체가 병목이면 결과를 폐기하거나 조건을 바꾼다.
 
-### 반드시 수집할 지표
+### 측정 항목
 
 | 항목 | 이유 | 수집 방법 |
 |---|---|---|
@@ -109,25 +112,17 @@ python3 labs/week03/load.py --url 'http://127.0.0.1:8080/infer?mode=wait&wait_ms
 
 `load.py`의 p95는 실패 요청 시간까지 포함한 전체 완료 요청의 분위수다. **성공 요청만의 p95를 따로 계산하지 않으므로** 다른 벤치마크와 직접 비교할 때 이 조건을 밝혀야 한다.
 
-## 4. HPA의 사각지대: CPU가 낮은데 p95가 높다
+## 4. CPU 사용률과 응답 지연이 일치하지 않는 경우
 
-RAG·Agent는 벡터 검색, DB 조회, 외부 LLM API 호출처럼 I/O를 기다리는 시간이 길 수 있다. 이때 CPU만 보고 복제본을 늘리지 않는 것이 이상한 동작은 아니다. **HPA가 모니터링하는 지표가 사용자의 실제 병목을 대표하지 못한 것**이다.
+RAG·Agent는 벡터 검색, DB 조회, 외부 LLM API 호출처럼 I/O를 기다리는 시간이 길 수 있다. 이때 CPU만 보고 복제본을 늘리지 않는 것이 이상한 동작은 아니다. CPU 사용률만으로 실제 대기 시간을 설명하기 어렵기 때문이다.
 
-```mermaid
-flowchart LR
-  A[request] --> B[retrieval / external API waiting]
-  B --> C[CPU low]
-  B --> D[latency high]
-  C --> H[CPU-based HPA: little change]
-  D --> M[Queue / in-flight / p95 signals]
-  M --> E[Custom metrics adapter / KEDA 등 검토]
-```
+![CPU 사용률이 낮아도 추론 대기 시간이 길 수 있는 이유](/images/week03-cpu-wait-comparison.svg)
 
 커스텀/외부 메트릭을 쓰려면 단순히 Prometheus를 설치하는 것만으로 끝나지 않는다. 어댑터와 적절한 API 등록, metric 이름·selector·권한·실제 샘플이 모두 필요하다. 현재 저장소 예제에는 이 어댑터가 **구현돼 있지 않다**.
 
 ## 5. Prometheus와 Grafana: 측정 시스템의 계층 구분
 
-노션의 실습에는 kube-prometheus-stack, kube-state-metrics, node-exporter, kubelet metrics, Grafana dashboard가 등장한다. 각 컴포넌트가 보는 대상을 혼동하지 않는다.
+모니터링에서는 리소스 사용량, Kubernetes 객체 상태, 애플리케이션 지표를 구분해야 한다. metrics-server는 HPA용 리소스 메트릭을 제공하지만 범용 시계열 저장소는 아니다.
 
 | 구성 | 무엇을 보는가 | AI 서비스에서의 활용 |
 |---|---|---|
@@ -156,12 +151,7 @@ VPA의 CPU 조정과 CPU HPA를 결합할 때는 둘이 같은 자원 기반으�
 
 ### Placeholder Pod를 쓰는 이유
 
-```mermaid
-flowchart LR
-  P[Low-priority placeholder] --> N[미리 확보된 Node 용량]
-  R[High-priority inference Pod] --> E[placeholder 선점]
-  E --> N
-```
+![Placeholder Pod가 제공하는 선점 가능한 여유 공간](/images/week03-placeholder-scheduling.svg)
 
 단순히 PriorityClass를 정의한다고 노드가 예약되는 것은 아니다. 실제 낮은 우선순위 Pod를 스케줄해야 하고, 우선순위·선점·PDB·비용 정책이 맞아야 한다. GPU 모델의 길고 비싼 warmup에는 별도의 예열 전략이 필요할 수 있다.
 
@@ -174,7 +164,7 @@ flowchart LR
 
 AI 추론에서는 ‘stateless’가 모델을 메모리에 올리지 않는다는 뜻이 아니다. 모델 가중치는 메모리 캐시로 존재할 수 있지만 **요청의 정합성을 로컬 Pod에만 의존하지 않도록 설계**해야 한다.
 
-## 8. 현업에서 결론 내릴 때
+## 8. 증상별 확인 순서
 
 | 증상 | 성급한 해석 | 더 나은 판단 |
 |---|---|---|
