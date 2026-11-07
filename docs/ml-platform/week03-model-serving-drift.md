@@ -179,13 +179,13 @@ Data Drift는 입력의 변화, Concept Drift는 현실의 관계 변화, 성능
 
 모델의 예측값을 $\hat y_i$, 이후 관측된 실제값을 $y_i$, 평가 표본 수를 $n$으로 둔다.
 
-$
+$$
 \begin{aligned}
 \mathrm{MAE} &= \frac{1}{n}\sum_{i=1}^{n}|y_i-\hat y_i| \\[6pt]
 \mathrm{RMSE} &= \sqrt{\frac{1}{n}\sum_{i=1}^{n}(y_i-\hat y_i)^2} \\[6pt]
 R^2 &= 1-\frac{\sum_{i=1}^{n}(y_i-\hat y_i)^2}{\sum_{i=1}^{n}(y_i-\bar y)^2}
 \end{aligned}
-$
+$$
 
 MAE는 평균적인 절대 오차를, RMSE는 큰 오차에 더 민감한 값을 보여준다. $R^2$는 비교 구간의 실제값 분산을 기준으로 예측력을 해석하는 지표다. **평가 대상 구간의 분포가 달라지면 $R^2$도 함께 영향을 받으므로 MAE·RMSE와 같이 읽는다.**
 
