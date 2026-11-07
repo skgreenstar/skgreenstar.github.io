@@ -135,9 +135,9 @@ kubectl -n week03 get deploy,pod,svc,hpa -o wide
 
 **Q5. Ingress에서 Gateway API로 옮기면 성능이 빨라지나?** API 모델은 라우팅·역할 분리를 개선하지만 성능은 실제 컨트롤러 구현·설정·트래픽 패턴에 따라 달라진다.
 
-## 8. 확장 학습 · BentoML과 데이터 드리프트
+## 8. 확장 학습 · BentoML과 Data/Model Drift
 
-CH6·7의 서비스 확장·라우팅은 **정상 응답하는 AI 서비스**의 기반이다. 그러나 HTTP 200만으로 예측 품질이 유지되는 것은 아니다. 별도 심화 글 [11. 모델은 정상 응답하는데 왜 예측은 틀릴까?](/ml-platform/week03-model-serving-drift)에서 BentoML 패키징, Data Drift·Prediction Drift·Concept Drift와 Model Performance Degradation의 차이, Evidently 기반 감시와 재학습 승인 기준을 연결한다. 이는 교재 범위와 구별해 기록한 독자적 확장 학습이다.
+CH6·7의 서비스 확장·라우팅은 **정상 응답하는 AI 서비스**의 기반이다. 그러나 HTTP 200만으로 예측 품질이 유지되는 것은 아니다. 별도 심화 글 [11. BentoML과 Drift: 데이터와 모델은 무엇이 달라지는가?](/ml-platform/week03-model-serving-drift)에서 BentoML 패키징, Data Drift·Prediction Drift·Concept Drift와 Model Performance Degradation의 차이, Evidently 기반 감시와 재학습 승인 기준을 연결한다. 이는 교재 범위와 구별해 기록한 독자적 확장 학습이다.
 
 ## 9. 이번 주 결론
 

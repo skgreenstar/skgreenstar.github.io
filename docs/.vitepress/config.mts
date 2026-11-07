@@ -41,7 +41,7 @@ export default defineConfig({
           { text: '학습 정리 · CH6~7', link: '/ml-platform/study-week-03' },
           { text: '09 · HPA와 추론 부하', link: '/ml-platform/week03-autoscaling' },
           { text: '10 · Service와 요청 경로', link: '/ml-platform/week03-traffic' },
-          { text: '11 · BentoML과 Data Drift', link: '/ml-platform/week03-model-serving-drift' }
+          { text: '11 · BentoML과 Model/Data Drift', link: '/ml-platform/week03-model-serving-drift' }
         ]},
         { text: '심화 · 운영과 평가', items: [
           { text: '운영 자동화', link: '/ml-platform/week-04' },
