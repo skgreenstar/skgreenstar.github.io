@@ -1,69 +1,18 @@
 ---
-title: "11 · BentoML 서빙과 모델 모니터링"
+title: "12 · 데이터와 모델 드리프트"
 outline: deep
 prev:
-  text: '10 · 요청 경로'
-  link: '/ml-platform/week03-traffic'
+  text: '11 · BentoML 모델 서빙'
+  link: '/ml-platform/week03-bentoml-serving'
 ---
 
-# 11 · BentoML 서빙과 모델 모니터링
+# 12 · 데이터와 모델 드리프트
 
-BentoML로 모델을 API 형태로 제공하고, 운영 데이터와 모델 성능의 변화를 어떻게 감시할지 정리했다. 실습 모델은 제조 품질 회귀 문제를 기준으로 한다.
+모델 API가 정상 응답해도 입력 데이터의 성격이나 예측 성능은 달라질 수 있다. 여기서는 Data Drift, Prediction Drift, Concept Drift, Model Drift를 각각 구분하고, 운영 환경에서 확인할 지표와 분석 순서를 정리한다.
 
-6~7장에서 다룬 배포와 트래픽 처리는 서비스의 가용성을 높인다. 하지만 API가 정상 응답하더라도 입력 데이터가 달라지거나 예측 품질이 떨어질 수 있다. 이러한 변화는 서빙 지표와 별도로 관찰해야 한다.
+BentoML을 이용한 API 구성과 패키징은 [11 · BentoML 모델 서빙](/ml-platform/week03-bentoml-serving)에서 다룬다.
 
-## 1. 서빙 상태와 예측 성능은 별도로 확인한다
-
-![BentoML 서빙에서 Data Drift 대응까지](/images/week03-drift-architecture.svg)
-
-*모델 관리와 운영 모니터링의 연결 구조.*
-
-| 측정 | 질문 | 대표 지표 | 도구 |
-|---|---|---|---|
-| 서비스 신뢰성 | 응답이 정상 도착했나? | RPS, p95, 5xx | Prometheus, Grafana |
-| 인프라 용량 | 부하를 감당하나? | CPU, memory, HPA replicas | Kubernetes |
-| 데이터 건강성 | 입력 조건이 바뀌었나? | 결측률, 범위 위반, 분포 차이 | Evidently |
-| 모델 품질 | 예측이 실제 정답과 일치하나? | RMSE, MAE, MAPE, R² | MLflow, 정답 지연 수집 |
-
-HTTP 응답 코드나 p95 지연만으로는 예측이 정확한지 알 수 없다. 입력 분포의 변화와 실제 예측 오차도 분리해서 기록한다.
-
-## 2. BentoML: 모델 코드에서 재현 가능한 API로
-
-BentoML은 `@bentoml.service`와 `@bentoml.api`로 모델 추론 인터페이스를 정의하고, 서빙 환경을 패키징하여 실행하는 프레임워크다. Kubernetes의 Service·HPA 자체를 대체하는 도구는 아니다. **BentoML은 애플리케이션 서빙 계층, Kubernetes는 배치·네트워킹·스케일링 계층**이라는 책임 분리가 중요하다.
-
-```python
-# 개념 예제: 실제 제조 모델이 아닌 합성 점수 서비스
-import bentoml
-
-@bentoml.service(resources={"cpu": "1"}, traffic={"timeout": 10})
-class QualityScore:
-    @bentoml.api
-    def predict(self, temperature: float, pressure: float, speed: float) -> float:
-        return float(0.2 * temperature + 0.3 * pressure + 0.5 * speed)
-```
-
-```bash
-# 독립 가상환경에서 공식 문서 버전에 맞춰 설치
-python3 -m venv .venv
-source .venv/bin/activate
-pip install bentoml
-bentoml serve service:QualityScore
-```
-
-위 식은 서빙 구조 설명을 위한 예제이며 학습 모델도 실측 결과도 아니다. 실제 2주차 RandomForest를 연결한다면 모델 버전 URI, 입력 피처 순서, 자료형, 예측 로그의 모델 ID를 고정해야 한다. `bentoml build`·`containerize`는 사용하는 BentoML 버전의 권장 패키징 방식을 먼저 확인한다.
-
-### FastAPI / BentoML / KServe / vLLM의 책임
-
-| 도구 | 핵심 책임 | 채택 기준 |
-|---|---|---|
-| FastAPI | 범용 Python API | 자유로운 API 구현·기존 웹 서비스 통합 |
-| BentoML | ML 서빙 API와 패키징 | 모델 중심 서비스 관리·배포 구조 |
-| KServe | Kubernetes 모델 서빙 추상화 | 여러 모델·팀의 서빙 운영 표준화 |
-| vLLM | LLM 토큰 생성 엔진 | GPU 추론·배칭·KV 캐시 효율 최적화 |
-
-도구를 함께 사용할 수 있지만 모델 패키징, 서빙 엔진, Kubernetes 사이의 중복 기능과 운영 비용을 확인해야 한다.
-
-## 3. Drift: 무엇이 달라졌는지부터 확인
+## 1. Drift: 무엇이 달라졌는지부터 확인
 
 Drift는 기준 시점과 현재 시점 사이에서 관측되는 변화다. 모델 운영에서는 데이터 분포, 예측값 분포, 입력과 정답의 관계, 모델 성능을 각각 살핀다. 어떤 항목이 변했는지 먼저 확인해야 원인과 대응을 구분할 수 있다.
 
@@ -85,7 +34,7 @@ Drift는 기준 시점과 현재 시점 사이에서 관측되는 변화다. 모
 
 *입력·출력·실제 성능의 관계. 화살표는 가능한 영향 경로를 표시한다.*
 
-## 4. Data Drift: 입력 분포의 변화
+## 2. Data Drift: 입력 분포의 변화
 
 ### 정의와 발생 원인
 
@@ -115,7 +64,7 @@ Drift는 기준 시점과 현재 시점 사이에서 관측되는 변화다. 모
 
 학습 구간과 다른 입력이 들어왔다는 **Data Drift 신호**는 발생할 수 있다. 하지만 학습한 모델이 새로운 범위에서도 품질을 정확히 예측한다면 **Model Drift(성능 저하)는 발생하지 않았을 수 있다.** 먼저 입력 차이가 실제 품질 오차에 영향을 주는지 확인한다.
 
-## 5. Prediction Drift: 예측값 분포의 변화
+## 3. Prediction Drift: 예측값 분포의 변화
 
 ### 정의와 운영 역할
 
@@ -133,7 +82,7 @@ Drift는 기준 시점과 현재 시점 사이에서 관측되는 변화다. 모
 
 실제 품질 점수도 같은 방향으로 올라갔는지 판단하려면 **실제 라벨 $Y$**이 필요하다.
 
-## 6. Concept Drift: 입력과 실제 결과의 관계 변화
+## 4. Concept Drift: 입력과 실제 결과의 관계 변화
 
 ### 정의와 발생 원인
 
@@ -154,7 +103,7 @@ Drift는 기준 시점과 현재 시점 사이에서 관측되는 변화다. 모
 
 Concept Drift를 의심한다고 무조건 모델을 재학습하면 안 된다. 센서 측정 변경, 실제 라벨의 기준 변경, 피처 전처리 버그도 동일한 현상처럼 보일 수 있기 때문이다.
 
-## 7. Model Drift: 운영 중 모델 성능의 저하
+## 5. Model Drift: 운영 중 모델 성능의 저하
 
 ### 용어의 범위
 
@@ -202,7 +151,7 @@ MAE는 평균적인 절대 오차를, RMSE는 큰 오차에 더 민감한 값을
 
 오차가 증가한 사실과 원인은 따로 기록한다. 입력 분포, 조건부 관계, 전처리 버전, 라벨 품질을 확인한 뒤 조치한다.
 
-## 8. Training–Serving Skew: 학습과 서빙의 불일치
+## 6. Training–Serving Skew: 학습과 서빙의 불일치
 
 **Training–Serving Skew**는 학습과 서빙에서 피처 생성 방식, 단위, 스키마, 피처 순서, 결측 처리 또는 코드 버전이 일치하지 않는 문제다. 반드시 시간에 따라 서서히 변하는 드리프트는 아니다.
 
@@ -210,7 +159,7 @@ MAE는 평균적인 절대 오차를, RMSE는 큰 오차에 더 민감한 값을
 
 **운영 역할:** MLflow 모델 아티팩트, Feast 피처 정의, BentoML 요청 스키마와 전처리 코드가 학습 시점의 계약과 일치하는지 검증한다.
 
-## 9. 드리프트 유형 비교
+## 7. 드리프트 유형 비교
 
 ![Drift 분포·성능별 비교 도식](/images/week03-drift-types.svg)
 
@@ -234,13 +183,13 @@ MAE는 평균적인 절대 오차를, RMSE는 큰 오차에 더 민감한 값을
 
 데이터 계약 검증, 입력·출력 분포 비교, 정답 기반 성능 평가, 원인 조사 순으로 진행하면 불필요한 모델 교체를 줄일 수 있다.
 
-## 10. 드리프트 모니터링 구성
+## 8. 드리프트 모니터링 구성
 
 ![라벨 유무에 따른 드리프트 모니터링 및 대응 흐름도](/images/week03-drift-decision.svg)
 
 *제조 공정에서 실제 품질 라벨을 늦게 확보하는 상황을 가정한 분석 흐름.*
 
-### 10.1 라벨이 없어도 확인 가능한 항목
+### 8.1 라벨이 없어도 확인 가능한 항목
 
 - 입력 피처의 레퍼런스 대비 분포, 결측 비율, 데이터 타입, 물리적 허용 범위
 - 모델 예측값 분포 및 예측 확률 변화
@@ -249,13 +198,13 @@ MAE는 평균적인 절대 오차를, RMSE는 큰 오차에 더 민감한 값을
 
 이는 **위험 신호(Proxy)**다. 정답이 없으면 RMSE를 직접 측정할 수 없으므로 데이터 드리프트만으로 성능이 나빠졌다고 단언하지 않는다.
 
-### 10.2 실제 품질 라벨을 확보한 뒤
+### 8.2 실제 품질 라벨을 확보한 뒤
 
 이 구간에서도 앞서 정의한 MAE, RMSE, $R^2$를 사용한다. 특히 운영 데이터의 라벨이 지연되는 경우에는 예측 시점과 실제 품질 측정 시점을 동일한 생산 Lot·설비 식별자로 연결해야 한다.
 
 각 지표를 **학습/검증 기준선과 운영 기간, 라인·제품별로** 비교한다. 라벨이 일정 기간 지연되어 들어오는 제조 환경에서는 **예측 발생 시점과 실제 품질 측정 시점을 entity_id로 결합**해야 한다. 예측 당시에는 없던 미래 피처를 붙이면 누수가 발생한다.
 
-### 10.3 관측 결과에 따른 대응
+### 8.3 관측 결과에 따른 대응
 
 | 관찰 | 가능한 원인 | 우선 조치 |
 |---|---|---|
@@ -266,7 +215,7 @@ MAE는 평균적인 절대 오차를, RMSE는 큰 오차에 더 민감한 값을
 | 예측값 변화 없음, 성능 저하 | 숨겨진 Concept Drift 가능 | 실제 라벨·잔차·세그먼트 분석 |
 | 모델 성능 정상, p95 지연 증가 | 서빙/네트워크/용량 문제 | HPA·큐·Pod·Endpoint 확인 |
 
-### 10.4 모니터링 대상
+### 8.4 모니터링 대상
 
 - **Input Monitoring:** Evidently 등으로 feature drift·데이터 품질 검사.
 - **Output Monitoring:** 예측 점수/등급/확률 분포 모니터링.
@@ -275,13 +224,13 @@ MAE는 평균적인 절대 오차를, RMSE는 큰 오차에 더 민감한 값을
 
 분포 비교를 제공하는 도구로 Evidently를 사용할 수 있지만, **실제 성능 검증을 하려면 라벨과 모델 예측을 별도로 연결**해야 한다. 자동 재학습의 실행 여부는 품질 게이트에서 판단한다.
 
-### 10.5 통계적 변화와 업무 영향
+### 8.5 통계적 변화와 업무 영향
 
 PSI·KS 등의 분포 검정은 기준 기간 선택, 표본 크기, 세그먼트 구성에 민감하다. 동일한 분포에서도 표본이 매우 크면 미세한 변화를 감지할 수 있고, 표본이 작으면 중요한 변화를 놓칠 수 있다. **통계적 변화량·업무적 영향·모델 성능**을 함께 판단한다.
 
 관련 근거: [IBM Model Drift](https://www.ibm.com/think/topics/model-drift), [Evidently ML Observability](https://learn.evidentlyai.com/ml-observability-course/module-2-ml-monitoring-metrics/data-prediction-drift-in-ml), [IEEE Concept Drift](https://technav.ieee.org/topic/concept-drift/).
 
-## 11. Evidently를 이용한 분포 비교
+## 9. Evidently를 이용한 분포 비교
 
 Evidently는 reference dataset과 current dataset을 비교해 입력·출력 분포의 변화를 분석하고 리포트로 출력한다. 도구 버전에 따라 API가 달라지므로 이전 `DataDriftPreset` 문법을 무조건 최신 버전으로 가정하지 않는다.
 
@@ -315,7 +264,7 @@ result.save_html("drift-report.html")
 
 데이터 드리프트의 검정 임계값과 표본 크기는 탐지 민감도에 영향을 준다. 여러 피처를 동시에 검사할 때 다중 비교와 계절성도 검토한다. 실제 품질 이슈의 크기와 통계적 유의성을 구분해야 한다.
 
-## 12. 경보 이후의 판단
+## 10. 경보 이후의 판단
 
 단일 drift flag로 재학습을 바로 실행하면 불필요한 배포·학습 비용이나 잘못된 모델 교체로 이어질 수 있다. 운영 정책은 **관찰 → 검증 → 후보 모델 생성 → 오프라인 비교 → 배포 승인 → 카나리 검증** 순서로 설계한다.
 
@@ -327,21 +276,21 @@ result.save_html("drift-report.html")
 | Drift 감지 + 성능 정상 | 모니터링 강화, 즉각 배포 보류 가능 |
 | 서비스 오류율 증가 + Drift 없음 | 서빙·네트워크·자원 문제 우선 |
 
-## 13. 2주차 구성과 연결하는 방법
+## 11. 2주차 구성과 연결하는 방법
 
 - **MLflow:** 학습 run, 모델 버전, 선정 이유, 원본 해시
 - **Feast:** entity, event_timestamp, feature names, online/offline 기준
 - **KFP:** 검증 단계, 예측 파일, drift report artifact의 입출력 계약
-- **BentoML:** 추론 API 스키마와 고정 모델 아티팩트 로딩
+- **모델 서빙(BentoML):** 추론 API 스키마와 고정 모델 아티팩트 로딩
 - **Evidently:** reference/current 메타데이터, 피처 별 결과, 리포트 생성 시점
 - **Kubernetes:** 이미지 다이제스트, Service 경로, replica/Ready 및 운영 지표
 
 모델 품질 이력을 확인하려면 각 예측에 모델 버전·데이터 시각·요청 추적 ID를 연결해야 한다. 다만 개인정보나 민감한 원문 데이터를 모니터링 로그에 그대로 남기는 설계는 피한다.
 
-## 14. 실습 범위와 확인할 결과
+## 12. 실습 범위와 확인할 결과
 
-여기까지는 구현 방향과 검증 절차를 정리한 단계다. BentoML 서빙, Evidently 리포트 생성, Kubernetes 배포를 실제로 실행한 기록은 별도로 확보해야 한다. 후속 실습에서는 패키지 버전, 입력 데이터, 실행 로그, 생성 리포트, 실패 사례를 함께 남긴다.
+여기까지는 드리프트 탐지와 성능 검증의 설계 단계다. Evidently 리포트 생성과 Kubernetes에서의 실제 모니터링 결과는 별도로 확보해야 한다. 후속 실습에서는 패키지 버전, 입력 데이터, 실행 로그, 생성 리포트, 실패 사례를 함께 남긴다.
 
 [3주차 학습 정리](/ml-platform/study-week-03)
 
-공식 참고: [BentoML Service](https://docs.bentoml.com/en/latest/build-with-bentoml/services.html), [Bento Packaging](https://docs.bentoml.com/en/latest/get-started/packaging-for-deployment.html), [Evidently Docs](https://docs.evidentlyai.com/), [Evidently API](https://evidentlyai.github.io/evidently/api-reference/main/evidently/core/report.html)
+공식 참고: [Evidently Docs](https://docs.evidentlyai.com/) · [Evidently API](https://evidentlyai.github.io/evidently/api-reference/main/evidently/core/report.html)

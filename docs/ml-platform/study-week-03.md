@@ -124,9 +124,9 @@ kubectl -n week03 get deploy,pod,svc,hpa -o wide
 
 **Q5. Ingress에서 Gateway API로 옮기면 성능이 빨라지나?** API 모델은 라우팅·역할 분리를 개선하지만 성능은 실제 컨트롤러 구현·설정·트래픽 패턴에 따라 달라진다.
 
-## 8. BentoML 서빙과 모델 모니터링
+## 8. 모델 서빙과 드리프트 모니터링
 
-확장과 라우팅은 처리량과 가용성을 다룬다. [11. BentoML 서빙과 모델 모니터링](/ml-platform/week03-model-serving-drift)에서는 별도로 입력 분포, 예측값 분포, 실제 성능을 나누어 확인한다. 교재 CH6~7에서 확장한 응용 학습이다.
+확장과 라우팅은 처리량과 가용성을 다룬다. [11. BentoML 모델 서빙](/ml-platform/week03-bentoml-serving)에서는 모델 API의 구성과 패키징을 정리하고, [12. 데이터와 모델 드리프트](/ml-platform/week03-model-serving-drift)에서는 입력 분포, 예측값 분포, 실제 성능의 변화를 구별한다. 두 글은 CH6~7을 확장한 응용 학습이다.
 
 ## 9. 이번 주 결론
 
