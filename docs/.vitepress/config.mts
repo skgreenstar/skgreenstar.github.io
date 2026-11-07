@@ -8,6 +8,7 @@ export default defineConfig({
   appearance: false,
   lastUpdated: true,
   head: [['meta', { name: 'theme-color', content: '#ffffff' }]],
+  markdown: { math: true },
   themeConfig: {
     logo: '/logo.svg',
     siteTitle: 'Heemin / Engineering',
