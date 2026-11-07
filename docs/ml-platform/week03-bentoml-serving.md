@@ -21,7 +21,7 @@ Kubernetes의 Deployment·Service·HPA는 애플리케이션을 배치하고 연
 
 ## 2. BentoML: 모델 코드에서 재현 가능한 API로
 
-BentoML은 `@bentoml.service`와 `@bentoml.api`로 모델 추론 인터페이스를 정의하고, 서빙 환경을 패키징하여 실행하는 프레임워크다. Kubernetes의 Service·HPA 자체를 대체하는 도구는 아니다. **BentoML은 애플리케이션 서빙 계층, Kubernetes는 배치·네트워킹·스케일링 계층**이라는 책임 분리가 중요하다.
+BentoML은 `@bentoml.service`와 `@bentoml.api`로 모델 추론 인터페이스를 정의하고, 서빙 환경을 패키징하여 실행하는 프레임워크다. Kubernetes의 Service·HPA 자체를 대체하는 도구는 아니다. BentoML은 애플리케이션 서빙 계층, Kubernetes는 배치·네트워킹·스케일링 계층이라는 책임 분리가 중요하다.
 
 ```python
 # 개념 예제: 실제 제조 모델이 아닌 합성 점수 서비스
@@ -77,7 +77,7 @@ bentoml serve service:QualityScore
 4. 컨테이너로 패키징한 뒤 Kubernetes Deployment·Service에 연결한다.
 5. 모델 로딩 전후의 readiness와 응답 지연을 구분해 기록한다.
 
-여기까지는 **실습 절차를 설계한 단계**다. 위에 작성한 `QualityScore` 서비스도 실제 학습 모델이 아니라 추론 인터페이스를 설명하기 위한 간단한 예제다.
+여기까지는 실습 절차를 설계한 단계다. 위에 작성한 `QualityScore` 서비스도 실제 학습 모델이 아니라 추론 인터페이스를 설명하기 위한 간단한 예제다.
 
 ## 4. 서빙 이후의 운영 검증
 

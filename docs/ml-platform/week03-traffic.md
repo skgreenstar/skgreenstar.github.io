@@ -8,7 +8,7 @@ prev:
 
 # 10 · 요청은 어느 Pod까지 도달하는가?
 
-**CH7 Internal Services and Load Balancing · 서비스 발견 → 라우팅 → 장애 추적**
+CH7 Internal Services and Load Balancing · 서비스 발견 → 라우팅 → 장애 추적
 
 Pod 수가 늘어나도 Service가 올바른 백엔드를 선택하지 못하면 요청은 실패한다. DNS부터 서비스 엔드포인트 선택, 외부 HTTP 라우팅까지 순서대로 확인한다.
 
@@ -26,7 +26,7 @@ Pod 수가 늘어나도 Service가 올바른 백엔드를 선택하지 못하면
 | kube-proxy / 네트워크 구현 | 서비스 트래픽 전달 | 정책·프록시 규칙·CNI 영향이 있는가? |
 | Ingress/Gateway | 외부 트래픽 수신·라우팅 | 컨트롤러, host/path, TLS가 정상인가? |
 
-Service는 L4 연결 전달의 추상화이며, 항상 균등하게 **HTTP 요청 단위**로 라운드로빈한다고 가정하면 안 된다. 연결 재사용과 세션 유지·클라이언트 동작에 따라 Pod별 요청 수가 달라질 수 있다.
+Service는 L4 연결 전달의 추상화이며, 항상 균등하게 HTTP 요청 단위로 라운드로빈한다고 가정하면 안 된다. 연결 재사용과 세션 유지·클라이언트 동작에 따라 Pod별 요청 수가 달라질 수 있다.
 
 ## 2. ClusterIP / NodePort / LoadBalancer 비교
 
@@ -37,7 +37,7 @@ Service는 L4 연결 전달의 추상화이며, 항상 균등하게 **HTTP 요�
 | LoadBalancer | 제공업체 로드 밸런서 연계 | 외부 서비스 | kind에 클라우드 LB가 자동 생성되지는 않음 |
 | Headless | ClusterIP 없이 endpoint 발견 | Stateful 서비스·클라이언트 측 선택 | VIP 부하 분산과 다름 |
 
-우리 모델 API는 기본적으로 **ClusterIP만** 사용한다. 이는 내부 API 구성에 유리하며, 외부 트래픽을 받으려면 Ingress/Gateway 또는 별도 접속 경로가 필요하다.
+우리 모델 API는 기본적으로 ClusterIP만 사용한다. 이는 내부 API 구성에 유리하며, 외부 트래픽을 받으려면 Ingress/Gateway 또는 별도 접속 경로가 필요하다.
 
 ## 3. DNS가 정상이어도 Pod가 응답하지 않을 수 있다
 
@@ -57,7 +57,7 @@ kubectl -n week03 run http-check --rm -i --restart=Never \
   --image=busybox:1.36 -- wget -qO- http://infer-api.week03.svc.cluster.local/readyz
 ```
 
-이 명령에서 이미지 pull이 실패하거나 클러스터 밖으로 접근 불가하면 그것은 **진단 도구 실행 실패**다. 즉시 DNS 장애라고 판정하지 않는다.
+이 명령에서 이미지 pull이 실패하거나 클러스터 밖으로 접근 불가하면 그것은 진단 도구 실행 실패다. 즉시 DNS 장애라고 판정하지 않는다.
 
 ### CoreDNS가 느리거나 실패할 때
 
@@ -92,7 +92,7 @@ kubectl -n week03 set env deployment/infer-api READY_DELAY_SECONDS-
 kubectl -n week03 rollout status deployment/infer-api
 ```
 
-**측정 범위:** Pod 생성, Ready 변환, endpoint 등록, 실제 신규 요청 응답을 시간순으로 기록해야 한다. `kubectl get` 출력의 AGE만으로 정확한 중단 시간이나 요청 실패 비율을 측정했다고 표현하지 않는다.
+Pod 생성, Ready 변환, endpoint 등록, 실제 신규 요청 응답을 시간순으로 기록해야 한다. `kubectl get` 출력의 AGE만으로 정확한 중단 시간이나 요청 실패 비율을 측정했다고 표현하지 않는다.
 
 ## 5. 내부 서비스 간 통신: 분리와 연결
 
@@ -102,7 +102,7 @@ kubectl -n week03 rollout status deployment/infer-api
 
 서비스 분리에는 서로 다른 배포 주기, 독립 확장, 장애 격리라는 장점이 있다. 그 대가로 네트워크 왕복, 인증, timeout, 재시도, 버전 호환성 문제가 생긴다. 특히 Agent처럼 다단계 요청을 호출할 경우 타임아웃과 재시도의 곱셈 효과를 계산해야 한다.
 
-**서비스 통신 계약에 포함할 것:** URL/FQDN, timeout, idempotency, retry budget, correlation ID, 모델 버전, 응답 스키마, health/readiness 의미.
+서비스 통신 계약에는 URL/FQDN, timeout, idempotency, retry budget, correlation ID, 모델 버전, 응답 스키마, health/readiness 의미.
 
 ## 6. Ingress: 외부 HTTP를 내부 Service에 연결
 
@@ -128,7 +128,7 @@ spec:
                   number: 80
 ```
 
-Ingress 리소스 생성과 **실제 Controller 운영은 별개**다. kind의 네트워크 포트 매핑, Controller 설치·버전·IngressClass, host DNS 또는 Host header, Service endpoint까지 확인해야 한다. 특정 ingress-nginx 릴리스가 해당 Kubernetes 버전을 지원하는지 확인 없이 예전 manifest를 그대로 적용하지 않는다.
+Ingress 리소스 생성과 실제 Controller 운영은 별개다. kind의 네트워크 포트 매핑, Controller 설치·버전·IngressClass, host DNS 또는 Host header, Service endpoint까지 확인해야 한다. 특정 ingress-nginx 릴리스가 해당 Kubernetes 버전을 지원하는지 확인 없이 예전 manifest를 그대로 적용하지 않는다.
 
 ### TLS 종료
 
@@ -140,11 +140,11 @@ kubectl -n week03 create secret tls infer-tls \
   --cert=path/to/tls.crt --key=path/to/tls.key
 ```
 
-**인증서 개인키는 GitHub 저장소에 커밋하지 않는다.** TLS를 Ingress에서 종료하면 Ingress 이후 Service까지의 트래픽이 자동으로 암호화되는 것도 아니다. 내부 구간 암호화가 필요하다면 별도 설정이 필요하다.
+인증서 개인키는 GitHub 저장소에 커밋하지 않는다. TLS를 Ingress에서 종료하면 Ingress 이후 Service까지의 트래픽이 자동으로 암호화되는 것도 아니다. 내부 구간 암호화가 필요하다면 별도 설정이 필요하다.
 
 ## 7. Gateway API가 추가하는 설계 차이
 
-기존 Ingress는 단순 HTTP 호스트/경로 라우팅에 편리하다. Gateway API는 **인프라 제공자·클러스터 운영자·애플리케이션 개발자의 역할**과 경로 정책을 더 세밀하게 나눈다.
+기존 Ingress는 단순 HTTP 호스트/경로 라우팅에 편리하다. Gateway API는 인프라 제공자·클러스터 운영자·애플리케이션 개발자의 역할과 경로 정책을 더 세밀하게 나눈다.
 
 | 리소스 | 담당 역할 | 예 |
 |---|---|---|
@@ -162,7 +162,7 @@ kubectl -n week03 create secret tls infer-tls \
 
 - 단순하고 검증된 기존 HTTP 진입점이면 Ingress도 충분하다.
 - 여러 팀의 역할 분리, 복잡한 라우팅 정책, 확장 가능한 공용 진입점이 필요하면 Gateway API를 검토한다.
-- **성능 비교는 실제 Controller, 동시성, 요청 크기, TLS 조건을 통제한 다음**에 가능하다. Gateway API 사용 자체가 지연 감소를 보장하지 않는다.
+- 성능 비교는 실제 Controller, 동시성, 요청 크기, TLS 조건을 통제한 다음에 가능하다. Gateway API 사용 자체가 지연 감소를 보장하지 않는다.
 
 ## 8. 요청 실패 시 진단 순서
 
@@ -180,7 +180,7 @@ kubectl -n week03 create secret tls infer-tls \
 | Ingress 접근 | controller/log/curl/host | 미실행 |
 | Gateway API 실험 | Controller와 Route status | 개념 학습만 |
 
-이론을 읽은 것과 클러스터에서 재현한 것을 구분한다. 화면 캡처를 찍었다고 실패 원인이 설명되는 것은 아니므로, **예상 → 실행 명령 → 실제 출력 → 해석 → 한계**를 한 세트로 정리한다.
+이론을 읽은 것과 클러스터에서 재현한 것을 구분한다. 화면 캡처를 찍었다고 실패 원인이 설명되는 것은 아니므로, 예상 → 실행 명령 → 실제 출력 → 해석 → 한계를 한 세트로 정리한다.
 
 [3주차 학습 정리로 돌아가기](/ml-platform/study-week-03)
 

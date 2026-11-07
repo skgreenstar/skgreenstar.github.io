@@ -11,7 +11,7 @@ next:
 
 # 09 · Pod를 늘리는 것과 용량을 늘리는 것은 다르다
 
-**CH6 Scaling Up · 이론 → 실험 조건 → 운영 검증**
+CH6 Scaling Up · 이론 → 실험 조건 → 운영 검증
 
 ## 1. Pod 확장과 노드 용량
 
@@ -42,7 +42,7 @@ r_{\mathrm{desired}} = \left\lceil r_{\mathrm{current}}\frac{u_{\mathrm{observed
 $
 
 - 2개 Pod, 평균 CPU 사용률 80%, 목표 50%라면 단순 계산상의 목표는 4개다.
-- 사용률은 CPU **limit이 아니라 CPU request** 대비 값이다.
+- 사용률은 CPU limit이 아니라 CPU request 대비 값이다.
 - 이 계산은 실제 HPA의 모든 동작을 설명하지 않는다. tolerance, 메트릭 누락, 시작 초기화, min/max와 scale 정책이 결과를 바꾼다.
 - `kubectl get hpa`의 TARGETS와 `kubectl describe hpa`의 Conditions/Events를 함께 본다.
 
@@ -97,7 +97,7 @@ python3 labs/week03/load.py --url 'http://127.0.0.1:8080/infer?mode=cpu&iteratio
 python3 labs/week03/load.py --url 'http://127.0.0.1:8080/infer?mode=wait&wait_ms=500' --requests 300 --concurrency 20
 ```
 
-**실험 설계의 중요한 한계:** `300`회 일회성 부하만으로 HPA 증설을 확인할 수 있다고 보장하지 않는다. 실제 비교에서는 일정 시간 지속 부하를 걸고 HPA 관측 주기와 Pod 준비 시간을 포함한다. port-forward와 부하 발생기 자체가 병목이면 결과를 폐기하거나 조건을 바꾼다.
+`300`회 일회성 부하만으로 HPA 증설을 확인할 수 있다고 보장하지 않는다. 실제 비교에서는 일정 시간 지속 부하를 걸고 HPA 관측 주기와 Pod 준비 시간을 포함한다. port-forward와 부하 발생기 자체가 병목이면 결과를 폐기하거나 조건을 바꾼다.
 
 ### 측정 항목
 
@@ -110,7 +110,7 @@ python3 labs/week03/load.py --url 'http://127.0.0.1:8080/infer?mode=wait&wait_ms
 | pod creation/Ready | 콜드 스타트 | pod condition timestamps |
 | Node allocatable | 스케줄 여유 | describe nodes |
 
-`load.py`의 p95는 실패 요청 시간까지 포함한 전체 완료 요청의 분위수다. **성공 요청만의 p95를 따로 계산하지 않으므로** 다른 벤치마크와 직접 비교할 때 이 조건을 밝혀야 한다.
+`load.py`의 p95는 실패 요청 시간까지 포함한 전체 완료 요청의 분위수다. 성공 요청만의 p95를 따로 계산하지 않으므로 다른 벤치마크와 직접 비교할 때 이 조건을 밝혀야 한다.
 
 ## 4. CPU 사용률과 응답 지연이 일치하지 않는 경우
 
@@ -118,7 +118,7 @@ RAG·Agent는 벡터 검색, DB 조회, 외부 LLM API 호출처럼 I/O를 기�
 
 ![CPU 사용률이 낮아도 추론 대기 시간이 길 수 있는 이유](/images/week03-cpu-wait-comparison.svg)
 
-커스텀/외부 메트릭을 쓰려면 단순히 Prometheus를 설치하는 것만으로 끝나지 않는다. 어댑터와 적절한 API 등록, metric 이름·selector·권한·실제 샘플이 모두 필요하다. 현재 저장소 예제에는 이 어댑터가 **구현돼 있지 않다**.
+커스텀/외부 메트릭을 쓰려면 단순히 Prometheus를 설치하는 것만으로 끝나지 않는다. 어댑터와 적절한 API 등록, metric 이름·selector·권한·실제 샘플이 모두 필요하다. 현재 저장소 예제에는 이 어댑터가 구현돼 있지 않다.
 
 ## 5. Prometheus와 Grafana: 측정 시스템의 계층 구분
 
@@ -133,9 +133,9 @@ RAG·Agent는 벡터 검색, DB 조회, 외부 LLM API 호출처럼 I/O를 기�
 | Grafana | 데이터 소스 기반 대시보드 | HPA·오류율·지연 추세 연계 |
 | Prometheus Adapter | 메트릭→K8s custom/external API | RPS/queue 기반 HPA 실험 |
 
-**운영형 그래프 추천:** 시간축 하나에 HPA replica, Ready replica, p95, 오류율을 맞추고, CPU와 RPS를 별도 패널에 배치한다. 각 이벤트 전후 1~5분 창을 보며 인과관계를 검토한다. 같은 시각에 관측됐다는 이유만으로 곧바로 인과관계로 판단하지 않는다.
+시간축 하나에 HPA replica, Ready replica, p95, 오류율을 맞추고, CPU와 RPS를 별도 패널에 배치한다. 각 이벤트 전후 1~5분 창을 보며 인과관계를 검토한다. 같은 시각에 관측됐다는 이유만으로 곧바로 인과관계로 판단하지 않는다.
 
-설치 자체는 노션에 소개된 Helm chart를 참조하되 버전 호환성과 이미지·메모리 사용량을 확인한다. **설치하지 않은 컴포넌트를 작동했다고 기록하지 않는다.**
+설치 자체는 노션에 소개된 Helm chart를 참조하되 버전 호환성과 이미지·메모리 사용량을 확인한다. 설치하지 않은 컴포넌트를 작동했다고 기록하지 않는다.
 
 ## 6. VPA와 Node Autoscaling 비교
 
@@ -157,12 +157,12 @@ VPA의 CPU 조정과 CPU HPA를 결합할 때는 둘이 같은 자원 기반으�
 
 ## 7. Stateless와 Twelve-Factor 관점
 
-- **일회성:** Pod는 삭제·재생성될 수 있다. 시작과 종료가 예측 가능해야 한다.
-- **상태 외부화:** 사용자 세션, 중간 결과, 모델 버전 포인터 등은 필요한 경우 DB/스토리지에 보관한다. Pod 로컬 파일에 의존하면 replica별 상태가 달라진다.
-- **설정 분리:** endpoint, feature flag, 모델 URI, secret을 이미지 코드에서 분리한다.
-- **종료 안전성:** SIGTERM을 받으면 신규 요청을 차단하고 진행 중인 요청은 정해진 시간 내 마무리한다.
+- 일회성: Pod는 삭제·재생성될 수 있다. 시작과 종료가 예측 가능해야 한다.
+- 상태 외부화: 사용자 세션, 중간 결과, 모델 버전 포인터 등은 필요한 경우 DB/스토리지에 보관한다. Pod 로컬 파일에 의존하면 replica별 상태가 달라진다.
+- 설정 분리: endpoint, feature flag, 모델 URI, secret을 이미지 코드에서 분리한다.
+- 종료 안전성: SIGTERM을 받으면 신규 요청을 차단하고 진행 중인 요청은 정해진 시간 내 마무리한다.
 
-AI 추론에서는 ‘stateless’가 모델을 메모리에 올리지 않는다는 뜻이 아니다. 모델 가중치는 메모리 캐시로 존재할 수 있지만 **요청의 정합성을 로컬 Pod에만 의존하지 않도록 설계**해야 한다.
+AI 추론에서는 ‘stateless’가 모델을 메모리에 올리지 않는다는 뜻이 아니다. 모델 가중치는 메모리 캐시로 존재할 수 있지만 요청의 정합성을 로컬 Pod에만 의존하지 않도록 설계해야 한다.
 
 ## 8. 증상별 확인 순서
 
@@ -175,7 +175,7 @@ AI 추론에서는 ‘stateless’가 모델을 메모리에 올리지 않는다
 
 ### 실행 결과 기록
 
-현재 공개된 실습 코드는 준비돼 있으나 **3주차의 실제 수치 측정은 미실행**이다. 실습을 마친 후 최소한 명령어 원문, 이미지 태그, 부하 인자, 시작/종료 시각, HPA 이벤트, 측정 결과, 실패 조건을 함께 게시한다.
+현재 공개된 실습 코드는 준비돼 있으나 3주차의 실제 수치 측정은 미실행이다. 실습을 마친 후 최소한 명령어 원문, 이미지 태그, 부하 인자, 시작/종료 시각, HPA 이벤트, 측정 결과, 실패 조건을 함께 게시한다.
 
 [3주차 학습 정리로 돌아가기](/ml-platform/study-week-03)
 
