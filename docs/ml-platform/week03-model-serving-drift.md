@@ -287,10 +287,6 @@ result.save_html("drift-report.html")
 
 모델 품질 이력을 확인하려면 각 예측에 모델 버전·데이터 시각·요청 추적 ID를 연결해야 한다. 다만 개인정보나 민감한 원문 데이터를 모니터링 로그에 그대로 남기는 설계는 피한다.
 
-## 12. 실습 범위와 확인할 결과
-
-여기까지는 드리프트 탐지와 성능 검증의 설계 단계다. Evidently 리포트 생성과 Kubernetes에서의 실제 모니터링 결과는 별도로 확보해야 한다. 후속 실습에서는 패키지 버전, 입력 데이터, 실행 로그, 생성 리포트, 실패 사례를 함께 남긴다.
-
 [3주차 학습 정리](/ml-platform/study-week-03)
 
 공식 참고: [Evidently Docs](https://docs.evidentlyai.com/) · [Evidently API](https://evidentlyai.github.io/evidently/api-reference/main/evidently/core/report.html)
