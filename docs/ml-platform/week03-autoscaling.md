@@ -38,11 +38,23 @@ kubectl -n week03 describe pod <PENDING_POD_NAME>
 HPA가 CPU utilization을 이용하는 경우 설명 가능한 기본 계산식은 다음과 같다.
 
 $
-r_{\mathrm{desired}} = \left\lceil r_{\mathrm{current}}\frac{u_{\mathrm{observed}}}{u_{\mathrm{target}}}\right\rceil
+r_{\mathrm{desired}} =
+\left\lceil
+r_{\mathrm{current}} \times
+\frac{u_{\mathrm{observed}}}{u_{\mathrm{target}}}
+\right\rceil
 $
 
-- 2개 Pod, 평균 CPU 사용률 80%, 목표 50%라면 단순 계산상의 목표는 4개다.
-- 사용률은 CPU limit이 아니라 CPU request 대비 값이다.
+여기서 $r_{\mathrm{current}}$는 현재 복제본 수, $u_{\mathrm{observed}}$는 관측된 평균 CPU 사용률, $u_{\mathrm{target}}$은 설정한 목표 CPU 사용률이다. 사용률은 CPU limit이 아닌 각 Pod의 CPU request를 기준으로 계산한다.
+
+예를 들어 복제본이 2개이고 CPU 사용률이 80%, 목표가 50%라면 다음과 같이 계산한다.
+
+$
+r_{\mathrm{desired}} =
+\left\lceil 2 \times \frac{80}{50} \right\rceil
+= 4
+$
+
 - 이 계산은 실제 HPA의 모든 동작을 설명하지 않는다. tolerance, 메트릭 누락, 시작 초기화, min/max와 scale 정책이 결과를 바꾼다.
 - `kubectl get hpa`의 TARGETS와 `kubectl describe hpa`의 Conditions/Events를 함께 본다.
 
