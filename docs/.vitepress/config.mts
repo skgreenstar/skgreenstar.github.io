@@ -53,7 +53,8 @@ export default defineConfig({
           { text: '16 · Scheduler와 상태 저장', link: '/ml-platform/week04-scheduling' },
           { text: '17 · CH8 Node 배치', link: '/ml-platform/week04-placement' },
           { text: '18 · CH9 StatefulSet', link: '/ml-platform/week04-statefulset' },
-          { text: '19 · CH9 디스크 복구', link: '/ml-platform/week04-recovery' }
+          { text: '19 · CH9 디스크 복구', link: '/ml-platform/week04-recovery' },
+          { text: '20 · 통합 검증 실습', link: '/ml-platform/week04-practical-lab' }
         ]},
         { text: '심화 · 운영과 평가', items: [
           { text: '운영 자동화', link: '/ml-platform/week-04' },
