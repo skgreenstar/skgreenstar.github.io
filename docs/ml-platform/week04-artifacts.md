@@ -1,94 +1,154 @@
 ---
-title: "13 · KFP에서 데이터는 어느 Pod를 거쳐 이동할까?"
+title: "13 · Scheduler는 학습 Pod의 Node를 어떻게 선택할까?"
 outline: deep
-prev:
-  text: '4주차 · 학습 정리'
-  link: '/ml-platform/study-week-04'
-next:
-  text: '14 · 학습과 검증'
-  link: '/ml-platform/week04-training-validation'
+prev: { text: '4주차 학습 정리', link: '/ml-platform/study-week-04' }
+next: { text: '14 · Pod 배치 전략', link: '/ml-platform/week04-training-validation' }
 ---
 
-# 13 · KFP에서 데이터는 어느 Pod를 거쳐 이동할까?
+# 13 · Scheduler는 학습 Pod의 Node를 어떻게 선택할까?
 
-Python 함수처럼 보이는 KFP Pipeline은 클러스터에서 별도 Pod의 작업들로 실행된다. 프로세스의 메모리 변수를 공유하지 않으므로 단계마다 **입출력 계약**을 정의해야 한다.
+CH8.1 Node Feature Selection
 
-## 1. Parameter와 Artifact
+Kubernetes에서 Pod가 생성되는 것과 컨테이너가 실행되는 것은 별개의 사건이다. API Server가 아직 Node에 연결되지 않은 Pod를 저장하면 Scheduler가 실행 가능한 Node를 평가하고, 선정한 Node의 kubelet이 이미지와 볼륨을 준비한다. ML 학습의 CPU·메모리·GPU 요구량은 Scheduler 단계에서 먼저 현실적인 제약으로 드러난다.
 
-| 구분 | Parameter | Artifact |
-|---|---|---|
-| 내용 | 숫자·문자열·불리언 | Dataset·Model·Metrics·HTML |
-| 사용 | 작은 제어 값과 결과 | 파일·대용량 데이터·모델 |
-| 표현 | 직렬화 값 | URI·메타데이터·파일 |
-| 위험 | 큰 값으로 메타데이터 부담 | 다운로드·업로드·보존 비용 |
+## 1. 스케줄링의 실제 순서
 
-Artifact의 path는 컨테이너 안의 작업 경로이고 uri는 저장소의 아티팩트 참조다. 실제 전송은 KFP 실행 백엔드의 설정에 좌우된다.
-
-![Artifact 데이터 전달](/images/week04-artifact-flow.svg)
-
-*개념도: 경로 참조와 데이터 바이트 이동을 구분한다.*
-
-## 2. KFP 2.x에서 Dataset을 전달하는 최소 예제
-
-**컴파일용 예제이며 실행 결과는 아니다.**
-
-~~~python
-from kfp import compiler, dsl
-from kfp.dsl import Dataset, Input, Output, Metrics
-
-@dsl.component(base_image="python:3.11-slim")
-def make_dataset(n: int, data: Output[Dataset]):
-    from pathlib import Path
-    path = Path(data.path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("x,y\n" + "".join(f"{i},{i*2}\n" for i in range(n)))
-    data.metadata["rows"] = n
-    data.metadata["schema_version"] = "v1"
-
-@dsl.component(base_image="python:3.11-slim")
-def inspect_dataset(data: Input[Dataset], metrics: Output[Metrics]) -> int:
-    from pathlib import Path
-    rows = len(Path(data.path).read_text().splitlines()) - 1
-    metrics.log_metric("rows", rows)
-    if rows <= 0:
-        raise ValueError("Empty dataset")
-    return rows
-
-@dsl.pipeline(name="week04-data-contract")
-def pipeline(n: int = 10):
-    produced = make_dataset(n=n)
-    inspect_dataset(data=produced.outputs["data"])
-
-if __name__ == "__main__":
-    compiler.Compiler().compile(pipeline, "week04-artifacts.yaml")
+~~~text
+Job/Deployment → API Server → Pending Pod (nodeName 없음)
+                                       |
+                               kube-scheduler
+                                       |
+                          PreFilter → Filter → Score
+                                       |
+                              Reserve / Permit / Bind
+                                       |
+                         Pod.spec.nodeName 설정
+                                       |
+                           kubelet → Container
 ~~~
 
-컴파일된 YAML은 실행 명세다. 실제 KFP Run에는 백엔드, 객체 저장소, 서비스 계정과 이미지 접근 권한이 필요하다.
+Filter는 필수 조건을 통과하는 Node를 남기고, Score는 통과한 Node의 선호도를 평가한다. Scheduler Framework에는 PreScore·PreBind 등 추가 확장 지점이 있다. Filter에 실패한 Pod는 점수 비교 대상이 아니므로 **선호도 가중치를 높여도 필수 조건을 우회할 수 없다.**
 
-## 3. 타입이 같아도 내용은 검증해야 한다
+| 고려 대상 | 대표 점검 항목 | 실패 시 |
+|---|---|---|
+| 리소스 | Pod CPU·메모리 requests, Node allocatable | Insufficient cpu/memory |
+| Node 속성 | nodeSelector, required nodeAffinity | node affinity/selector mismatch |
+| 전용 Node | taint와 toleration | untolerated taint |
+| Pod 관계 | Pod affinity/anti-affinity | affinity constraints |
+| 영속 볼륨 | VolumeBinding, PV topology | PVC 또는 binding 문제 |
 
-KFP Dataset 타입이 컬럼·값 범위·레이블 분포를 자동 검증하는 것은 아니다. 데이터 준비 단계에서 스키마 버전, 체크섬, 행 수, 생성 시점과 데이터 스냅샷을 검증한다.
+## 2. nodeSelector: 가장 단순한 필수 제약
 
-1. 입력 스냅샷이 고정됐는가?
-2. CSV가 비었거나 컬럼이 달라졌다면 실패하는가?
-3. Train과 validation의 시간·사용자·그룹 경계를 지켰는가?
-4. 생산자·소비자 컴포넌트의 스키마 계약이 같은가?
+~~~yaml
+spec:
+  nodeSelector:
+    kubernetes.io/os: linux
+    workload: training
+~~~
 
-## 4. 캐시와 재현성의 차이
+두 레이블을 **모두** 가진 Node만 사용할 수 있다. 범용 Node에 training 전용 레이블을 추가하지 않았다면 Pod는 배치되지 않는다. 다수 Node를 유연하게 묶어야 한다면 nodeAffinity를 이용한다.
 
-KFP 캐시는 반복 계산을 줄이지만 외부 URL이 동일한 데이터인지 검증하지는 않는다. 원본이 변할 수 있다면 snapshot ID나 checksum을 입력으로 넘기고, 필요하면 해당 수집 단계의 캐시를 비활성화한다. 이미지 버전도 가변 태그보다 digest 고정을 권장한다.
+## 3. Node Affinity의 논리 연산
 
-## 5. 장애가 날 때 확인할 것
+~~~yaml
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: disk
+            operator: In
+            values: [nvme, ssd]
+          - key: kubernetes.io/arch
+            operator: In
+            values: [arm64]
+        - matchExpressions:
+          - key: disk
+            operator: In
+            values: [nvme]
+          - key: kubernetes.io/arch
+            operator: In
+            values: [amd64]
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 80
+        preference:
+          matchExpressions:
+          - key: zone
+            operator: In
+            values: [az1]
+~~~
 
-| 증상 | 확인 근거 |
+하나의 nodeSelectorTerm 안에 여러 matchExpressions를 작성하면 **AND**, 서로 다른 nodeSelectorTerms 사이에는 **OR**가 적용된다. 위 예제는 '(arm64이고 SSD/NVMe) 또는 (amd64이고 NVMe)'를 필수로 요구하면서, az1을 선호한다. 선호 조건은 여러 스코어링 정책 중 하나이므로 weight 80이 무조건 선택을 보장하지는 않는다.
+
+| 연산자 | 의미 |
 |---|---|
-| 입력 파일 없음 | 선행 단계 결과·아티팩트 URI·저장소 접근 |
-| 내용이 달라짐 | checksum, schema, producer 로그 |
-| 재실행만 이상함 | 캐시 재사용 여부·입력 스냅샷 |
-| 학습 결과 추적 어려움 | Run ID·데이터 버전·MLflow 연결 |
+| In / NotIn | 레이블 값이 집합에 포함 / 미포함 |
+| Exists / DoesNotExist | 레이블의 존재 / 부재 |
+| Gt / Lt | 정수로 해석 가능한 레이블 값 비교 |
 
-**결론:** Artifact는 파일 전달과 동시에 어떤 실행이 어떤 데이터를 생산했는지 증명하기 위한 추적 단위다.
+requiredDuringSchedulingIgnoredDuringExecution에서 IgnoredDuringExecution은 스케줄링 **이후 레이블이 달라져도 해당 이유만으로 Pod를 퇴거시키지 않는다**는 의미다. 새로 생성되는 Pod에는 현재 조건이 적용된다.
+
+## 4. Node Affinity와 Taint는 서로 반대 방향의 정책이다
+
+~~~text
+Pod → Node Affinity: "나는 GPU Node가 필요해"
+Node → Taint:         "GPU를 허용한 Pod만 들어와"
+Pod → Toleration:     "그 Taint를 허용해"
+~~~
+
+~~~bash
+kubectl taint node <WORKER> dedicated=ml:NoSchedule
+kubectl describe node <WORKER>
+# 실습 Node 정책 복원
+kubectl taint node <WORKER> dedicated=ml:NoSchedule-
+~~~
+
+~~~yaml
+spec:
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: ml
+    effect: NoSchedule
+~~~
+
+| Effect | 새 Pod에 대한 의미 | 기존 Pod |
+|---|---|---|
+| PreferNoSchedule | 가능하면 배치하지 않음 | 유지 |
+| NoSchedule | 허용되지 않으면 배치 금지 | 유지 |
+| NoExecute | 허용되지 않으면 배치 금지 | 퇴거 대상 |
+
+**Toleration은 해당 Node 배치를 허용할 뿐 선택을 강제하지 않는다.** ML 전용 Node pool에서는 taint와 required affinity를 함께 사용한다. GPU 학습을 실제 실행하려면 GPU device plugin과 스케줄 가능한 accelerator resource가 별도로 필요하다.
+
+## 5. 리소스 배치와 Bin Packing
+
+노드가 세 대 있어도 각 노드에 CPU 1개씩만 남았는데 하나의 학습 Job이 CPU 2개를 요청하면 총 여유 CPU가 3개라는 사실만으로 배치할 수 없다. **Pod 단위 요청을 수용하는 Node가 존재해야 한다.** 이것이 자원 단편화의 대표적인 예다.
+
+CPU 사용률이 낮다는 이유만으로 Pod가 항상 배치 가능한 것도 아니다. Scheduler는 일반적으로 실시간 사용률이 아닌 requests와 allocatable을 기본 자원 판단의 중요한 입력으로 사용한다. NodeResourcesFit의 scoring 전략은 실제 Scheduler 프로필에 따라 달라질 수 있으므로 모든 클러스터가 항상 LeastAllocated라고 해석하지 않는다.
+
+## 6. MLOps에 적용한다면
+
+- CPU preprocessing: 범용 Node, 적절한 requests, 재시도 가능한 Job.
+- GPU training: 전용 Node pool, GPU resource, checkpoint, taints와 affinity.
+- Inference: 안정적 Node pool, 적절한 Pod 분산, readiness.
+- 로컬 kind: Node Label/Taint의 스케줄링 동작을 이해하는 용도. GPU 성능 검증 환경과 구분.
+
+### 명령어 참고
+
+~~~bash
+kubectl get nodes -L kubernetes.io/arch,topology.kubernetes.io/zone
+kubectl describe node <NODE>
+kubectl -n week04 describe pod <POD>
+kubectl -n week04 get events --sort-by=.lastTimestamp
+~~~
+
+이 명령은 원리를 확인하는 참고 명령이다. 화면 출력이나 가상의 실행 성공 기록은 넣지 않았다.
+
+## 요약
+
+Scheduler는 **Filter로 가능한 Node를 제한하고 Score로 더 적합한 Node를 선택**한다. nodeSelector·required affinity·taint는 배치 가능성을 결정하고 preferred affinity는 후보 내 선호도를 바꾼다.
 
 [4주차 학습 정리](/ml-platform/study-week-04)
 
-참고: [KFP Parameters](https://www.kubeflow.org/docs/components/pipelines/user-guides/data-handling/parameters/) · [KFP Artifacts](https://www.kubeflow.org/docs/components/pipelines/user-guides/data-handling/artifacts/)
+참고: [Scheduler Framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/) · [Node Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/) · [Taint/Toleration](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
