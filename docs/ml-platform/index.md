@@ -75,29 +75,23 @@ Data Drift·Prediction Drift·Concept Drift·Model Drift를 구분하고 Evident
 
 ## 4주차 · Node 배치와 상태 저장
 
-**[4주차 학습 정리 · CH8~9 Node 배치와 상태 저장](/ml-platform/study-week-04)**  
-KFP 데이터 전달, 품질 승인, 스토리지·스케줄링을 하나의 운영 흐름으로 연결합니다.
+**[4주차 학습 정리 · CH8~9](/ml-platform/study-week-04)**  
+Node 선정과 Pod 배치부터 데이터 수명·상태 저장·복구까지 연결합니다.
 
-### [13. KFP에서 데이터는 어느 Pod를 거쳐 이동할까?](/ml-platform/week04-artifacts)
-Parameter와 Artifact, 스냅샷·캐시, 데이터 전달 계약.
+### [13 · Scheduler·Node 선택](/ml-platform/week04-scheduler)
+Node 조건, Filter/Score, required/preferred, Taint와 자원 단편화.
 
-### [14. 학습이 끝났다는 사실만으로 모델을 등록할 수 있을까?](/ml-platform/week04-training-validation)
-기준 모델과 비교, 품질 게이트, 미승인과 실행 오류 구분.
+### [14 · Pod 배치·Topology](/ml-platform/week04-pod-placement)
+Pod Affinity/Anti-Affinity, zone 분산, maxSkew와 업데이트 정책.
 
-### [15. 아티팩트 저장소와 PVC 중 무엇을 선택해야 할까?](/ml-platform/week04-storage)
-객체 저장소와 볼륨, 접근 모드와 실패 원인.
+### [15 · Pending 진단](/ml-platform/week04-pending-diagnosis)
+PodScheduled, FailedScheduling, VolumeBinding, Kubelet·CSI 장애.
 
-### [16. 학습 Pod가 Pending이라면 모델보다 무엇을 먼저 볼까?](/ml-platform/week04-scheduling)
-Scheduler·Affinity·Taint, PVC와 StatefulSet 운영.
+### [16 · PV·PVC·StorageClass](/ml-platform/week04-persistent-storage)
+접근 모드, Binding, ReclaimPolicy와 데이터 수명.
 
-### [17. Pod는 왜 한 Node에 몰리고, 어떻게 분산할까?](/ml-platform/week04-placement)
-CH8. Scheduler Filter/Score, Node Affinity, Taint, Pod Affinity/Anti-Affinity, Topology Spread, FailedScheduling 실습 설계.
+### [17 · StatefulSet](/ml-platform/week04-stateful-workloads)
+Pod identity, Headless Service, volumeClaimTemplates와 데이터 보존.
 
-### [18. StatefulSet은 왜 Pod마다 별도 PVC를 만들까?](/ml-platform/week04-statefulset)
-CH9.1~9.2. PV/PVC/StorageClass, Pod identity, Headless Service, volumeClaimTemplates와 데이터 보존.
-
-### [19. 디스크와 Pod가 사라지면 데이터를 어떻게 복구할까?](/ml-platform/week04-recovery)
-CH9.3~9.4. reclaimPolicy, Retain 복구, emptyDir, Generic Ephemeral Volume.
-
-### [20. Scheduler와 StatefulSet을 끝까지 검증하는 실습](/ml-platform/week04-practical-lab)
-Node Affinity와 Pod Anti-Affinity로 Pending을 재현하고 StatefulSet PVC의 파일 체크섬을 비교하는 통합 실습 설계.
+### [18 · 디스크 복구·임시 볼륨](/ml-platform/week04-volume-recovery)
+Retain·Delete, PV 재연결, emptyDir와 Generic Ephemeral Volume.
