@@ -47,14 +47,12 @@ export default defineConfig({
         ]},
         { text: '4주차 · CH8~9 Node 배치와 상태 저장', items: [
           { text: '학습 정리 · CH8~9', link: '/ml-platform/study-week-04' },
-          { text: '13 · KFP 아티팩트', link: '/ml-platform/week04-artifacts' },
-          { text: '14 · 학습과 검증', link: '/ml-platform/week04-training-validation' },
-          { text: '15 · PVC와 저장 전략', link: '/ml-platform/week04-storage' },
-          { text: '16 · Scheduler와 상태 저장', link: '/ml-platform/week04-scheduling' },
-          { text: '17 · CH8 Node 배치', link: '/ml-platform/week04-placement' },
-          { text: '18 · CH9 StatefulSet', link: '/ml-platform/week04-statefulset' },
-          { text: '19 · CH9 디스크 복구', link: '/ml-platform/week04-recovery' },
-          { text: '20 · 통합 검증 실습', link: '/ml-platform/week04-practical-lab' }
+          { text: '13 · Scheduler·Node 선택', link: '/ml-platform/week04-scheduler' },
+          { text: '14 · Pod 배치·Topology', link: '/ml-platform/week04-pod-placement' },
+          { text: '15 · Pending 진단', link: '/ml-platform/week04-pending-diagnosis' },
+          { text: '16 · PV·PVC·StorageClass', link: '/ml-platform/week04-persistent-storage' },
+          { text: '17 · StatefulSet', link: '/ml-platform/week04-stateful-workloads' },
+          { text: '18 · 디스크 복구·임시 볼륨', link: '/ml-platform/week04-volume-recovery' }
         ]},
         { text: '심화 · 운영과 평가', items: [
           { text: '운영 자동화', link: '/ml-platform/week-04' },
