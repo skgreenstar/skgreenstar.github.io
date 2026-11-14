@@ -98,3 +98,6 @@ CH9.1~9.2. PV/PVC/StorageClass, Pod identity, Headless Service, volumeClaimTempl
 
 ### [19. 디스크와 Pod가 사라지면 데이터를 어떻게 복구할까?](/ml-platform/week04-recovery)
 CH9.3~9.4. reclaimPolicy, Retain 복구, emptyDir, Generic Ephemeral Volume.
+
+### [20. Scheduler와 StatefulSet을 끝까지 검증하는 실습](/ml-platform/week04-practical-lab)
+Node Affinity와 Pod Anti-Affinity로 Pending을 재현하고 StatefulSet PVC의 파일 체크섬을 비교하는 통합 실습 설계.
