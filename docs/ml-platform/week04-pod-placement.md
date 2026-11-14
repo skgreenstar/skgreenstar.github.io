@@ -18,6 +18,10 @@ CH8.2 Placing Pods
 
 ## 1. Node 배치와 Pod 관계를 분리해 생각하기
 
+![Zone과 Node에 나뉘어 배치되는 inference Pod](/images/week04-pod-placement.svg)
+
+*Pod 분산 정책의 목표를 설명하는 개념도이며 측정 결과는 아니다.*
+
 ~~~text
 Zone A                            Zone B
   node-a1: infer-0, cache-0          node-b1: infer-2
