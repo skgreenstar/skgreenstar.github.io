@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 350" role="img" aria-label="Kubernetes scheduling and persistence architecture">
+<rect width="1040" height="350" rx="16" fill="#f8fafc"/><text x="36" y="40" font-family="Arial" font-size="24" font-weight="bold" fill="#182a40">Week 04 · Placement × Persistence</text>
+<g font-family="Arial" text-anchor="middle" fill="#182a40">
+<rect x="400" y="63" width="240" height="55" rx="11" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/><text x="520" y="96" font-size="17">ML Training / Inference</text>
+<rect x="55" y="157" width="380" height="65" rx="11" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="245" y="184" font-size="18" font-weight="bold">CH8 · Scheduling</text><text x="245" y="206" font-size="14">Filter → Score → Bind</text>
+<rect x="605" y="157" width="380" height="65" rx="11" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/><text x="795" y="184" font-size="18" font-weight="bold">CH9 · Storage</text><text x="795" y="206" font-size="14">PVC → PV → CSI / Disk</text>
+<rect x="55" y="258" width="380" height="55" rx="9" fill="#eef2ff" stroke="#818cf8"/><text x="245" y="281" font-size="15">Node Affinity · Taint · Topology</text><text x="245" y="299" font-size="14">Placement constraints</text>
+<rect x="605" y="258" width="380" height="55" rx="9" fill="#f0fdf4" stroke="#4ade80"/><text x="795" y="281" font-size="15">StatefulSet · ReclaimPolicy</text><text x="795" y="299" font-size="14">Data lifetime and recovery</text></g>
+<g fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round"><path d="M520 118v18H245v20"/><path d="M520 136h275v20"/><path d="M245 222v35"/><path d="M795 222v35"/></g></svg>
