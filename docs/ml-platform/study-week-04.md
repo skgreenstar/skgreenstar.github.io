@@ -31,11 +31,11 @@ next:
 | CH9.3 | [19 · 디스크 복구](/ml-platform/week04-recovery) | Retain/Delete, PV 재바인딩, 장애 복구 |
 | CH9.4 | [19 · 임시 볼륨](/ml-platform/week04-recovery) | emptyDir와 Generic Ephemeral Volume |
 
-## 실습 중심 학습: 설명한 정책을 실제로 반증할 수 있을까?
+## Scheduler와 StatefulSet의 동작 확인
 
 [20 · Scheduler와 StatefulSet 통합 검증 실습](/ml-platform/week04-practical-lab)에서는 **필수 Node 조건 → Pending → 레이블 변경 → 재스케줄링**, **Hard Anti-Affinity → Replica와 Node 수 충돌**, **StatefulSet → Pod 재생성 전후 SHA-256 비교**를 한 번에 검증하는 절차를 제공한다.
 
-실습 결과를 아직 확보하지 못했으므로, 해당 글의 기대 현상과 실제 출력은 명확히 구분했다. 이번 주의 완료 기준은 YAML 작성이나 Pipeline 컴파일이 아니라 **실행 환경·명령·실제 Event·원인 분석을 함께 기록하는 것**이다.
+이 과정에서는 필수 배치 조건과 Pod 분산 정책, PVC의 데이터 수명을 각각 비교한다. 명령과 판단 기준을 함께 제시하되 실제 실행 증거가 없는 관찰값은 단정하지 않는다.
 
 ## 학습 아키텍처: Node 배치 + 상태 저장
 
@@ -72,19 +72,6 @@ next:
 4. Replica가 여러 개여도 동일 장애 도메인에 집중하면 고가용성이 아니다. Pod Anti-Affinity와 Topology Spread가 필요할 수 있다.
 5. StatefulSet이 Pod별 PVC와 identity를 관리하더라도 데이터베이스 복제와 백업이 자동으로 제공되는 것은 아니다.
 6. Pod 삭제, PVC 삭제, PV 삭제, 실제 클라우드 디스크 삭제는 독립된 사건이므로 복구 정책을 분리해야 한다.
-
-### 실습을 어떻게 증명할 것인가
-
-| 실습 | 입력 변경 | 기대되는 관찰 | 검증 명령 |
-|---|---|---|---|
-| Node Affinity | 존재하지 않는 workload label 요구 | Pending / FailedScheduling | kubectl describe pod |
-| Taint | Node에 NoSchedule 부여 | 미허용 신규 Pod 배치 차단 | kubectl describe node |
-| Topology | Pod Anti-Affinity / maxSkew | 도메인 분산 또는 Pending | kubectl get pods -o wide |
-| StatefulSet | Pod 삭제 후 재생성 | 동일 PVC 재연결 및 데이터 보존 | kubectl get pvc / exec |
-| PV Recovery | Retain 설정 후 PVC 재생성 | 재바인딩 및 checksum 검증 | kubectl get pv,pvc |
-| Ephemeral | Pod 생성·삭제 | scratch PVC 수명 관찰 | kubectl get pvc |
-
-**현재 위 항목은 재현 가능한 실습 설계이고 실제 검증 결과는 아직 확보하지 않았다.** 명령 실행 및 출력 확인 후 결과와 해석을 별도로 기록한다.
 
 ## KFP / MLflow 응용: 왜 이 내용을 MLOps에서 배우는가?
 
@@ -154,14 +141,6 @@ python -c 'import kfp; print(kfp.__version__)'
 ~~~
 
 컴파일 성공, KFP Run 성공, 아티팩트 업로드, 모델 품질 승인, 레지스트리 등록은 **각각 다른 검증 단계**다.
-
-| 검증 | 필요한 증거 | 현재 문서 |
-|---|---|---|
-| 파이프라인 컴파일 | 생성된 YAML과 KFP 버전 | 실행 필요 |
-| 클러스터 실행 | KFP Run ID, Pod 로그·이벤트 | 실행 필요 |
-| 데이터 품질 | schema, row count, checksum | 실행 필요 |
-| 모델 승인 | baseline/후보 metric, 판정 결과 | 실행 필요 |
-| 모델 등록 | registry version, MLflow Run ID | 실행 필요 |
 
 ## 4주차 학습 결론
 
