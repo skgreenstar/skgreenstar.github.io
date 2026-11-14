@@ -73,9 +73,9 @@ Service·DNS·EndpointSlice·Ingress/Gateway API와 Readiness 장애 분석.
 ### [12. 데이터와 모델 드리프트](/ml-platform/week03-model-serving-drift)
 Data Drift·Prediction Drift·Concept Drift·Model Drift를 구분하고 Evidently 기반 모니터링을 설계한다.
 
-## 4주차 · 데이터 전달에서 학습·검증까지
+## 4주차 · Node 배치와 상태 저장
 
-**[4주차 학습 정리 · 학습 파이프라인과 검증](/ml-platform/study-week-04)**  
+**[4주차 학습 정리 · CH8~9 Node 배치와 상태 저장](/ml-platform/study-week-04)**  
 KFP 데이터 전달, 품질 승인, 스토리지·스케줄링을 하나의 운영 흐름으로 연결합니다.
 
 ### [13. KFP에서 데이터는 어느 Pod를 거쳐 이동할까?](/ml-platform/week04-artifacts)
@@ -89,3 +89,12 @@ Parameter와 Artifact, 스냅샷·캐시, 데이터 전달 계약.
 
 ### [16. 학습 Pod가 Pending이라면 모델보다 무엇을 먼저 볼까?](/ml-platform/week04-scheduling)
 Scheduler·Affinity·Taint, PVC와 StatefulSet 운영.
+
+### [17. Pod는 왜 한 Node에 몰리고, 어떻게 분산할까?](/ml-platform/week04-placement)
+CH8. Scheduler Filter/Score, Node Affinity, Taint, Pod Affinity/Anti-Affinity, Topology Spread, FailedScheduling 실습 설계.
+
+### [18. StatefulSet은 왜 Pod마다 별도 PVC를 만들까?](/ml-platform/week04-statefulset)
+CH9.1~9.2. PV/PVC/StorageClass, Pod identity, Headless Service, volumeClaimTemplates와 데이터 보존.
+
+### [19. 디스크와 Pod가 사라지면 데이터를 어떻게 복구할까?](/ml-platform/week04-recovery)
+CH9.3~9.4. reclaimPolicy, Retain 복구, emptyDir, Generic Ephemeral Volume.
