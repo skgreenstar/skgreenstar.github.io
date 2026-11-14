@@ -19,6 +19,10 @@ next:
 
 ## 1. 전체 아키텍처
 
+![Week 04 · Scheduler와 Storage의 책임 경계](/images/week04-scheduling-storage.svg)
+
+*Node 배치와 데이터 수명을 분리해 보여 주는 개념 아키텍처.*
+
 ~~~text
                    ML Platform Workloads
            KFP Job / MLflow / Inference API
