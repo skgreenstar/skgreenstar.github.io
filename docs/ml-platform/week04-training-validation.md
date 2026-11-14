@@ -1,123 +1,108 @@
 ---
-title: "14 · 학습이 끝났다는 사실만으로 모델을 등록할 수 있을까?"
+title: "14 · Pod는 왜 모으고, 왜 분산해야 할까?"
 outline: deep
-prev:
-  text: '13 · 데이터 전달'
-  link: '/ml-platform/week04-artifacts'
-next:
-  text: '15 · PVC와 저장 전략'
-  link: '/ml-platform/week04-storage'
+prev: { text: '13 · Node 선택', link: '/ml-platform/week04-artifacts' }
+next: { text: '15 · Pod Pending 진단', link: '/ml-platform/week04-storage' }
 ---
 
-# 14 · 학습이 끝났다는 사실만으로 모델을 등록할 수 있을까?
+# 14 · Pod는 왜 모으고, 왜 분산해야 할까?
 
-학습 컴포넌트가 완료됐다는 사실만으로 모델이 유효한 것은 아니다. **학습 완료와 모델 승인을 구분하는 게이트**가 필요하다.
+CH8.2 Placing Pods
 
-## 1. 단계별 입출력 계약
+**Pod의 개수가 같아도 장애 허용 범위는 다를 수 있다.** 추론 API가 세 개의 replica를 갖더라도 같은 Node에서 실행된다면 Node 한 대의 장애로 모두 중단될 수 있다. 반대로 서로 통신이 많은 서비스들을 지나치게 분리하면 네트워크 지연과 비용이 증가한다.
 
-| 단계 | 입력 | 출력 | 중단 조건 |
-|---|---|---|---|
-| Prepare | 데이터 스냅샷 | 정제 데이터·스키마 보고 | 필수 컬럼 누락, 빈 데이터 |
-| Split | 정제 데이터·분리 정책 | train/validation/test | 시간·그룹 누수 |
-| Train | 학습 데이터·파라미터 | 모델·학습 지표 | NaN, 실행 오류 |
-| Evaluate | 모델·고정 검증셋 | 예측·평가 지표 | 지표 계산 실패 |
-| Quality gate | 후보·기준 모델 지표 | 승인 여부·사유 | 기준 미달은 정상 거절 |
-| Register | 승인된 모델 URI | 모델 버전·Run 참조 | 미승인 후보 등록 금지 |
-
-## 2. 기존 모델과 비교할 기준부터 고정하기
-
-회귀 문제에서 과거 값 유지, 평균값 예측, 현재 운영 모델을 기준 모델(B0)로 사용할 수 있다. 비교 지표와 데이터 분할은 후보 모델(M1)과 동일해야 한다.
+## 1. Node 배치와 Pod 관계를 분리해 생각하기
 
 ~~~text
-schema_valid == true
-sample_count >= 최소 샘플 수
-RMSE(M1) <= 0.98 * RMSE(B0)
-critical_segment_MAE <= 현업 허용 오차
-모두 통과 → 승인
-하나라도 미달 → 미승인
+Zone A                            Zone B
+  node-a1: infer-0, cache-0          node-b1: infer-2
+  node-a2: infer-1                   node-b2: cache-1
 ~~~
 
-0.98은 2% 이상 개선이라는 **정책 예시**다. 실제 기준은 업무 손실·운전 구간의 위험·측정 오차를 고려해 정해야 한다. 전체 RMSE가 개선돼도 중요한 구간의 오차가 악화되면 보류할 수 있다.
+Node Affinity는 Node **자체의 속성**으로, Pod Affinity/Anti-Affinity는 **다른 Pod의 위치**로 배치를 결정한다. Topology Spread는 특정 레이블을 가진 Pod 수를 각 도메인에서 얼마나 균형 있게 유지할지를 결정한다.
 
-## 3. 정상적인 품질 거절과 시스템 오류 구분
+| 제어 방법 | 질문 | 예시 |
+|---|---|---|
+| Node Affinity | 어떤 하드웨어인가? | NVMe 또는 GPU |
+| Pod Affinity | 어떤 Pod 근처인가? | 읽기 API와 캐시 같은 Zone |
+| Pod Anti-Affinity | 어떤 Pod와 떨어져야 하나? | 추론 replica는 다른 Node |
+| Topology Spread | 몇 개씩 분산해야 하나? | Zone 간 maxSkew=1 |
 
-단순하게 임곗값 미달에서 예외를 발생시키면 KFP Run에 실패로 남아 운영 장애와 품질 미승인이 섞일 수 있다. 더 명확한 설계는 게이트가 판정 결과를 반환하고, Pipeline의 조건부 분기로 등록을 제어하는 것이다.
-
-~~~python
-from kfp import dsl, compiler
-from kfp.dsl import Metrics, Output
-
-@dsl.component(base_image="python:3.11-slim")
-def quality_gate(
-    candidate_rmse: float,
-    baseline_rmse: float,
-    metrics: Output[Metrics],
-    required_improvement: float = 0.02,
-) -> bool:
-    import math
-    if not all(math.isfinite(x) for x in (candidate_rmse, baseline_rmse)):
-        raise ValueError("Invalid metric")
-    if baseline_rmse <= 0 or candidate_rmse < 0:
-        raise ValueError("Invalid RMSE")
-    improvement = (baseline_rmse - candidate_rmse) / baseline_rmse
-    approved = improvement >= required_improvement
-    metrics.log_metric("candidate_rmse", candidate_rmse)
-    metrics.log_metric("baseline_rmse", baseline_rmse)
-    metrics.log_metric("improvement", improvement)
-    return approved
-
-@dsl.component(base_image="python:3.11-slim")
-def record_approval() -> str:
-    # 실제 운영에서는 승인된 모델 URI와 Run ID를 Registry에 기록
-    return "approved-for-registration"
-
-@dsl.pipeline(name="week04-quality-gate")
-def pipeline(candidate_rmse: float = 0.9, baseline_rmse: float = 1.0):
-    gate = quality_gate(
-        candidate_rmse=candidate_rmse, baseline_rmse=baseline_rmse
-    )
-    with dsl.If(gate.output == True, name="approved"):
-        record_approval()
-
-if __name__ == "__main__":
-    compiler.Compiler().compile(pipeline, "week04-quality-gate.yaml")
-~~~
-
-위 예제는 등록을 **모사한 컴파일용 설계**다. 실제 MLflow Registry 호출, 인증·모델 URI 검증은 구현되어 있지 않다. 미승인인 경우 조건부 등록 단계가 실행되지 않지만, 품질 미달을 시스템 오류로 기록하지 않는다.
-
-## 4. 실행을 재현하기 위한 메타데이터
+## 2. Pod Affinity: 함께 배치
 
 ~~~yaml
-data:
-  snapshot_id: "example-snapshot-id"
-  sha256: "<실행 후 측정값>"
-split_policy: "time-based-v1"
-seed: 42
-image_digest: "<실제 이미지 digest>"
-code_commit: "<실제 Git commit>"
-kfp_run_id: "<실제 Run ID>"
-mlflow_run_id: "<실제 Run ID>"
-validation_policy: "model-gate-v1"
+spec:
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 75
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: feature-cache
+          topologyKey: topology.kubernetes.io/zone
 ~~~
 
-임의의 체크섬이나 실행 ID를 만들어 쓰지 않는다. 배포 승인을 거쳤는지 추적할 수 있도록 KFP와 MLflow 양쪽에 연결 정보를 남긴다.
+위 항목은 Pod spec에 삽입하는 예제다. feature-cache가 실행 중인 **같은 Zone을 선호**한다. 필수가 아닌 선호 조건이므로 캐시 Pod가 없어도 다른 스케줄링 조건을 만족하면 배치될 수 있다. 근접성을 강제할 필요가 없다면 네트워크 효율과 가용성의 균형을 위해 preferred를 고려한다.
 
-## 5. 컴포넌트 이미지와 운영 안정성
+## 3. Pod Anti-Affinity: 장애 도메인을 분리
 
-경량 컴포넌트는 빠른 학습에 좋다. 하지만 매 실행 때 패키지 설치가 반복되면 외부 저장소 의존성이 생긴다. 재현성에 민감한 Train/Evaluate는 의존성과 아키텍처가 고정된 컨테이너 이미지를 권장한다. Apple Silicon에서는 linux/arm64 지원과 시스템 공유 라이브러리도 확인한다.
+~~~yaml
+spec:
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app: inference
+        topologyKey: kubernetes.io/hostname
+~~~
 
-## 6. 결과 기록에서 지켜야 할 구분
+추론 Pod들이 같은 Node에 놓이지 않도록 강제하는 예시다. Node가 두 개뿐인데 replica를 세 개 요구하면 세 번째 Pod가 Pending이 될 수 있다. **고가용성 제약은 배치 가능한 Node 수보다 강하면 가용 용량을 오히려 줄인다.**
 
-| 구분 | 검증해야 할 증거 |
-|---|---|
-| 컴파일 | pipeline YAML 생성 |
-| 실행 성공 | KFP Run 및 Pod 완료 로그 |
-| 모델 성능 | 후보/기준 지표와 검증 데이터 버전 |
-| 품질 승인 | 승인 기준·판정·미승인 사유 |
-| Registry | 실제 모델 버전·아티팩트 URI·Run ID |
+Pod 레이블의 namespace 범위와 topologyKey의 실제 레이블 존재 여부가 중요하다. Zone 단위 강제 Anti-Affinity는 환경의 admission 정책 제약도 확인해야 한다.
 
-**결론:** 좋은 파이프라인은 모델을 자동으로 등록하는 것이 아니라, 승인되지 않은 모델이 다음 단계로 넘어가지 못하게 한다.
+## 4. TopologySpreadConstraints: 분산의 편차를 수치화
+
+~~~yaml
+spec:
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app: inference
+~~~
+
+이 항목도 Pod spec에 삽입한다. 대상 Pod가 실행되는 eligible topology domain 사이의 차이를 제한한다. 여기서 skew는 단순히 전체 Pod를 전체 Node 수로 나눈 편차가 아니다. **eligible domains, minDomains, node affinity 및 taint 정책**에 영향을 받는다.
+
+- DoNotSchedule: 배치 조건을 충족하지 못하는 Node는 제외.
+- ScheduleAnyway: 불균형을 줄이는 방향으로 선호도를 부여하지만 배치를 금지하지 않음.
+- maxSkew: 1: 대상 Pod 집합의 허용 불균형 크기.
+
+두 수준의 균형이 필요하다면 hostname과 zone 제약을 별도 항목으로 결합할 수 있다.
+
+## 5. RollingUpdate와 Pod 배치가 충돌할 때
+
+Pod Anti-Affinity를 required로 설정하고 이미 모든 eligible Node가 사용 중인 상태에서 RollingUpdate의 maxSurge로 새 Pod가 만들어지면 새 Pod의 배치가 제한될 수 있다. 서비스의 Ready Pod 수를 유지하면서 업데이트할 여유 Node가 없기 때문이다.
+
+롤링 업데이트 이전에 **추가 Pod를 놓을 Node가 있는지**, maxSurge/maxUnavailable과 Anti-Affinity가 충돌하지 않는지 확인해야 한다. PDB는 자발적 중단에 대한 보호 수단이지 어떤 상황에서도 가용성을 보장하는 장치는 아니다.
+
+## 6. 운영 정책 선택
+
+| 워크로드 | 우선 고려할 제약 | 주의할 점 |
+|---|---|---|
+| 실시간 inference API | Node/Zone Topology Spread | 새 Pod가 Pending되지 않을 여유 용량 |
+| GPU 학습 Job | Node affinity + GPU 요청 | GPU 비용·리소스 단편화 |
+| API + feature cache | soft Pod affinity | 같은 Zone에 장애 집중 가능 |
+| 분산 DB | StatefulSet + topology + 개별 PVC | 저장소 토폴로지와 복제 방식 |
+| 비중요 배치 Job | 선호 조건 중심 | 재시도·checkpoint |
+
+## 요약
+
+**가까워야 성능이 좋아지는 Pod와 멀어져야 가용성이 좋아지는 Pod를 구분**한다. 배치 제약은 replica 증가, 롤링 업데이트, 볼륨 topology와 함께 고려해야 한다.
 
 [4주차 학습 정리](/ml-platform/study-week-04)
 
-참고: [KFP Control Flow](https://www.kubeflow.org/docs/components/pipelines/user-guides/core-functions/control-flow/) · [MLflow Registry](https://mlflow.org/docs/latest/ml/model-registry/)
+참고: [Inter-Pod Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity) · [Pod Topology Spread](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)
