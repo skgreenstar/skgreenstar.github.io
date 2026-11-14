@@ -31,6 +31,12 @@ next:
 | CH9.3 | [19 · 디스크 복구](/ml-platform/week04-recovery) | Retain/Delete, PV 재바인딩, 장애 복구 |
 | CH9.4 | [19 · 임시 볼륨](/ml-platform/week04-recovery) | emptyDir와 Generic Ephemeral Volume |
 
+## 실습 중심 학습: 설명한 정책을 실제로 반증할 수 있을까?
+
+[20 · Scheduler와 StatefulSet 통합 검증 실습](/ml-platform/week04-practical-lab)에서는 **필수 Node 조건 → Pending → 레이블 변경 → 재스케줄링**, **Hard Anti-Affinity → Replica와 Node 수 충돌**, **StatefulSet → Pod 재생성 전후 SHA-256 비교**를 한 번에 검증하는 절차를 제공한다.
+
+실습 결과를 아직 확보하지 못했으므로, 해당 글의 기대 현상과 실제 출력은 명확히 구분했다. 이번 주의 완료 기준은 YAML 작성이나 Pipeline 컴파일이 아니라 **실행 환경·명령·실제 Event·원인 분석을 함께 기록하는 것**이다.
+
 ## 학습 아키텍처: Node 배치 + 상태 저장
 
 ~~~text
@@ -84,7 +90,7 @@ next:
 
 CH8에서 CPU/GPU Node placement를 잘못 설계하면 KFP training task가 Pending되고, CH9에서 영속 데이터를 제대로 보존하지 않으면 MLflow DB나 모델 artifact가 사라질 수 있다. 그 위에 데이터 전달, 학습 품질 게이트, 스토리지 정책을 연결하는 것이 다음 네 개의 응용 글이다.
 
-## 응용 학습 · KFP 파이프라인과 검증
+## 추가 응용 · KFP 파이프라인과 검증
 
 ![Week 04 파이프라인](/images/week04-pipeline.svg)
 
