@@ -1,149 +1,150 @@
 ---
-title: "Week 04 · 학습 Pod는 어디에 배치되고 데이터는 어떻게 살아남을까?"
+title: "Week 04 · Pod는 어디에 배치되고 데이터는 어떻게 살아남을까?"
 outline: deep
 prev:
-  text: '3주차 · 학습 정리'
+  text: '3주차 학습 정리'
   link: '/ml-platform/study-week-03'
 next:
-  text: '13 · 데이터 전달'
-  link: '/ml-platform/week04-artifacts'
+  text: '13 · Scheduler'
+  link: '/ml-platform/week04-scheduler'
 ---
 
-# Week 04 · 학습 Pod는 어디에 배치되고 데이터는 어떻게 살아남을까?
+# Week 04 · Pod는 어디에 배치되고 데이터는 어떻게 살아남을까?
 
-교재 범위: *Machine Learning Platform Engineering* CH8 · Node Feature Selection / CH9 · Stateful Applications  
-핵심 질문: 학습·추론 Pod를 원하는 하드웨어에 배치하고, 장애에도 상태를 보존하려면 어떤 Kubernetes 조건이 필요한가?  
-실행 상태: 아래 구성은 학습·실습 설계다. 실제 실행 로그나 측정값을 확보하기 전에는 실행 결과로 기술하지 않는다.
+학습 범위: *Machine Learning Platform Engineering* CH8 · Node Feature Selection / CH9 · Stateful Applications
 
-2주차에는 MLflow·Feast·KFP의 모델·피처 버전 연결을, 3주차에는 추론 서비스의 확장과 트래픽을 살펴봤다. 4주차는 파이프라인 내부의 데이터 이동과 품질 승인으로 돌아간다. **Pipeline Succeeded는 실행 완료이지 모델 승인과 동일하지 않다.**
+1주차에는 ML Lifecycle과 CI/CD, 2주차에는 MLflow·Feast·KFP, 3주차에는 모델 서빙·HPA·요청 경로를 살펴봤다. 4주차의 질문은 다르다. **학습과 추론 작업이 어떤 Node에서 실행되고, Pod가 없어져도 데이터는 어떻게 살아남는가?**
 
-## 이번 주에 실제로 공부할 핵심 범위
+모델 코드가 정확해도 스케줄링 조건이 충돌하면 학습을 시작할 수 없다. 학습을 마쳐도 영속성과 복구 정책이 없다면 모델 아티팩트와 메타데이터를 잃을 수 있다. 그래서 이번 주는 Node 배치와 데이터 수명을 하나의 문제로 연결한다.
 
-이 주차의 중심은 **CH8 Scheduler/Node Feature Selection과 CH9 Stateful Applications**다. 다른 스터디원의 KFP·MLflow 파이프라인 사례는 앞선 2주차의 연장선에서 연결하는 **응용 학습**으로 분리했다. 공유받은 노션에서 요구하는 주제를 우선해서 학습한다.
-
-| 교재 | 상세 학습 글 | 반드시 이해할 내용 |
-|---|---|---|
-| CH8.1 | [17 · Filter, Score, Node Affinity](/ml-platform/week04-placement) | Node selector, required/preferred, Taints/Tolerations |
-| CH8.2 | [17 · Pod 배치와 Topology Spread](/ml-platform/week04-placement) | Pod Affinity/Anti-Affinity, maxSkew, zone/hostname |
-| CH8.3 | [17 · Pending 문제 진단](/ml-platform/week04-placement) | FailedScheduling, Node/Pod 조건 불일치 |
-| CH9.1 | [18 · PV/PVC/StorageClass](/ml-platform/week04-statefulset) | volume 수명, 접근 모드, binding |
-| CH9.2 | [18 · StatefulSet](/ml-platform/week04-statefulset) | ordinal, Headless Service, volumeClaimTemplates |
-| CH9.3 | [19 · 디스크 복구](/ml-platform/week04-recovery) | Retain/Delete, PV 재바인딩, 장애 복구 |
-| CH9.4 | [19 · 임시 볼륨](/ml-platform/week04-recovery) | emptyDir와 Generic Ephemeral Volume |
-
-## Scheduler와 StatefulSet의 동작 확인
-
-[20 · Scheduler와 StatefulSet 통합 검증 실습](/ml-platform/week04-practical-lab)에서는 **필수 Node 조건 → Pending → 레이블 변경 → 재스케줄링**, **Hard Anti-Affinity → Replica와 Node 수 충돌**, **StatefulSet → Pod 재생성 전후 SHA-256 비교**를 한 번에 검증하는 절차를 제공한다.
-
-이 과정에서는 필수 배치 조건과 Pod 분산 정책, PVC의 데이터 수명을 각각 비교한다. 명령과 판단 기준을 함께 제시하되 실제 실행 증거가 없는 관찰값은 단정하지 않는다.
-
-## 학습 아키텍처: Node 배치 + 상태 저장
+## 1. 전체 아키텍처
 
 ~~~text
-                     Kubernetes Cluster
-                             |
-                 Scheduler: Filter → Score → Bind
-                             |
-             ┌───────────────┴─────────────────┐
-             |                                 |
-        CPU Worker Node                  GPU / ML Node
-             |                                 |
-       Preprocessing Job               Training / Inference
-             |                                 |
-       ephemeral scratch                   Dataset / Model
-             |                                 |
-             └───────────────┬─────────────────┘
-                             |
-                   Artifact / Storage Layer
-                  ┌──────────┴───────────┐
-                  |                      |
-             Object Storage       PVC → PV → Disk
-                  |                      |
-           versioned artifact      StatefulSet / DB
+                   ML Platform Workloads
+           KFP Job / MLflow / Inference API
+                           |
+                     API Server
+                           |
+          ┌────────────────┴────────────────┐
+          |                                 |
+     CH8 Scheduling                    CH9 Storage
+          |                                 |
+    Filter → Score → Bind            PVC → PV → CSI
+          |                                 |
+     Node Affinity                 StatefulSet / Disk
+     Taint/Toleration              ReclaimPolicy / Backup
+     Pod Affinity / Spread         Ephemeral Storage
+          |                                 |
+     Pod가 실행될 Node                  데이터 수명
+          |                                 |
+          └────────────────┬────────────────┘
+                           |
+                 안정적인 ML 플랫폼 운영
 ~~~
 
-이 구조는 **설계 예시**이고 실제 GPU Node가 있는 클러스터에서 재현했다는 뜻은 아니다. Mac Apple Silicon + kind에서는 노드 라벨·Taint, Pod placement, PVC/StatefulSet의 기본 동작은 테스트할 수 있지만 GPU 학습의 실제 성능은 별도 환경이 필요하다.
+Scheduler는 Node를 선택하고, kubelet은 볼륨과 컨테이너를 준비한다. PV/PVC와 스토리지 제공자는 파일을 어디에 저장하고 어떤 조건에서 유지할지 결정한다. **스케줄링·실행·영속성은 서로 다른 책임이다.**
 
-### 학습에서 확인해야 하는 인과관계
+## 2. CH8 · Node Feature Selection
 
-1. Pod 생성과 실행은 같은 사건이 아니다. Scheduler가 Filter 조건을 모두 통과한 Node에 Bind하고, 이후 kubelet이 컨테이너를 준비한다.
-2. Node Affinity의 required와 preferred는 별개다. 필수 규칙이 성립하지 않으면 점수가 높아도 배치할 수 없다.
-3. Toleration은 Taint가 있는 Node를 **허용**할 뿐 해당 Node에 배치를 **강제**하지 않는다.
-4. Replica가 여러 개여도 동일 장애 도메인에 집중하면 고가용성이 아니다. Pod Anti-Affinity와 Topology Spread가 필요할 수 있다.
-5. StatefulSet이 Pod별 PVC와 identity를 관리하더라도 데이터베이스 복제와 백업이 자동으로 제공되는 것은 아니다.
-6. Pod 삭제, PVC 삭제, PV 삭제, 실제 클라우드 디스크 삭제는 독립된 사건이므로 복구 정책을 분리해야 한다.
+### 13. Scheduler의 Filter와 Score
 
-## KFP / MLflow 응용: 왜 이 내용을 MLOps에서 배우는가?
+[13 · Scheduler는 어떤 Node에 학습 Pod를 배치할까?](/ml-platform/week04-scheduler)
 
-CH8에서 CPU/GPU Node placement를 잘못 설계하면 KFP training task가 Pending되고, CH9에서 영속 데이터를 제대로 보존하지 않으면 MLflow DB나 모델 artifact가 사라질 수 있다. 그 위에 데이터 전달, 학습 품질 게이트, 스토리지 정책을 연결하는 것이 다음 네 개의 응용 글이다.
+Pod의 CPU·메모리 requests, Node label, Taint, 필수 Node Affinity를 먼저 검사한다. Filter를 통과한 후보만 선호도를 비교한다. NodeSelector와 required Node Affinity는 필수 조건이고 preferred Node Affinity는 후보들의 Score에 영향을 준다. Toleration은 Taint가 설정된 Node를 허용할 뿐, 그 Node 선택을 강제하지 않는다.
 
-## 추가 응용 · KFP 파이프라인과 검증
+### 14. Pod Affinity와 Topology Spread
 
-![Week 04 파이프라인](/images/week04-pipeline.svg)
+[14 · Pod는 왜 모으고, 왜 분산해야 할까?](/ml-platform/week04-pod-placement)
 
-*개념 아키텍처이며 실제 클러스터 실행 결과가 아니다.*
+Node Affinity는 Node의 속성을 보고, Pod Affinity/Anti-Affinity는 다른 Pod가 어디에 실행되는지를 본다. Topology Spread는 hostname 또는 zone 수준의 replica 배치 불균형을 제한한다.
 
-| 주제 | 상세 글 | 운영에서 확인할 질문 |
+서빙 Pod가 셋이어도 모두 같은 Node에 있으면 Node 한 대 장애로 전체가 영향을 받을 수 있다. 반대로 Pod를 반드시 서로 다른 Node에 배치하도록 강제하면 Node가 부족할 때 일부 replica는 Pending에 머무를 수 있다. **가용성 정책과 배치 유연성 사이의 균형**이 필요하다.
+
+### 15. Pending 상태의 원인 분리
+
+[15 · Pod가 Pending일 때 어디부터 진단할까?](/ml-platform/week04-pending-diagnosis)
+
+Pending은 스케줄링 이전뿐 아니라 스케줄링 이후 이미지 Pull과 볼륨 준비 중에도 나타난다. PodScheduled 조건과 Events를 먼저 구분해야 한다.
+
+| 단서 | 관련 계층 | 우선 확인 |
 |---|---|---|
-| 데이터 전달 | [13 · KFP 아티팩트](/ml-platform/week04-artifacts) | Pod 사이에서 Parameter와 Dataset을 어떻게 전달할까? |
-| 모델 검증 | [14 · 학습·평가·승인](/ml-platform/week04-training-validation) | 실행이 성공해도 등록을 막아야 하는 조건은? |
-| 저장소 설계 | [15 · PVC와 스토리지](/ml-platform/week04-storage) | 아티팩트 저장소와 공유 볼륨을 언제 사용할까? |
-| Pod 배치 | [16 · Scheduler와 상태 저장](/ml-platform/week04-scheduling) | Pending이 발생했을 때 어떤 이벤트를 살펴볼까? |
+| Insufficient cpu/memory | Scheduler | requests / allocatable |
+| affinity mismatch | Scheduler | Node label / required policy |
+| untolerated taint | Scheduler | taint / toleration |
+| topology constraint | Scheduler | topologyKey / maxSkew |
+| PVC unbound | Storage / VolumeBinding | PVC / PV / StorageClass |
+| FailedMount | Kubelet / CSI | volume topology / mount events |
+| ImagePullBackOff | Kubelet / Registry | image, credentials, architecture |
 
-## 응용 1. 작은 값과 큰 파일은 서로 다른 계약으로 이동한다
+**CH8의 핵심:** Scheduler는 성능·비용·장애 허용 범위를 제어하는 정책 엔진이다.
 
-| 항목 | Parameter | Artifact |
-|---|---|---|
-| 대상 | 숫자·문자열·작은 직렬화 값 | Dataset·Model·Metrics 등 |
-| 전달 | 작업 인자·반환 값 | 파일과 메타데이터·URI |
-| 주의 | 너무 큰 값으로 메타데이터 부담 | 업로드·다운로드, 저장 비용, 권한 |
-| 예시 | 학습률, snapshot ID, 승인 여부 | 원천 데이터, 모델 가중치, 평가 파일 |
+## 3. CH9 · Stateful Applications
 
-Artifact의 로컬 path와 스토리지 URI는 구별해야 한다. 실질적인 바이트 전송 경로는 KFP 실행 백엔드와 저장소 설정에 따라 달라진다.
+### 16. Persistent Volumes와 StorageClass
 
-## 응용 2. 학습에서 등록까지 안전하게 연결하기
+[16 · PVC와 StorageClass는 데이터 수명을 어떻게 결정할까?](/ml-platform/week04-persistent-storage)
+
+컨테이너 내부 파일, emptyDir, PVC/PV, 원격 객체 저장소는 모두 데이터 수명이 다르다. RWO는 한 Node에서의 읽기·쓰기를 뜻하며 단일 Pod 접근과 동일하지 않다. 지원되는 CSI 환경에서는 RWOP를 검토할 수 있다.
+
+StorageClass의 Immediate와 WaitForFirstConsumer는 볼륨이 언제 바인딩되는지에 영향을 준다. 특정 Zone에만 존재하는 디스크는 Pod의 Node Affinity와 충돌할 수 있으므로 CH8의 배치 원리와 연결된다.
+
+### 17. StatefulSet과 안정적인 식별자
+
+[17 · StatefulSet은 Deployment와 무엇이 다를까?](/ml-platform/week04-stateful-workloads)
+
+StatefulSet은 순서가 있는 Pod 이름, Headless Service 기반 안정적 DNS, volumeClaimTemplates의 Pod별 독립 PVC를 제공한다. Deployment도 PVC를 사용할 수 있지만 각 replica마다 안정적인 식별자가 필요하다면 StatefulSet이 유리하다.
+
+다만 StatefulSet은 Redis·MariaDB의 데이터 복제, 리더 선출, 애플리케이션 백업을 자동으로 제공하지 않는다.
+
+### 18. Disk Recovery와 Ephemeral Volumes
+
+[18 · 디스크를 어떻게 복구하고 임시 볼륨은 언제 쓸까?](/ml-platform/week04-volume-recovery)
+
+Pod 삭제, StatefulSet 삭제, PVC 삭제, PV 제거, 실제 디스크 손상은 각각 다른 사건이다. PV ReclaimPolicy의 Retain은 회수·재연결 가능성을 남기고 Delete는 PVC 해제 뒤 기반 볼륨을 제거할 수 있다. 하지만 Retain은 백업이 아니므로 데이터 정합성과 복구 가능성을 별도로 관리해야 한다.
+
+emptyDir는 Pod의 수명에 종속되고, Generic Ephemeral Volume은 PVC 기능을 사용하면서 Pod 수명에 연결된다. 최종 모델 가중치와 복구 불가능한 메타데이터를 임시 저장소에만 남기면 안 된다.
+
+**CH9의 핵심:** 영속성은 PVC 하나로 완성되지 않는다. 접근 모드·볼륨 Binding·데이터 수명·복구 정책을 함께 설계한다.
+
+## 4. CH8과 CH9를 함께 봐야 하는 이유
 
 ~~~text
-[원천 데이터·snapshot] → [Prepare] → [Split] → [Train] → [Evaluate]
-                             |                                  |
-                        검증된 Dataset                    Metrics·Model
-                                                                |
-                                         [기준 모델과 비교 + Quality gate]
-                                              |             |
-                                           Rejected      Approved
-                                              |             |
-                                             종료       [MLflow Registry]
+Training Job
+  ├── Required Node Affinity : zone-b
+  └── PVC → PV nodeAffinity : zone-a
+                      |
+          공통으로 만족하는 Node 없음
+                      |
+                   Pending
 ~~~
 
-- Prepare는 스키마·행 수·체크섬 검증, Split은 시간·그룹 누수 방지.
-- Train은 데이터 버전·이미지 digest·시드·학습 파라미터 기록.
-- Evaluate는 고정된 검증 데이터로 기준 모델과 후보를 동일하게 비교.
-- Gate는 품질 미달(정상적인 거절)과 시스템 오류(실행 실패)를 별도로 기록.
-- Register는 승인된 모델의 아티팩트·실험 Run ID를 연결.
+위 구조는 가상의 설계 사례다. GPU Node를 추가하거나 CPU requests를 줄이는 것으로 해결되지 않는다. 학습 Job을 실행할 Zone과 데이터 디스크를 사용할 수 있는 Zone이 일치하도록 배치와 스토리지를 함께 설계해야 한다.
 
-## 응용 3. 스토리지와 캐시는 운영 정책이다
+StatefulSet도 비슷하다. 서로 다른 PVC를 가졌더라도 Pod가 한 Zone에 모이면 Zone 장애에 모두 영향을 받을 수 있다. 데이터 복제와 Pod의 장애 도메인 분산도 별도로 고려해야 한다.
 
-KFP 아티팩트 저장소는 실행 결과를 보관하고 추적하는 데, PVC는 Pod가 접근할 파일시스템을 제공하는 데 사용한다. PVC만 붙였다고 lineage가 생기지 않으며 Artifact를 사용해도 파일 전송 비용이 사라지지 않는다.
+## 5. MLOps에 어떻게 연결할까?
 
-KFP 캐시는 동일한 실행을 재사용하는 최적화이지 입력 데이터의 동일성을 보장하는 검증 도구가 아니다. 가변 데이터 URI를 사용할 경우 snapshot ID·checksum을 파라미터로 전달하거나 캐시를 제한한다.
+| 워크로드 | CH8 배치 정책 | CH9 저장 정책 |
+|---|---|---|
+| KFP 데이터 준비 | 범용 CPU Node, requests와 Job 재시도 | 임시 scratch / 불변 원본 데이터 |
+| GPU Training | GPU Node, device plugin, taint/affinity | checkpoint / 영속 model artifact |
+| MLflow Backend DB | Node·프로브·가용성 | DB volume / backup / restore |
+| Feature Cache | 읽기 API와 적절한 거리 | 캐시 재생성 / 필요 시 PVC |
+| Inference API | Node/Zone 분산, readiness | 모델 버전 / 로컬 캐시 |
+| Model Registry | 서비스 가용성 | DB와 artifact 간 일관성 |
 
-## 실습 환경 확인
+학습·서빙·메타데이터 서비스를 같은 Kubernetes에 배치해도 요구사항은 다르다. 일시적인 Training Job과 지속적인 DB, 복제 가능한 Inference API를 똑같이 배치하면 자원과 저장소를 낭비하거나 장애 위험을 높인다.
 
-Mac Apple Silicon + 기존 kind 환경을 기준으로 하되 클러스터 이름과 설치 여부는 실제 환경에서 확인한다.
+## 6. 이번 주 결론
 
-~~~bash
-kind get clusters
-kubectl config current-context
-kubectl get nodes -o wide
-kubectl get storageclass,pv,pvc -A
-kubectl get pods -A | grep -Ei 'pipeline|workflow|mlflow' || true
-python -c 'import kfp; print(kfp.__version__)'
-~~~
+- 배치 가능 여부는 Node 자원의 합계가 아니라 **각 Pod 조건을 만족하는 Node가 실제 존재하는지**로 결정된다.
+- 선호 조건은 필수 제약을 우회하지 못하며 Toleration은 Node 선택을 강제하지 않는다.
+- replica 수 증가가 가용성 증가를 자동 보장하지 않는다. Node와 Zone 분산을 확인해야 한다.
+- StatefulSet의 안정적인 식별성과 독립 PVC는 데이터 복제·백업과 다른 기능이다.
+- 저장소의 수명과 위치는 Scheduler의 Node 선택 조건과 함께 작동한다.
 
-컴파일 성공, KFP Run 성공, 아티팩트 업로드, 모델 품질 승인, 레지스트리 등록은 **각각 다른 검증 단계**다.
+**Node 선택은 계산 자원의 계약이고 Volume 설계는 데이터 수명의 계약이다. 이 둘의 조건이 맞아야 ML 플랫폼을 안정적으로 운영할 수 있다.**
 
-## 4주차 학습 결론
+이 글은 기술 원리와 YAML·명령어 예제 중심의 학습 정리다. 실행 결과를 꾸며 쓰거나 채우지 않은 검증표를 배치하지 않았다.
 
-1주차의 ML Lifecycle·CI/CD/CT, 2주차의 실험·피처 추적, 3주차의 확장·서빙을 하나로 연결하려면 데이터 스냅샷→학습 이미지→평가 지표→승인 결과→등록 모델을 역추적할 수 있어야 한다. 4주차의 중심은 자동 실행보다 **올바른 실패를 안전하게 막는 파이프라인**이다.
-
-참고: [KFP Artifacts](https://www.kubeflow.org/docs/components/pipelines/user-guides/data-handling/artifacts/) · [Kubernetes PV](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)
+참고: [Kubernetes Scheduling](https://kubernetes.io/docs/concepts/scheduling-eviction/) · [Assigning Pods to Nodes](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/) · [Topology Spread](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/) · [Persistent Volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) · [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) · [Ephemeral Volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/)
