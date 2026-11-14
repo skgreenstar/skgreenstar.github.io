@@ -1,95 +1,109 @@
 ---
-title: "15 · 아티팩트 저장소와 PVC 중 무엇을 선택해야 할까?"
+title: "15 · Pod가 Pending일 때 어디부터 진단할까?"
 outline: deep
-prev:
-  text: '14 · 학습과 검증'
-  link: '/ml-platform/week04-training-validation'
-next:
-  text: '16 · Scheduler'
-  link: '/ml-platform/week04-scheduling'
+prev: { text: '14 · Pod 배치 전략', link: '/ml-platform/week04-training-validation' }
+next: { text: '16 · Volume', link: '/ml-platform/week04-scheduling' }
 ---
 
-# 15 · 아티팩트 저장소와 PVC 중 무엇을 선택해야 할까?
+# 15 · Pod가 Pending일 때 어디부터 진단할까?
 
-데이터를 KFP 단계 사이에 전달한다고 반드시 공유 PVC가 필요한 것은 아니다. 객체 저장소·볼륨·임시 디스크는 데이터의 수명과 접근 패턴에 따라 나눠야 한다.
+CH8.3 Debugging Placement Problems
 
-## 1. 세 저장 방식의 책임
+Pending은 반드시 Scheduler 문제를 뜻하지 않는다. Node 배치 전에도, Node가 결정되었지만 컨테이너와 볼륨을 준비하는 단계에서도 발생할 수 있다.
 
-| 방식 | 강점 | 주의할 점 |
-|---|---|---|
-| KFP Artifact + 객체 저장소 | 실행별 결과 추적·Pod 간 전달·영속화 | 전송 및 저장 비용, 접근 권한 |
-| PVC | 동일 클러스터에서 큰 파일 반복 접근 | 접근 모드·스토리지 토폴로지·정리 |
-| ephemeral storage | 임시 파일·짧은 작업 공간 | Pod 종료 시 데이터 소실 |
-
-KFP 아티팩트는 추적의 단위이고 PVC는 파일시스템 접근 방식이다. 이 둘은 대체 관계라기보다 필요하면 함께 사용하는 구조다.
-
-## 2. PV, PVC, StorageClass
-
-- PV는 클러스터에서 제공하는 볼륨 리소스이고 PVC는 Pod 측의 스토리지 요청이다.
-- StorageClass는 동적 프로비저닝과 바인딩 정책을 정의한다.
-- ReadWriteOnce(RWO)는 한 노드에 읽기/쓰기 마운트를 허용하는 접근 모드다. 반드시 Pod 하나만 쓴다는 의미는 아니다.
-- ReadWriteMany(RWX)는 지원되는 드라이버에서 다중 노드 접근을 허용한다.
-- WaitForFirstConsumer는 첫 소비 Pod의 스케줄링 조건을 고려해 바인딩·프로비저닝을 지연할 수 있다.
-
-~~~yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: week04-cache
-  namespace: week04
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 2Gi
-~~~
-
-이 PVC는 예시다. 실제로 사용할 StorageClass와 클러스터의 기본값이 있는지 먼저 확인해야 한다.
-
-## 3. 대용량 데이터에서 발생할 수 있는 병목
+## 1. PodScheduled부터 분리한다
 
 ~~~text
-데이터 수집 → Object storage (불변 원본 스냅샷)
-                               |
-                     Prepare / Validate
-                               |
-                     반복 학습용 캐시 PVC
-                               |
-                        Train / Evaluate
-                               |
-                      Model Artifact 업로드
+                  Pod: Pending
+                       |
+              PodScheduled?
+                /            \
+             False           True
+              |               |
+        FailedScheduling    Kubelet / CSI
+              |               |
+        Node / affinity    FailedMount /
+        taints / capacity  ImagePullBackOff
 ~~~
 
-원본 데이터는 불변 스냅샷으로 보관하고, 중간 계산 결과는 재생성 가능하다면 별도로 보존 기한을 정한다. 큰 Dataset을 매번 다운로드/업로드하는 비용과 PVC 사용 시 노드 바인딩·동시성을 비교한다.
-
-## 4. PVC를 사용할 때 실패하는 이유
-
-| 증상 | 점검 순서 |
-|---|---|
-| PVC Pending | StorageClass, 용량, 프로비저너 이벤트 |
-| Pod Pending | PVC 바인딩 상태, nodeAffinity, topology |
-| mount 실패 | CSI 드라이버, 접근 모드, 권한, 노드 이벤트 |
-| 저장 공간 부족 | PVC 사용량, ephemeral storage, log |
-| 재시도 결과가 이상함 | 이전 실행 중간 파일 오염, 실행별 경로 분리 |
-
 ~~~bash
-kubectl get storageclass
-kubectl -n week04 get pvc
-kubectl -n week04 describe pvc week04-cache
-kubectl -n week04 get pods -o wide
+kubectl -n week04 get pod <POD> -o wide
+kubectl -n week04 describe pod <POD>
+kubectl -n week04 get pod <POD> -o jsonpath='{.status.conditions}'
 kubectl -n week04 get events --sort-by=.lastTimestamp
 ~~~
 
-## 5. 운영 판단 기준
+상태·이벤트를 읽는 참고 명령어이며 실제 클러스터 실행 로그는 아니다.
 
-- 모델 버전과 연계해 오래 보존할 파일 → 객체 저장소 Artifact.
-- 여러 단계가 자주 읽고 쓰는 대형 파일 → PVC 검토.
-- 실패 시 바로 다시 계산할 작은 파일 → 임시 스토리지.
-- 서로 다른 클러스터·리전에 접근할 데이터 → 원격 불변 데이터셋 URI 검토.
+## 2. 실패 메시지를 계층별로 해석한다
 
-**결론:** 스토리지 선택은 속도 하나가 아니라 재현성·비용·격리·동시성·Pod 배치 조건을 함께 최적화하는 결정이다.
+| 이벤트 | 대표 원인 | 먼저 확인할 대상 |
+|---|---|---|
+| Insufficient cpu / memory | NodeResourcesFit 필터 | requests, Node allocatable |
+| node affinity/selector mismatch | NodeAffinity 필터 | 레이블, required 조건 |
+| untolerated taint | TaintToleration 필터 | Node taints, Pod tolerations |
+| pod affinity/anti-affinity mismatch | InterPodAffinity | labelSelector, namespace, topologyKey |
+| topology spread constraint | PodTopologySpread | 대상 Pod, zone, maxSkew |
+| unbound PVC | StorageClass/VolumeBinding | PVC describe, provisioner |
+| FailedMount | kubelet/CSI | PV zone, 드라이버, 접근 권한 |
+| ImagePullBackOff | 이미지 레지스트리 | 이름, 태그, 인증, 아키텍처 |
+
+## 3. 자원 단편화와 Requests
+
+Node A에 CPU 1500m, Node B에 CPU 1000m가 남아 있을 때 CPU 2000m를 요청하는 하나의 Pod는 배치할 수 없다. 클러스터 전체 여유 CPU는 2500m이지만 **한 Pod가 여러 Node의 CPU를 합쳐 사용할 수는 없기 때문**이다.
+
+실시간 사용률이 낮아도 requests를 기준으로 추가 Pod 배치가 제한될 수 있다. 따라서 CPU를 조사할 때는 top 명령만이 아니라 Node의 Allocated resources를 함께 확인한다.
+
+~~~bash
+kubectl describe node <NODE>
+kubectl top node
+kubectl -n week04 get pod <POD> -o yaml
+~~~
+
+## 4. 필수 조건들이 서로 충돌하는 경우
+
+~~~yaml
+spec:
+  nodeSelector:
+    disk: nvme
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: zone
+            operator: In
+            values: [az2]
+~~~
+
+이 매니페스트는 NVMe 디스크이면서 az2 Node여야 한다. az1에 NVMe가 아무리 많아도 필수 조건을 통과하지 못한다. Toleration을 추가해도 잘못된 zone 조건은 우회할 수 없다.
+
+## 5. PVC가 Scheduler 장애처럼 보이는 이유
+
+볼륨이 특정 zone에 고정되어 있다면 Pod의 Node Affinity도 그 범위와 양립해야 한다. StorageClass의 WaitForFirstConsumer는 최초 Pod의 배치 제약을 고려해 볼륨을 준비하도록 설계된 정책이다. 반대로 Immediate는 Pod가 결정되기 전에 볼륨의 위치가 정해질 수 있다.
+
+~~~bash
+kubectl get storageclass -o wide
+kubectl -n week04 get pvc
+kubectl -n week04 describe pvc <PVC>
+kubectl get pv -o wide
+~~~
+
+## 6. ML 학습 작업의 장애 분석 순서
+
+1. PodScheduled와 Events로 Scheduler 이전/이후 단계 분리.
+2. CPU/메모리 requests와 Node allocatable 확인.
+3. nodeSelector, affinity, taint, topology 제약 검토.
+4. PVC Bound와 StorageClass, 볼륨 topology 확인.
+5. 이미 스케줄되었다면 이미지 Pull·Mount·컨테이너 시작 단계 점검.
+6. 컨테이너가 실행된 다음 모델 학습 로그와 exit code 확인.
+
+KFP Training Job의 Pod가 Pending일 때 학습 코드를 먼저 수정하는 것은 문제 해결의 순서를 거꾸로 잡는 것이다.
+
+## 요약
+
+**Pending은 증상이고 PodScheduled와 Event는 문제의 경계를 알려 주는 근거**다. Scheduler, Kubelet, CSI, 이미지 저장소 문제를 구분해야 적절한 조치를 선택할 수 있다.
 
 [4주차 학습 정리](/ml-platform/study-week-04)
 
-참고: [Kubernetes PV](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) · [StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes/)
+참고: [Pod Lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/) · [Kubernetes Scheduler](https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/)
