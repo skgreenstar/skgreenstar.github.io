@@ -226,19 +226,7 @@ kubectl describe node <WORKER_NODE_NAME>
 
 **주의:** Pending인 모든 Pod가 스케줄링되지 않은 것은 아니다. PodScheduled=True인데 볼륨 마운트나 이미지 다운로드가 진행되지 않아 Pending일 수 있다. Pod conditions와 Events를 반드시 함께 읽는다.
 
-## 7. 기록 양식: 이 표를 채워야 실습한 글이 된다
-
-| 실험 | 가설 | 실행 명령 | 실제 Pod 상태/이벤트 | 결과 해석 |
-|---|---|---|---|---|
-| A1 | required mismatch → Pending | describe pod | 미실행 | 추후 기록 |
-| A2 | label 부여 → scheduling | label node | 미실행 | 추후 기록 |
-| B1 | hard anti-affinity → 일부 Pending | get pods -o wide | 미실행 | 추후 기록 |
-| C1 | Pod 교체 후 데이터 유지 | sha256sum | 미실행 | 추후 기록 |
-| D1 | PVC 문제 vs Node 문제 분리 | describe pvc / pod | 미실행 | 추후 기록 |
-
-실험의 목적은 모든 예상값이 맞는 모습을 만드는 것이 아니다. 실제 결과가 다르면 조건, 버전, 사용 Node 수를 확인해 **왜 다른지 분석**한다.
-
-## 8. 실험 후 정리
+## 7. 실험 후 정리
 
 ~~~bash
 kubectl -n week04 delete deploy spread-demo --ignore-not-found
@@ -252,7 +240,7 @@ kubectl label node <WORKER_NODE_NAME> workload-
 
 PVC는 StorageClass의 reclaimPolicy가 Delete이면 삭제 시 backing data가 제거될 수 있다. 따라서 학습용 Pod 정리와 데이터 폐기는 다른 작업으로 다룬다.
 
-## 9. 1~3주차를 실제로 이어 붙이는 법
+## 8. 1~3주차와 연결하기
 
 - 2주차 KFP Job이 Pending이면 모델을 다시 학습시키기 전에 Node affinity, resource requests, PVC 바인딩을 확인한다.
 - 3주차 HPA Desired replicas가 늘었는데 Ready replicas가 그대로라면 Scheduler 이벤트와 Pod readiness를 시간 순서로 대조한다.
