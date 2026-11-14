@@ -45,6 +45,13 @@ export default defineConfig({
           { text: '11 · BentoML 모델 서빙', link: '/ml-platform/week03-bentoml-serving' },
           { text: '12 · 데이터와 모델 드리프트', link: '/ml-platform/week03-model-serving-drift' }
         ]},
+        { text: '4주차 · 데이터 전달과 학습·검증', items: [
+          { text: '학습 정리 · 파이프라인과 검증', link: '/ml-platform/study-week-04' },
+          { text: '13 · KFP 아티팩트', link: '/ml-platform/week04-artifacts' },
+          { text: '14 · 학습과 검증', link: '/ml-platform/week04-training-validation' },
+          { text: '15 · PVC와 저장 전략', link: '/ml-platform/week04-storage' },
+          { text: '16 · Scheduler와 상태 저장', link: '/ml-platform/week04-scheduling' }
+        ]},
         { text: '심화 · 운영과 평가', items: [
           { text: '운영 자동화', link: '/ml-platform/week-04' },
           { text: '리소스 관리', link: '/ml-platform/week-05' },
