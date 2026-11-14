@@ -137,19 +137,6 @@ spec:
 | 모델 레지스트리 아티팩트 | 버전 지정된 영속 저장소 | 모델 버전·참조 경로 일치 |
 | Stateful DB 복제본 | 독립 PVC + 애플리케이션 복제 | 디스크 복구와 DB 복구 구별 |
 
-## 7. 장애 실험 기록 양식
-
-실제 실습할 때 아래 정보를 남기면 성공/실패를 검증할 수 있다.
-
-| 단계 | 측정할 항목 | 실제 결과 |
-|---|---|---|
-| 최초 기동 | Pod/PVC/PV 이름, volumeBindingMode | 미실행 |
-| 파일 기록 | checksum 및 timestamp | 미실행 |
-| Pod 삭제/재생성 | PVC 재연결 여부, checksum 비교 | 미실행 |
-| PVC 삭제 | PV Phase, reclaimPolicy, backing storage | 미실행 |
-| 재바인딩 | 새 PVC Bound, 파일 checksum 비교 | 미실행 |
-| 임시 볼륨 삭제 | Pod/PVC 자원 정리 여부 | 미실행 |
-
 **결론:** 영속 데이터의 핵심은 단순히 PVC를 붙이는 게 아니라 **어떤 객체가 삭제되어도 데이터가 남아야 하는지, 누가 복구 책임을 지는지**를 명확하게 정의하는 것이다.
 
 [4주차 학습 정리](/ml-platform/study-week-04)
