@@ -110,7 +110,22 @@ kubectl auth can-i create jobs -n mlops
 
 위 명령어는 **환경에 해당 리소스가 존재할 경우** 사용한다. 이 문서에는 실행하지 않은 결과를 실제 검증값처럼 기재하지 않는다.
 
-## 7. 결론
+## 7. 직접 실행한 검증: DB COMMIT 직후 실패하면?
+
+[23 · Job 재시도와 멱등성 실험](/ml-platform/week05-idempotency-lab)
+
+로컬에서 별도 Python 프로세스를 실제로 실행해 DB 저장 직후 `exit 17` 장애를 만들고, 동일 `job_id`로 재시도했다. 결과는 아래와 같다.
+
+| 조건 | 최초 종료 | 재시도 종료 | 결과 건수 |
+|---|---:|---:|---:|
+| 일반 INSERT | 17 | 0 | 2건 (중복) |
+| UNIQUE + ON CONFLICT | 17 | 0 | 1건 |
+
+Python 3.13.5와 SQLite로 실제 수행했고 같은 시나리오를 두 번 검증했다. Kubernetes Job 컨트롤러를 직접 실행한 것은 아니므로 **Job 재시도에서 발생할 수 있는 데이터 중복의 로컬 재현**으로 한정한다.
+
+재현 코드와 실제 JSON 출력은 [GitHub week05-lab](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week05-lab)에 공개했다.
+
+## 8. 결론
 
 CH10은 **작업 실행·재시도·수명**에 대한 질문이고, CH11은 **운영 변경의 출처·검토·복원**에 대한 질문이다. 이 둘을 연결하려면 모델 품질을 확인하는 별도의 게이트가 필요하다.
 
