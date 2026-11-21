@@ -36,6 +36,46 @@ flowchart LR
     G -->|"거부"| I["승격 제외 / 사유 기록"]
 ~~~
 
+## 구성도 · Controller부터 모델 검증까지
+
+~~~mermaid
+flowchart LR
+  CRON["CronJob Controller"] -->|"일정에 따라"| JOB["Job 객체"]
+  MANUAL["수동 제출"] --> JOB
+  JOB --> JC["Job Controller"]
+  JC --> P1["Pod attempt 1"]
+  JC -.->|"실패 시 조건부 재시도"| P2["Pod attempt 2"]
+  P1 --> DB[("외부 결과 DB")]
+  P2 --> DB
+  P2 --> QC{"모델 품질 검사"}
+  QC -->|"통과"| REG["Registry 후보"]
+  QC -->|"미달"| DENY["승격 제외"]
+~~~
+
+Job Controller가 관찰하는 것은 Pod의 종료·완료 상태이고, **외부 DB에 기록된 결과나 모델 정확도는 직접 검증하지 않는다.** 재시도 전에 이미 외부 쓰기가 확정됐다면 추가 처리가 필요하다.
+
+### Job과 CronJob의 시간축
+
+~~~mermaid
+sequenceDiagram
+  participant C as CronJob Controller
+  participant J as Job Controller
+  participant P as Training Pod
+  participant D as Result DB
+  C->>J: 스케줄에 따른 Job 생성
+  J->>P: Pod 실행
+  P->>D: 결과 COMMIT
+  D-->>P: Commit 완료
+  Note over P: 이후 오류 발생 가능
+  P--xJ: 비정상 종료
+  J->>P: 정책 범위에서 재시도
+  P->>D: 같은 작업 결과 다시 기록 시도
+  Note over D: UNIQUE / UPSERT 없으면 중복 가능
+  P-->>J: 정상 종료
+  Note over J: Complete ≠ 품질 승인
+~~~
+
+
 ## 2. Job 핵심 필드
 
 ~~~yaml
