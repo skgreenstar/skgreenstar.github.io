@@ -41,6 +41,60 @@ flowchart LR
 
 ConfigMap과 Secret을 환경변수로 주입하면 업데이트가 기존 프로세스에 자동 반영되지 않는다. 볼륨으로 마운트한 값은 조건에 따라 갱신될 수 있으나 `subPath` 마운트에는 자동 업데이트가 반영되지 않는다. 애플리케이션 재로딩 또는 롤아웃 전략을 결정해야 한다.
 
+## 보안 아키텍처 · 설정·권한·네트워크를 따로 설계
+
+~~~mermaid
+flowchart TB
+  USER["개발자 / CI"] --> POLICY["PR 승인·Policy as Code"]
+  POLICY --> GIT[("Git · 비민감 설정/참조")]
+  GIT --> OP["GitOps Controller"]
+  KEY[("Secret Manager / KMS")] --> SYNC["Secret Sync / CSI"]
+  subgraph CLUSTER["Kubernetes Cluster"]
+    subgraph DEV["Namespace: mlops-dev"]
+      DCFG["Dev ConfigMap"]
+      DWORK["Dev Workload"]
+      DCFG --> DWORK
+    end
+    subgraph PROD["Namespace: mlops-prod"]
+      PCFG["Prod ConfigMap"]
+      PSEC["Prod Secret"]
+      PWORK["Prod Inference"]
+      PCFG --> PWORK
+      PSEC --> PWORK
+    end
+    RBAC["RBAC / Admission"]
+    NET["NetworkPolicy · CNI 지원 필요"]
+  end
+  OP --> DCFG
+  OP --> PCFG
+  SYNC --> PSEC
+  RBAC --> PWORK
+  NET --> PWORK
+~~~
+
+Namespace 분리는 네트워크·보안 경계를 자동 형성하지 않는다. 동일 클러스터의 관리자 권한은 Namespace를 넘어 작동할 수 있으므로 신뢰 수준이 다르면 클러스터·계정 분리까지 검토한다.
+
+### Secret 회전 시 설정 반영 경로
+
+~~~mermaid
+sequenceDiagram
+  participant M as Secret Manager
+  participant S as Secret Sync
+  participant K as K8s Secret / Volume
+  participant P as Application Pod
+  M->>S: 새 버전 발행
+  S->>K: Secret 동기화
+  alt 환경 변수 주입
+    Note over P: 기존 프로세스의 값은 자동 변경되지 않음
+    K-->>P: 명시적 rollout/restart 필요
+  else 일반 Secret 볼륨 마운트
+    K-->>P: 전파 지연 후 파일 갱신 가능
+    Note over P: 앱에서 다시 읽거나 재시작해야 사용
+  end
+  Note over K,P: subPath 마운트는 자동 갱신되지 않음
+~~~
+
+
 ## 3. 설정 예제
 
 ~~~yaml
