@@ -31,6 +31,46 @@ flowchart LR
 
 API가 작업을 DB에 적재하고 큐에 넣는 두 단계 사이에서 실패할 수 있다. DB와 메시지 브로커 간 원자성이 없기 때문에 운영 환경에서는 transactional outbox 또는 reconciliation 처리를 검토해야 한다.
 
+## 비교 아키텍처 · 삭제형 큐와 확인형 큐
+
+~~~mermaid
+flowchart TB
+  subgraph Simple["A · 단순 Pop 구조"]
+    A1["API"] --> A2[("Redis List")]
+    A2 -->|"BLPOP: 꺼내면서 제거"| A3["Worker"]
+    A3 -->|"작업 전 장애"| A4["유실 가능"]
+  end
+  subgraph Recover["B · 확인형 작업 구조"]
+    B1["API"] --> B2[("Pending Queue / Stream")]
+    B2 -->|"claim"| B3["Worker"]
+    B3 -->|"성공"| B4["ACK / 완료 기록"]
+    B3 -->|"장애"| B5["Pending + Lease 만료"]
+    B5 -->|"재획득"| B6["복구 Worker"]
+    B6 --> B4
+  end
+~~~
+
+Redis Streams의 Pending Entry List는 소비자 그룹과 확인 상태를 다루는 **실제 Redis 메커니즘**이지만, 여기서 도식화한 Lease 기반 복구는 애플리케이션 설계 개념이다. Redis Streams에서는 `XREADGROUP`, `XACK`, `XAUTOCLAIM` 등의 동작을 별도로 확인해야 한다.
+
+### 작업 상태 전이 · 재시도 상한 포함
+
+~~~mermaid
+stateDiagram-v2
+  [*] --> QUEUED: 작업 등록
+  QUEUED --> CLAIMED: 소비자 할당
+  CLAIMED --> RUNNING: 실행 시작
+  RUNNING --> SUCCEEDED: 처리 및 결과 확정
+  RUNNING --> RETRY_WAIT: 프로세스 오류/Lease 만료
+  CLAIMED --> RETRY_WAIT: Worker 장애
+  RETRY_WAIT --> QUEUED: 재시도 여유 있음
+  RETRY_WAIT --> DEAD_LETTER: 한도 초과
+  SUCCEEDED --> [*]
+  DEAD_LETTER --> [*]
+~~~
+
+`SUCCEEDED`로 바꾸기 전에 결과 저장이 끝났는지 검증하고, 같은 작업이 중복 전달돼도 상태와 결과가 훼손되지 않는 멱등 처리를 넣는다.
+
+
 ## 2. Redis RPUSH / BLPOP의 의미
 
 ~~~bash
