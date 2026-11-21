@@ -33,6 +33,52 @@ flowchart TD
 
 소스 코드 변경은 이미지 빌드·테스트를 거쳐 배포 선언을 바꾸고, 모델 변경은 품질 검증·승인을 거쳐 **고정된 버전**을 배포 선언에 반영하는 구조로 연결할 수 있다.
 
+## GitOps 2계층 아키텍처 · 학습 제어면과 배포 제어면
+
+~~~mermaid
+flowchart LR
+  subgraph Train["학습·검증 제어면"]
+    CODE["Training Code"]
+    PIPE["Job / KFP"]
+    RUNS[("MLflow Runs")]
+    QA{"품질 검증"}
+    CODE --> PIPE --> RUNS --> QA
+  end
+  subgraph Release["배포 선언 제어면"]
+    PR["PR · 모델 버전 고정"]
+    REVIEW{"승인"}
+    REPO[("Git Desired State")]
+    RECON["GitOps Reconciler"]
+    K8S["Serving Deployment"]
+    PR --> REVIEW -->|"승인"| REPO --> RECON --> K8S
+  end
+  QA -->|"통과한 고정 모델 ID"| PR
+  QA -->|"미달"| REJECT["승격 거부"]
+  K8S --> CHECK["Readiness / 실제 버전 확인"]
+~~~
+
+**GitOps의 배포 성공은 모델 품질 통과와 별개**다. 모델 승인 없이 단순히 레지스트리 alias를 변경해서 서빙 컨테이너가 자동 재로딩되기를 기대하면 운영 상태가 불명확해질 수 있다.
+
+### 선언 상태와 실제 상태가 다를 때
+
+~~~mermaid
+sequenceDiagram
+  participant G as Git Repository
+  participant R as GitOps Reconciler
+  participant K as Kubernetes API
+  participant O as Operator
+  G-->>R: desired replicas=2 / model v17
+  R->>K: 매니페스트 적용
+  O->>K: kubectl scale replicas=1
+  Note over K: Live state diverges
+  R->>G: Git 선언 재조회
+  R->>K: Reconcile · replicas=2 복원
+  Note over K: 복원 동작은 관리 정책·설정에 따름
+~~~
+
+이것은 **예상 동작을 설명하는 설계 시퀀스**이며, 실제 Flux·Argo CD 클러스터에서 측정한 기록은 아니다. 자동 수정 여부는 Controller의 reconciliation 및 self-heal 설정, ignore 규칙에 따라 달라질 수 있다.
+
+
 ## 2. Git 안과 밖을 나누기
 
 | 대상 | 기준 시스템 | 판단 근거 |
