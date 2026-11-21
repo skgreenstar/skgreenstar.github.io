@@ -1,0 +1,38 @@
+{
+  "experiment": "worker-crash-queue-recovery",
+  "backend": "sqlite",
+  "clock": "simulated logical seconds 100, 101, 111",
+  "results": [
+    {
+      "mode": "delete",
+      "first_exit": 17,
+      "immediate_retry_exit": 3,
+      "after_expiry_retry_exit": 3,
+      "after_crash": [],
+      "final": []
+    },
+    {
+      "mode": "lease",
+      "first_exit": 17,
+      "immediate_retry_exit": 3,
+      "after_expiry_retry_exit": 0,
+      "after_crash": [
+        {
+          "id": "train-batch-001",
+          "status": "claimed",
+          "lease_until": 110,
+          "attempts": 1
+        }
+      ],
+      "final": [
+        {
+          "id": "train-batch-001",
+          "status": "done",
+          "lease_until": null,
+          "attempts": 2
+        }
+      ]
+    }
+  ],
+  "assertions_passed": true
+}
