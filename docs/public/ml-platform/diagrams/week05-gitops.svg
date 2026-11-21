@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="568" viewBox="0 0 1060 568" role="img" aria-label="GITOPS  |  MODEL RELEASE CONTROL PLANE">
+<rect width="1060" height="568" rx="20" fill="#F8FAFD"/>
+<rect x="0" y="0" width="1060" height="8" fill="#2462A6"/>
+<text x="32" y="57" font-size="27" font-family="Arial, sans-serif" font-weight="700" fill="#172944">GITOPS  |  MODEL RELEASE CONTROL PLANE</text>
+<text x="32" y="89" font-size="15" font-family="Arial, sans-serif" fill="#51637B">학습 실행 결과와 Git의 선언 상태를 분리  ·  실제 배포한 모델 버전까지 검증</text>
+<rect x="28" y="122" width="240" height="370" rx="16" fill="#FFF" stroke="#DCE5EF" stroke-width="1.7"/>
+<rect x="43" y="140" width="210" height="35" rx="9" fill="#253B59"/>
+<text x="148" y="163" text-anchor="middle" font-size="15" font-family="Arial, sans-serif" font-weight="700" fill="#FFF">TRAIN</text>
+<rect x="43" y="197" width="210" height="105" rx="12" fill="#EAF3FF" stroke="#1761AF" stroke-opacity=".26"/>
+<rect x="43" y="197" width="7" height="105" rx="3" fill="#1761AF"/>
+<text x="56" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1761AF">Training / KFP</text>
+<text x="56" y="271" font-family="Arial, sans-serif" font-size="14" fill="#394C60">실험 실행</text>
+<rect x="43" y="327" width="210" height="105" rx="12" fill="#E5F8FB" stroke="#087D91" stroke-opacity=".26"/>
+<rect x="43" y="327" width="7" height="105" rx="3" fill="#087D91"/>
+<text x="56" y="369" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#087D91">MLflow Model</text>
+<text x="56" y="401" font-family="Arial, sans-serif" font-size="14" fill="#394C60">버전·지표 등록</text>
+<path d="M 277 309 H 291" fill="none" stroke="#8499B0" stroke-width="3" stroke-linecap="round"/>
+<path d="M 290 302 L 299 309 L 290 316" fill="none" stroke="#8499B0" stroke-width="3"/>
+<rect x="291" y="122" width="240" height="370" rx="16" fill="#FFF" stroke="#DCE5EF" stroke-width="1.7"/>
+<rect x="306" y="140" width="210" height="35" rx="9" fill="#253B59"/>
+<text x="411" y="163" text-anchor="middle" font-size="15" font-family="Arial, sans-serif" font-weight="700" fill="#FFF">GATE</text>
+<rect x="306" y="197" width="210" height="105" rx="12" fill="#F0EDFF" stroke="#6A4EC2" stroke-opacity=".26"/>
+<rect x="306" y="197" width="7" height="105" rx="3" fill="#6A4EC2"/>
+<text x="319" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#6A4EC2">Validation</text>
+<text x="319" y="271" font-family="Arial, sans-serif" font-size="14" fill="#394C60">기준 모델 비교</text>
+<rect x="306" y="327" width="210" height="105" rx="12" fill="#F0EDFF" stroke="#6A4EC2" stroke-opacity=".26"/>
+<rect x="306" y="327" width="7" height="105" rx="3" fill="#6A4EC2"/>
+<text x="319" y="369" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#6A4EC2">Approval</text>
+<text x="319" y="401" font-family="Arial, sans-serif" font-size="14" fill="#394C60">승격 승인</text>
+<path d="M 540 309 H 554" fill="none" stroke="#8499B0" stroke-width="3" stroke-linecap="round"/>
+<path d="M 553 302 L 562 309 L 553 316" fill="none" stroke="#8499B0" stroke-width="3"/>
+<rect x="554" y="122" width="240" height="370" rx="16" fill="#FFF" stroke="#DCE5EF" stroke-width="1.7"/>
+<rect x="569" y="140" width="210" height="35" rx="9" fill="#253B59"/>
+<text x="674" y="163" text-anchor="middle" font-size="15" font-family="Arial, sans-serif" font-weight="700" fill="#FFF">DESIRED</text>
+<rect x="569" y="197" width="210" height="105" rx="12" fill="#E6F7EC" stroke="#16824C" stroke-opacity=".26"/>
+<rect x="569" y="197" width="7" height="105" rx="3" fill="#16824C"/>
+<text x="582" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#16824C">Git PR</text>
+<text x="582" y="271" font-family="Arial, sans-serif" font-size="14" fill="#394C60">고정 모델 ID</text>
+<rect x="569" y="327" width="210" height="105" rx="12" fill="#E6F7EC" stroke="#16824C" stroke-opacity=".26"/>
+<rect x="569" y="327" width="7" height="105" rx="3" fill="#16824C"/>
+<text x="582" y="369" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#16824C">GitOps Controller</text>
+<text x="582" y="401" font-family="Arial, sans-serif" font-size="14" fill="#394C60">선언 상태 동기화</text>
+<path d="M 803 309 H 817" fill="none" stroke="#8499B0" stroke-width="3" stroke-linecap="round"/>
+<path d="M 816 302 L 825 309 L 816 316" fill="none" stroke="#8499B0" stroke-width="3"/>
+<rect x="817" y="122" width="240" height="370" rx="16" fill="#FFF" stroke="#DCE5EF" stroke-width="1.7"/>
+<rect x="832" y="140" width="210" height="35" rx="9" fill="#253B59"/>
+<text x="937" y="163" text-anchor="middle" font-size="15" font-family="Arial, sans-serif" font-weight="700" fill="#FFF">ACTUAL</text>
+<rect x="832" y="197" width="210" height="105" rx="12" fill="#E5F8FB" stroke="#087D91" stroke-opacity=".26"/>
+<rect x="832" y="197" width="7" height="105" rx="3" fill="#087D91"/>
+<text x="845" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#087D91">K8s Deployment</text>
+<text x="845" y="271" font-family="Arial, sans-serif" font-size="14" fill="#394C60">새 버전 롤아웃</text>
+<rect x="832" y="327" width="210" height="105" rx="12" fill="#E6F7EC" stroke="#16824C" stroke-opacity=".26"/>
+<rect x="832" y="327" width="7" height="105" rx="3" fill="#16824C"/>
+<text x="845" y="369" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#16824C">Serving Check</text>
+<text x="845" y="401" font-family="Arial, sans-serif" font-size="14" fill="#394C60">Ready + model ID</text>
+<text x="32" y="535" font-family="Arial, sans-serif" font-size="14" fill="#63748A">ML Platform Engineering · Week 05  |  Conceptual architecture / see accompanying text for scope</text></svg>
