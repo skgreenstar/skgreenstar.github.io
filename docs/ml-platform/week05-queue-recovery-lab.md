@@ -37,6 +37,47 @@ flowchart TD
 - **단순 Dequeue:** 읽고 삭제한 작업은 Worker가 죽어도 큐에 복구할 기록이 남지 않는다.
 - **Lease + ACK:** 작업을 곧바로 삭제하지 않고 `claimed`로 표시한다. 제한 시간 내 완료되지 않으면 재획득할 수 있고, 실제 완료 후에만 `done` 처리한다.
 
+## 실험 토폴로지 · 장애 후 큐 상태의 차이
+
+~~~mermaid
+flowchart TB
+  TASK["train-batch-001 · Ready"] --> A{"소비 정책"}
+  A -->|"DELETE 방식"| D["작업 행 삭제 후 COMMIT"]
+  A -->|"Lease 방식"| L["claimed, lease_until=110 저장"]
+  D --> C1["Worker exit 17"]
+  L --> C2["Worker exit 17"]
+  C1 --> LOST["재조회 결과 없음"]
+  C2 --> HELD["논리 시각 101: 할당 유지"]
+  HELD --> EXPIRE["논리 시각 111: Lease 만료"]
+  EXPIRE --> RETRY["Worker 재획득"]
+  RETRY --> DONE["done · attempts=2"]
+~~~
+
+시각 100/101/111은 **실제 경과 초가 아니라 실험용 논리 시간**이다. 그림은 실제로 호출한 SQLite 상태 전이를 표현하며 Redis 서버의 소비자 그룹을 직접 검증한 결과는 아니다.
+
+### 장애·복구 시퀀스
+
+~~~mermaid
+sequenceDiagram
+  participant O as Local Orchestrator
+  participant W1 as Worker 1
+  participant DB as SQLite Queue
+  participant W2 as Worker 2
+  O->>W1: 1차 실행 at t=100
+  W1->>DB: DELETE 또는 claimed + COMMIT
+  W1--xO: exit 17
+  O->>W2: 즉시 재조회 at t=101
+  DB-->>W2: 작업 없음 또는 Lease 유지
+  O->>W2: 재조회 at t=111
+  alt 단순 DELETE
+    DB-->>W2: 작업 없음 · 유실
+  else Lease + ACK
+    DB-->>W2: 재획득 가능
+    W2->>DB: done 업데이트
+  end
+~~~
+
+
 ## 3. 실제 실험 환경
 
 | 항목 | 설정 |
