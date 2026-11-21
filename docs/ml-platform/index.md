@@ -95,3 +95,21 @@ Pod identity, Headless Service, volumeClaimTemplates와 데이터 보존.
 
 ### [18 · 디스크 복구·임시 볼륨](/ml-platform/week04-volume-recovery)
 Retain·Delete, PV 재연결, emptyDir와 Generic Ephemeral Volume.
+
+## 5주차 · CH10~11 백그라운드 작업과 GitOps
+
+**[5주차 학습 정리 · Job에서 GitOps까지](/ml-platform/study-week-05)**  
+작업의 성공, 모델 품질 검증, 운영 배포 승인 사이의 책임을 구분합니다.
+
+### [19 · Job과 CronJob의 실행 보장](/ml-platform/week05-job-cronjob)
+일회성·정기 작업의 완료 조건, 재시도, 중복 실행과 품질 게이트.
+
+### [20 · Queue와 Worker의 멱등성](/ml-platform/week05-queue-worker)
+Redis Queue, Worker 장애, 재전달, 상태 추적과 멱등 키.
+
+### [21 · GitOps와 모델 승격](/ml-platform/week05-gitops)
+Git의 선언 상태, MLflow Registry, 고정 모델 버전과 배포 승인.
+
+### [22 · 구성과 Secret의 운영 경계](/ml-platform/week05-config-secrets)
+Namespace·ConfigMap·Secret, RBAC, 환경 분리와 배포 실수 예방.
+
