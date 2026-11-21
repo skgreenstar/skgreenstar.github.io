@@ -131,7 +131,11 @@ kubectl logs job/retrain-manual -n mlops
 
 원인 분리는 Pending(스케줄러/볼륨), ImagePullBackOff(이미지·인증), OOMKilled(메모리), non-zero exit(애플리케이션), Complete 이후 품질 거부(모델 검증) 순으로 한다.
 
-## 6. 설계 결론
+## 6. 실제 검증 · DB에 기록하고 실패한 뒤 재시도하면?
+
+[23 · Job 재시도와 멱등성 실험](/ml-platform/week05-idempotency-lab)에서 별도 프로세스로 `COMMIT → exit 17 → 재실행`을 수행했다. 일반 INSERT는 결과 2건, `UNIQUE(job_id)`와 충돌 처리를 적용한 경우는 1건이었다. 실제 Kubernetes가 아닌 로컬 프로세스로 재시도를 재현한 실험이며 실행 코드를 공개했다.
+
+## 7. 설계 결론
 
 **Job은 계산을 끝내는 컨트롤러이지 모델을 승인하는 컨트롤러가 아니다.** 완료 조건과 품질 게이트, 결과 저장, 재시도 멱등성을 분리해야 한다.
 
