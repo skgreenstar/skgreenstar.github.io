@@ -11,6 +11,10 @@ next:
 
 # 19 · Job은 성공했는데 결과가 잘못될 수도 있을까?
 
+![Job·CronJob 실행 아키텍처](/ml-platform/diagrams/week05-jobs.svg)
+
+*Job·CronJob 실행 아키텍처 · 주요 구성요소와 연결 관계를 보여주는 SVG 그림 (확대해서 확인 가능)*
+
 CH10 Background Processing · Job / CronJob
 
 ## 1. Deployment와 Job의 차이
@@ -23,57 +27,17 @@ CH10 Background Processing · Job / CronJob
 
 Job의 `Complete`는 성공적으로 종료한 Pod 실행 횟수의 조건을 뜻하며, 모델 검증 결과까지 보장하지 않는다.
 
-~~~mermaid
-flowchart LR
-    A["CronJob Schedule"] --> B["Job 생성"]
-    B --> C["Pod 실행"]
-    C --> D{"종료 코드"}
-    D -->|"비정상"| E["재시도 정책"]
-    E --> C
-    D -->|"정상"| F["Job Complete"]
-    F --> G{"모델 품질 게이트"}
-    G -->|"통과"| H["Registry 후보 등록"]
-    G -->|"거부"| I["승격 제외 / 사유 기록"]
-~~~
+> **도식 해설:** Controller는 종료·완료 상태를 추적하지만 품질을 평가하지 않는다.
 
 ## 구성도 · Controller부터 모델 검증까지
 
-~~~mermaid
-flowchart LR
-  CRON["CronJob Controller"] -->|"일정에 따라"| JOB["Job 객체"]
-  MANUAL["수동 제출"] --> JOB
-  JOB --> JC["Job Controller"]
-  JC --> P1["Pod attempt 1"]
-  JC -.->|"실패 시 조건부 재시도"| P2["Pod attempt 2"]
-  P1 --> DB[("외부 결과 DB")]
-  P2 --> DB
-  P2 --> QC{"모델 품질 검사"}
-  QC -->|"통과"| REG["Registry 후보"]
-  QC -->|"미달"| DENY["승격 제외"]
-~~~
+> **도식 해설:** DB COMMIT 이후 비정상 종료하면 동일 작업 재시도로 외부 DB 기록이 중복될 수 있다.
 
 Job Controller가 관찰하는 것은 Pod의 종료·완료 상태이고, **외부 DB에 기록된 결과나 모델 정확도는 직접 검증하지 않는다.** 재시도 전에 이미 외부 쓰기가 확정됐다면 추가 처리가 필요하다.
 
 ### Job과 CronJob의 시간축
 
-~~~mermaid
-sequenceDiagram
-  participant C as CronJob Controller
-  participant J as Job Controller
-  participant P as Training Pod
-  participant D as Result DB
-  C->>J: 스케줄에 따른 Job 생성
-  J->>P: Pod 실행
-  P->>D: 결과 COMMIT
-  D-->>P: Commit 완료
-  Note over P: 이후 오류 발생 가능
-  P--xJ: 비정상 종료
-  J->>P: 정책 범위에서 재시도
-  P->>D: 같은 작업 결과 다시 기록 시도
-  Note over D: UNIQUE / UPSERT 없으면 중복 가능
-  P-->>J: 정상 종료
-  Note over J: Complete ≠ 품질 승인
-~~~
+> **도식 해설:** Job의 Complete와 모델의 Approved는 서로 다른 상태다.
 
 
 ## 2. Job 핵심 필드
