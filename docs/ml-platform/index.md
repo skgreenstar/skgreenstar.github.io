@@ -116,3 +116,6 @@ Namespace·ConfigMap·Secret, RBAC, 환경 분리와 배포 실수 예방.
 ### [23 · 실습: Job 재시도와 멱등성](/ml-platform/week05-idempotency-lab)
 DB 저장 직후 장애·재시도를 실제 프로세스로 재현하고, 중복 저장 2건과 멱등 처리 1건을 비교.
 
+### [24 · 실습: Worker 장애와 작업 복구](/ml-platform/week05-queue-recovery-lab)
+작업 제거 시 유실과 Lease·ACK 기반 재처리를 로컬 프로세스로 비교.
+
