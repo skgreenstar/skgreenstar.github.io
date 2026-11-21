@@ -39,6 +39,46 @@ flowchart TD
     E -->|"UNIQUE + ON CONFLICT"| G["결과 1건: 중복 방지"]
 ~~~
 
+## 실험 토폴로지 · 외부 쓰기와 Job 종료는 독립적이다
+
+~~~mermaid
+flowchart LR
+  RUN["재시도 실행기 · 로컬 subprocess"] --> W1["1차 Worker"]
+  W1 -->|"INSERT + COMMIT"| DB[("SQLite DB")]
+  W1 -->|"exit 17"| FAIL["실패"]
+  FAIL --> W2["2차 Worker"]
+  W2 -->|"동일 job_id INSERT"| DB
+  DB --> X{"DB 제약"}
+  X -->|"일반 INSERT"| TWO["결과 행 2건"]
+  X -->|"UNIQUE + 충돌 무시"| ONE["결과 행 1건"]
+~~~
+
+이번 실험에서 **실제 구현한 요소는 subprocess, SQLite, COMMIT, 종료 코드**다. Kubernetes Job Controller, MLflow 및 원격 DB는 실험하지 않았다.
+
+### 실행 시퀀스와 커밋 경계
+
+~~~mermaid
+sequenceDiagram
+  participant O as Local Orchestrator
+  participant P1 as Worker 1
+  participant DB as SQLite
+  participant P2 as Worker 2
+  O->>P1: 동일 job_id 실행
+  P1->>DB: INSERT
+  P1->>DB: COMMIT
+  DB-->>P1: 기록 확정
+  P1--xO: exit 17
+  O->>P2: 같은 job_id 재시도
+  P2->>DB: INSERT
+  alt UNIQUE 제약 없음
+    DB-->>P2: 새 행 추가
+  else UNIQUE + ON CONFLICT
+    DB-->>P2: 중복 기록 방지
+  end
+  P2-->>O: exit 0
+~~~
+
+
 ## 3. 실제 실행 결과
 
 | 비교 조건 | 첫 실행 종료 코드 | 재시도 종료 코드 | 저장된 결과 건수 |
