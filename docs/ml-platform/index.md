@@ -113,3 +113,6 @@ Git의 선언 상태, MLflow Registry, 고정 모델 버전과 배포 승인.
 ### [22 · 구성과 Secret의 운영 경계](/ml-platform/week05-config-secrets)
 Namespace·ConfigMap·Secret, RBAC, 환경 분리와 배포 실수 예방.
 
+### [23 · 실습: Job 재시도와 멱등성](/ml-platform/week05-idempotency-lab)
+DB 저장 직후 장애·재시도를 실제 프로세스로 재현하고, 중복 저장 2건과 멱등 처리 1건을 비교.
+
