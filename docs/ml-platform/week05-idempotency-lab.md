@@ -11,6 +11,10 @@ next:
 
 # 23 · Job 재시도 시 결과는 중복 저장될까?
 
+![재시도·중복 기록 실험 구조](/ml-platform/diagrams/week05-idempotency.svg)
+
+*재시도·중복 기록 실험 구조 · 주요 구성요소와 연결 관계를 보여주는 SVG 그림 (확대해서 확인 가능)*
+
 CH10 · Background Processing · 직접 실행한 최소 재현 실험
 
 ## 1. 문제 정의
@@ -29,54 +33,17 @@ CH10 · Background Processing · 직접 실행한 최소 재현 실험
 - 조건 A: 일반 INSERT
 - 조건 B: `UNIQUE(job_id)` + `ON CONFLICT DO NOTHING`
 
-~~~mermaid
-flowchart TD
-    A["같은 job_id로 첫 번째 프로세스 실행"] --> B["SQLite INSERT + COMMIT"]
-    B --> C["강제 종료: exit 17"]
-    C --> D["같은 job_id로 재시도: exit 0"]
-    D --> E{"중복 제약 존재?"}
-    E -->|"없음"| F["결과 2건: 중복 발생"]
-    E -->|"UNIQUE + ON CONFLICT"| G["결과 1건: 중복 방지"]
-~~~
+> **도식 해설:** 실제 실험은 subprocess와 SQLite의 COMMIT·강제 종료를 이용했다.
 
 ## 실험 토폴로지 · 외부 쓰기와 Job 종료는 독립적이다
 
-~~~mermaid
-flowchart LR
-  RUN["재시도 실행기 · 로컬 subprocess"] --> W1["1차 Worker"]
-  W1 -->|"INSERT + COMMIT"| DB[("SQLite DB")]
-  W1 -->|"exit 17"| FAIL["실패"]
-  FAIL --> W2["2차 Worker"]
-  W2 -->|"동일 job_id INSERT"| DB
-  DB --> X{"DB 제약"}
-  X -->|"일반 INSERT"| TWO["결과 행 2건"]
-  X -->|"UNIQUE + 충돌 무시"| ONE["결과 행 1건"]
-~~~
+> **도식 해설:** 1차 프로세스가 DB 기록 후 exit 17로 종료된 다음 동일 작업을 재실행했다.
 
 이번 실험에서 **실제 구현한 요소는 subprocess, SQLite, COMMIT, 종료 코드**다. Kubernetes Job Controller, MLflow 및 원격 DB는 실험하지 않았다.
 
 ### 실행 시퀀스와 커밋 경계
 
-~~~mermaid
-sequenceDiagram
-  participant O as Local Orchestrator
-  participant P1 as Worker 1
-  participant DB as SQLite
-  participant P2 as Worker 2
-  O->>P1: 동일 job_id 실행
-  P1->>DB: INSERT
-  P1->>DB: COMMIT
-  DB-->>P1: 기록 확정
-  P1--xO: exit 17
-  O->>P2: 같은 job_id 재시도
-  P2->>DB: INSERT
-  alt UNIQUE 제약 없음
-    DB-->>P2: 새 행 추가
-  else UNIQUE + ON CONFLICT
-    DB-->>P2: 중복 기록 방지
-  end
-  P2-->>O: exit 0
-~~~
+> **도식 해설:** 고유 제약 없이 2건, UNIQUE와 충돌 무시 적용 시 1건을 관찰했다.
 
 
 ## 3. 실제 실행 결과
