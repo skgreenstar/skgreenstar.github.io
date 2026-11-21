@@ -11,6 +11,10 @@ next:
 
 # 5주차 · Job이 성공했다고 ML 파이프라인도 성공한 걸까?
 
+![전체 MLOps 참조 아키텍처](/ml-platform/diagrams/week05-overview.svg)
+
+*전체 MLOps 참조 아키텍처 · 주요 구성요소와 연결 관계를 보여주는 SVG 그림 (확대해서 확인 가능)*
+
 CH10 Background Processing · CH11 GitOps: Configuration as Code
 
 Kubernetes에서 모델 학습을 실행하는 것은 어렵지 않다. 하지만 시간이 걸리는 학습 요청을 API에서 분리하고, 중복 실행을 막고, 실패를 복구하고, 승인되지 않은 모델이 운영에 배포되지 않게 만드는 것은 서로 다른 문제다. 이번 주는 **실행의 성공, 결과의 유효성, 운영 반영의 승인**을 분리해서 살펴본다.
@@ -21,54 +25,13 @@ Kubernetes에서 모델 학습을 실행하는 것은 어렵지 않다. 하지�
 
 아래는 이번 주를 관통하는 **참조 아키텍처**다. 요청 처리와 워커 실행은 CH10, 배포 선언과 동기화는 CH11, 모델의 품질 게이트는 MLOps 영역이다. 하나의 구성도 안에 그리더라도 각 요소의 책임은 구분해야 한다.
 
-~~~mermaid
-flowchart LR
-  subgraph Trigger["요청 및 실행 트리거"]
-    API["API · 수동 요청"]
-    SCHED["CronJob · 정기 일정"]
-  end
-  subgraph Run["CH10 · 작업 실행 계층"]
-    Q[("Queue · 작업 대기")]
-    WRK["Worker Deployment"]
-    JOB["Job · 학습 배치"]
-    KFP["Pipeline · Validation"]
-  end
-  subgraph Meta["모델 자산과 품질"]
-    STORE[("Object Storage · Dataset / Artifact")]
-    REG[("MLflow · Run / Registry")]
-    GATE{"품질·승인 게이트"}
-  end
-  subgraph Deploy["CH11 · 선언적 배포"]
-    GIT[("Git · 이미지/모델 버전")]
-    CTRL["Flux / Argo CD"]
-    INF["Kubernetes · Inference"]
-  end
-  API --> Q --> WRK --> KFP
-  SCHED --> JOB --> KFP
-  KFP <--> STORE
-  KFP --> REG --> GATE
-  GATE -->|"승인 버전 반영"| GIT --> CTRL --> INF
-  INF -->|"모델 버전 관측"| REG
-~~~
+> **도식 해설:** 요청·실행·품질·배포를 하나의 그림으로 연결한 구조다.
 
 실험 23은 **Job 실행 ↔ 외부 DB 결과 기록**, 실험 24는 **Queue ↔ Worker** 사이의 실패 경계를 따로 떼어 검증한다. 그림은 운영 설계 예시이며 실제 구축한 전체 시스템의 결과는 아니다.
 
 ### 실패 위치에 따른 진단 지도
 
-~~~mermaid
-flowchart TD
-  START["예측 결과가 도착하지 않음"] --> A{"작업이 생성되었는가?"}
-  A -->|"아니요"| A1["API·CronJob·큐 적재 확인"]
-  A -->|"예"| B{"실행 Pod가 시작되었는가?"}
-  B -->|"아니요"| B1["Scheduling·Image·Volume 진단"]
-  B -->|"예"| C{"실행이 정상 종료했는가?"}
-  C -->|"아니요"| C1["Retry·Lease·Checkpoint 확인"]
-  C -->|"예"| D{"품질 게이트를 통과했는가?"}
-  D -->|"아니요"| D1["승격 거부·근거 기록"]
-  D -->|"예"| E{"승인 버전이 실제 서빙 중인가?"}
-  E -->|"아니요"| E1["GitOps Sync·Readiness·Model ID"]
-  E -->|"예"| OK["정상 반영 · 추적 완료"]
-~~~
+> **도식 해설:** 장애 진단은 작업 생성 → Pod 실행 → 품질 게이트 → 실제 서빙 버전 순서로 구분한다.
 
 
 ## 1. 학습 범위와 읽는 순서
@@ -84,24 +47,7 @@ flowchart TD
 
 ## 2. 전체 구조: 요청·실행·승격은 서로 다르다
 
-~~~mermaid
-flowchart TD
-    A["사용자 또는 일정 트리거"] --> B{"작업 유형?"}
-    B -->|"정해진 일회성 작업"| C["Kubernetes Job"]
-    B -->|"정기 실행"| D["CronJob → Job"]
-    B -->|"지속적 비동기 요청"| E["Queue → Worker Deployment"]
-    C --> F["Training / Validation"]
-    D --> F
-    E --> F
-    F --> G{"품질 및 데이터 검증"}
-    G -->|"미달"| H["실패 또는 승격 거부 기록"]
-    G -->|"충족"| I["MLflow Registry 모델 버전"]
-    I --> J["배포 승인 및 고정 버전 선택"]
-    K["Git: 코드 / 이미지 / 매니페스트"] --> L["GitOps Controller"]
-    L --> M["Kubernetes 서빙 환경"]
-    J --> M
-    M --> N["Readiness / 버전 확인 / 운영 검증"]
-~~~
+> **도식 해설:** 이 구조는 참조 설계이며 실험 23·24에서는 경계의 일부만 로컬에서 검증했다.
 
 Job 컨트롤러는 프로세스 종료 코드를 본다. 반면 ML 파이프라인 품질 게이트는 데이터 스키마, 기준 지표, 후보 모델, 실제 서빙 버전까지 봐야 한다. **'실행되었다', '검증되었다', '운영 중이다'는 반드시 다른 상태로 취급한다.**
 
