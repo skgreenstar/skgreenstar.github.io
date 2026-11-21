@@ -54,6 +54,13 @@ export default defineConfig({
           { text: '17 · StatefulSet', link: '/ml-platform/week04-stateful-workloads' },
           { text: '18 · 디스크 복구·임시 볼륨', link: '/ml-platform/week04-volume-recovery' }
         ]},
+        { text: '5주차 · CH10~11 백그라운드 작업과 GitOps', items: [
+          { text: '학습 정리 · CH10~11', link: '/ml-platform/study-week-05' },
+          { text: '19 · Job·CronJob', link: '/ml-platform/week05-job-cronjob' },
+          { text: '20 · Queue·Worker', link: '/ml-platform/week05-queue-worker' },
+          { text: '21 · GitOps와 모델 승격', link: '/ml-platform/week05-gitops' },
+          { text: '22 · ConfigMap·Secret', link: '/ml-platform/week05-config-secrets' }
+        ]},
         { text: '심화 · 운영과 평가', items: [
           { text: '운영 자동화', link: '/ml-platform/week-04' },
           { text: '리소스 관리', link: '/ml-platform/week-05' },
