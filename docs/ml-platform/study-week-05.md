@@ -125,7 +125,15 @@ Python 3.13.5와 SQLite로 실제 수행했고 같은 시나리오를 두 번 �
 
 재현 코드와 실제 JSON 출력은 [GitHub week05-lab](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week05-lab)에 공개했다.
 
-## 8. 결론
+## 8. 직접 실행한 검증: Worker가 큐에서 작업을 가져간 뒤 죽으면?
+
+[24 · Worker 장애와 Lease 복구 실험](/ml-platform/week05-queue-recovery-lab)
+
+Python 프로세스 두 개와 SQLite를 이용해 `가져오기 → COMMIT → exit 17 → 재시도` 상황을 실제로 재현했다. 단순 Dequeue는 작업 기록이 사라졌고, Lease·ACK 방식은 만료 후 두 번째 시도에서 완료 상태가 됐다.
+
+이는 **Redis/Kubernetes 직접 실험이 아니라 큐 처리 방식 비교를 위한 로컬 재현**이며, 논리 시각을 사용해 실제 지연 수치를 측정하지 않았다. 코드와 출력 파일은 [GitHub 실험 폴더](https://github.com/skgreenstar/skgreenstar.github.io/tree/main/docs/ml-platform/week05-queue-recovery)에 남겼다.
+
+## 9. 결론
 
 CH10은 **작업 실행·재시도·수명**에 대한 질문이고, CH11은 **운영 변경의 출처·검토·복원**에 대한 질문이다. 이 둘을 연결하려면 모델 품질을 확인하는 별도의 게이트가 필요하다.
 
