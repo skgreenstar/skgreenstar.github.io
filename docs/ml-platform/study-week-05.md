@@ -17,6 +17,60 @@ Kubernetes에서 모델 학습을 실행하는 것은 어렵지 않다. 하지�
 
 > 핵심 질문: Job의 `Complete` 상태가 곧 '서비스 가능한 모델'이라는 뜻일까? 아니다. 컨테이너가 정상 종료했다는 것과 데이터·품질·승격 조건을 만족했다는 것은 다르다.
 
+## 아키텍처 지도 · 5주차에서 다루는 책임 경계
+
+아래는 이번 주를 관통하는 **참조 아키텍처**다. 요청 처리와 워커 실행은 CH10, 배포 선언과 동기화는 CH11, 모델의 품질 게이트는 MLOps 영역이다. 하나의 구성도 안에 그리더라도 각 요소의 책임은 구분해야 한다.
+
+~~~mermaid
+flowchart LR
+  subgraph Trigger["요청 및 실행 트리거"]
+    API["API · 수동 요청"]
+    SCHED["CronJob · 정기 일정"]
+  end
+  subgraph Run["CH10 · 작업 실행 계층"]
+    Q[("Queue · 작업 대기")]
+    WRK["Worker Deployment"]
+    JOB["Job · 학습 배치"]
+    KFP["Pipeline · Validation"]
+  end
+  subgraph Meta["모델 자산과 품질"]
+    STORE[("Object Storage · Dataset / Artifact")]
+    REG[("MLflow · Run / Registry")]
+    GATE{"품질·승인 게이트"}
+  end
+  subgraph Deploy["CH11 · 선언적 배포"]
+    GIT[("Git · 이미지/모델 버전")]
+    CTRL["Flux / Argo CD"]
+    INF["Kubernetes · Inference"]
+  end
+  API --> Q --> WRK --> KFP
+  SCHED --> JOB --> KFP
+  KFP <--> STORE
+  KFP --> REG --> GATE
+  GATE -->|"승인 버전 반영"| GIT --> CTRL --> INF
+  INF -->|"모델 버전 관측"| REG
+~~~
+
+실험 23은 **Job 실행 ↔ 외부 DB 결과 기록**, 실험 24는 **Queue ↔ Worker** 사이의 실패 경계를 따로 떼어 검증한다. 그림은 운영 설계 예시이며 실제 구축한 전체 시스템의 결과는 아니다.
+
+### 실패 위치에 따른 진단 지도
+
+~~~mermaid
+flowchart TD
+  START["예측 결과가 도착하지 않음"] --> A{"작업이 생성되었는가?"}
+  A -->|"아니요"| A1["API·CronJob·큐 적재 확인"]
+  A -->|"예"| B{"실행 Pod가 시작되었는가?"}
+  B -->|"아니요"| B1["Scheduling·Image·Volume 진단"]
+  B -->|"예"| C{"실행이 정상 종료했는가?"}
+  C -->|"아니요"| C1["Retry·Lease·Checkpoint 확인"]
+  C -->|"예"| D{"품질 게이트를 통과했는가?"}
+  D -->|"아니요"| D1["승격 거부·근거 기록"]
+  D -->|"예"| E{"승인 버전이 실제 서빙 중인가?"}
+  E -->|"아니요"| E1["GitOps Sync·Readiness·Model ID"]
+  E -->|"예"| OK["정상 반영 · 추적 완료"]
+~~~
+
+
 ## 1. 학습 범위와 읽는 순서
 
 | 챕터 | 주요 개념 | 이번 주 핵심 질문 |
