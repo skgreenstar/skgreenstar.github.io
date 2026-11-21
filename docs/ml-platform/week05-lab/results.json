@@ -1,0 +1,50 @@
+{
+  "scenario": "crash_after_db_commit_then_retry",
+  "results": [
+    {
+      "mode": "naive",
+      "attempts": [
+        {
+          "attempt": "first",
+          "exit_code": 17
+        },
+        {
+          "attempt": "retry",
+          "exit_code": 0
+        }
+      ],
+      "row_count": 2,
+      "rows": [
+        {
+          "job_id": "retrain-2026w05",
+          "model_uri": "models:/price-predictor/17"
+        },
+        {
+          "job_id": "retrain-2026w05",
+          "model_uri": "models:/price-predictor/17"
+        }
+      ]
+    },
+    {
+      "mode": "idempotent",
+      "attempts": [
+        {
+          "attempt": "first",
+          "exit_code": 17
+        },
+        {
+          "attempt": "retry",
+          "exit_code": 0
+        }
+      ],
+      "row_count": 1,
+      "rows": [
+        {
+          "job_id": "retrain-2026w05",
+          "model_uri": "models:/price-predictor/17"
+        }
+      ]
+    }
+  ],
+  "assertions_passed": true
+}
