@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="568" viewBox="0 0 1060 568" role="img" aria-label="MLOps WEEK 05  |  SYSTEM ARCHITECTURE">
+<rect width="1060" height="568" rx="20" fill="#F8FAFD"/>
+<rect x="0" y="0" width="1060" height="8" fill="#2462A6"/>
+<text x="32" y="57" font-size="27" font-family="Arial, sans-serif" font-weight="700" fill="#172944">MLOps WEEK 05  |  SYSTEM ARCHITECTURE</text>
+<text x="32" y="89" font-size="15" font-family="Arial, sans-serif" fill="#51637B">CH10 Background Processing  +  CH11 GitOps / 모델 품질 게이트와 배포 책임 분리</text>
+<rect x="28" y="122" width="240" height="370" rx="16" fill="#FFF" stroke="#DCE5EF" stroke-width="1.7"/>
+<rect x="43" y="140" width="210" height="35" rx="9" fill="#253B59"/>
+<text x="148" y="163" text-anchor="middle" font-size="15" font-family="Arial, sans-serif" font-weight="700" fill="#FFF">TRIGGER</text>
+<rect x="43" y="197" width="210" height="105" rx="12" fill="#EAF3FF" stroke="#1761AF" stroke-opacity=".26"/>
+<rect x="43" y="197" width="7" height="105" rx="3" fill="#1761AF"/>
+<text x="56" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1761AF">API / Manual</text>
+<text x="56" y="271" font-family="Arial, sans-serif" font-size="14" fill="#394C60">사용자 요청</text>
+<rect x="43" y="327" width="210" height="105" rx="12" fill="#EAF3FF" stroke="#1761AF" stroke-opacity=".26"/>
+<rect x="43" y="327" width="7" height="105" rx="3" fill="#1761AF"/>
+<text x="56" y="369" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1761AF">CronJob</text>
+<text x="56" y="401" font-family="Arial, sans-serif" font-size="14" fill="#394C60">주기적 실행</text>
+<path d="M 277 309 H 291" fill="none" stroke="#8499B0" stroke-width="3" stroke-linecap="round"/>
+<path d="M 290 302 L 299 309 L 290 316" fill="none" stroke="#8499B0" stroke-width="3"/>
+<rect x="291" y="122" width="240" height="370" rx="16" fill="#FFF" stroke="#DCE5EF" stroke-width="1.7"/>
+<rect x="306" y="140" width="210" height="35" rx="9" fill="#253B59"/>
+<text x="411" y="163" text-anchor="middle" font-size="15" font-family="Arial, sans-serif" font-weight="700" fill="#FFF">EXECUTION</text>
+<rect x="306" y="197" width="210" height="105" rx="12" fill="#E5F8FB" stroke="#087D91" stroke-opacity=".26"/>
+<rect x="306" y="197" width="7" height="105" rx="3" fill="#087D91"/>
+<text x="319" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#087D91">Redis Queue</text>
+<text x="319" y="271" font-family="Arial, sans-serif" font-size="14" fill="#394C60">비동기 작업 대기</text>
+<rect x="306" y="327" width="210" height="105" rx="12" fill="#E5F8FB" stroke="#087D91" stroke-opacity=".26"/>
+<rect x="306" y="327" width="7" height="105" rx="3" fill="#087D91"/>
+<text x="319" y="369" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#087D91">Worker / Job</text>
+<text x="319" y="401" font-family="Arial, sans-serif" font-size="14" fill="#394C60">학습·배치 실행</text>
+<path d="M 540 309 H 554" fill="none" stroke="#8499B0" stroke-width="3" stroke-linecap="round"/>
+<path d="M 553 302 L 562 309 L 553 316" fill="none" stroke="#8499B0" stroke-width="3"/>
+<rect x="554" y="122" width="240" height="370" rx="16" fill="#FFF" stroke="#DCE5EF" stroke-width="1.7"/>
+<rect x="569" y="140" width="210" height="35" rx="9" fill="#253B59"/>
+<text x="674" y="163" text-anchor="middle" font-size="15" font-family="Arial, sans-serif" font-weight="700" fill="#FFF">QUALITY</text>
+<rect x="569" y="197" width="210" height="105" rx="12" fill="#F0EDFF" stroke="#6A4EC2" stroke-opacity=".26"/>
+<rect x="569" y="197" width="7" height="105" rx="3" fill="#6A4EC2"/>
+<text x="582" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#6A4EC2">MLflow Registry</text>
+<text x="582" y="271" font-family="Arial, sans-serif" font-size="14" fill="#394C60">모델·실험 관리</text>
+<rect x="569" y="327" width="210" height="105" rx="12" fill="#F0EDFF" stroke="#6A4EC2" stroke-opacity=".26"/>
+<rect x="569" y="327" width="7" height="105" rx="3" fill="#6A4EC2"/>
+<text x="582" y="369" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#6A4EC2">Quality Gate</text>
+<text x="582" y="401" font-family="Arial, sans-serif" font-size="14" fill="#394C60">품질 검증·승인</text>
+<path d="M 803 309 H 817" fill="none" stroke="#8499B0" stroke-width="3" stroke-linecap="round"/>
+<path d="M 816 302 L 825 309 L 816 316" fill="none" stroke="#8499B0" stroke-width="3"/>
+<rect x="817" y="122" width="240" height="370" rx="16" fill="#FFF" stroke="#DCE5EF" stroke-width="1.7"/>
+<rect x="832" y="140" width="210" height="35" rx="9" fill="#253B59"/>
+<text x="937" y="163" text-anchor="middle" font-size="15" font-family="Arial, sans-serif" font-weight="700" fill="#FFF">DELIVERY</text>
+<rect x="832" y="197" width="210" height="105" rx="12" fill="#E6F7EC" stroke="#16824C" stroke-opacity=".26"/>
+<rect x="832" y="197" width="7" height="105" rx="3" fill="#16824C"/>
+<text x="845" y="239" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#16824C">GitOps Repo</text>
+<text x="845" y="271" font-family="Arial, sans-serif" font-size="14" fill="#394C60">승인 버전 선언</text>
+<rect x="832" y="327" width="210" height="105" rx="12" fill="#E6F7EC" stroke="#16824C" stroke-opacity=".26"/>
+<rect x="832" y="327" width="7" height="105" rx="3" fill="#16824C"/>
+<text x="845" y="369" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#16824C">K8s Inference</text>
+<text x="845" y="401" font-family="Arial, sans-serif" font-size="14" fill="#394C60">배포·버전 확인</text>
+<text x="32" y="535" font-family="Arial, sans-serif" font-size="14" fill="#63748A">ML Platform Engineering · Week 05  |  Conceptual architecture / see accompanying text for scope</text></svg>
