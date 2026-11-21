@@ -11,62 +11,29 @@ next:
 
 # 20 · Redis Queue로 학습 작업을 처리하면 무엇이 달라질까?
 
+![Queue·Worker 장애 복구 아키텍처](/ml-platform/diagrams/week05-queue.svg)
+
+*Queue·Worker 장애 복구 아키텍처 · 주요 구성요소와 연결 관계를 보여주는 SVG 그림 (확대해서 확인 가능)*
+
 CH10 Background Processing · Deployment / Redis Queue
 
 ## 1. 왜 요청과 실행을 분리할까?
 
 모델 학습을 HTTP 요청 안에서 직접 끝내려고 하면 클라이언트 연결의 수명이 작업 실행 시간에 종속된다. API는 요청을 검증하고 작업 ID를 반환하며, Worker는 별도의 생명주기로 실행한다.
 
-~~~mermaid
-flowchart LR
-    A["Client"] --> B["FastAPI"]
-    B --> C[("Job DB")]
-    B --> D[("Redis Queue")]
-    D --> E["Worker Deployment"]
-    E --> F["학습 / 추론 작업"]
-    F --> G[("Artifacts / MLflow")]
-    E --> C
-    B --> H["202 + job_id"]
-~~~
+> **도식 해설:** 단순 Pop 방식은 소비 시 제거되고 장애 시 작업 유실 위험이 있다.
 
 API가 작업을 DB에 적재하고 큐에 넣는 두 단계 사이에서 실패할 수 있다. DB와 메시지 브로커 간 원자성이 없기 때문에 운영 환경에서는 transactional outbox 또는 reconciliation 처리를 검토해야 한다.
 
 ## 비교 아키텍처 · 삭제형 큐와 확인형 큐
 
-~~~mermaid
-flowchart TB
-  subgraph Simple["A · 단순 Pop 구조"]
-    A1["API"] --> A2[("Redis List")]
-    A2 -->|"BLPOP: 꺼내면서 제거"| A3["Worker"]
-    A3 -->|"작업 전 장애"| A4["유실 가능"]
-  end
-  subgraph Recover["B · 확인형 작업 구조"]
-    B1["API"] --> B2[("Pending Queue / Stream")]
-    B2 -->|"claim"| B3["Worker"]
-    B3 -->|"성공"| B4["ACK / 완료 기록"]
-    B3 -->|"장애"| B5["Pending + Lease 만료"]
-    B5 -->|"재획득"| B6["복구 Worker"]
-    B6 --> B4
-  end
-~~~
+> **도식 해설:** Pending·Lease 기반 모델은 재획득 가능하지만 동일 작업이 여러 번 수행될 수 있다.
 
 Redis Streams의 Pending Entry List는 소비자 그룹과 확인 상태를 다루는 **실제 Redis 메커니즘**이지만, 여기서 도식화한 Lease 기반 복구는 애플리케이션 설계 개념이다. Redis Streams에서는 `XREADGROUP`, `XACK`, `XAUTOCLAIM` 등의 동작을 별도로 확인해야 한다.
 
 ### 작업 상태 전이 · 재시도 상한 포함
 
-~~~mermaid
-stateDiagram-v2
-  [*] --> QUEUED: 작업 등록
-  QUEUED --> CLAIMED: 소비자 할당
-  CLAIMED --> RUNNING: 실행 시작
-  RUNNING --> SUCCEEDED: 처리 및 결과 확정
-  RUNNING --> RETRY_WAIT: 프로세스 오류/Lease 만료
-  CLAIMED --> RETRY_WAIT: Worker 장애
-  RETRY_WAIT --> QUEUED: 재시도 여유 있음
-  RETRY_WAIT --> DEAD_LETTER: 한도 초과
-  SUCCEEDED --> [*]
-  DEAD_LETTER --> [*]
-~~~
+> **도식 해설:** 멱등성, ACK, 재시도 상한 및 DLQ는 함께 설계해야 한다.
 
 `SUCCEEDED`로 바꾸기 전에 결과 저장이 끝났는지 검증하고, 같은 작업이 중복 전달돼도 상태와 결과가 훼손되지 않는 멱등 처리를 넣는다.
 
